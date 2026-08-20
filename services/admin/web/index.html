@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Управление сервисами · AgentHaus</title>
+<style>
+:root{--ink:#1f2328;--mut:#6b7280;--faint:#9a9588;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--line2:#e2dccf;--accent:#5b5ff0;--accent-soft:#eef0ff;--danger:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+.top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.6rem}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:2.1rem;margin:0}
+.top a{color:var(--accent);text-decoration:none;font-size:.9rem}
+.lead{color:var(--mut);margin:0 0 2rem;max-width:60ch}
+.banner{background:#fff7e6;border:1px solid #f2dfb4;color:#92600a;border-radius:12px;padding:.7rem 1rem;margin-bottom:1.5rem;font-size:.9rem}
+.banner code{background:#fdf6e3;padding:.05em .4em;border-radius:5px}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.4rem 1.5rem;margin-bottom:1.6rem;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+h2{font-family:Georgia,serif;font-weight:600;font-size:1.25rem;margin:.2rem 0 1rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;color:var(--mut);font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;padding:.4rem .6rem;border-bottom:1px solid var(--line2)}
+td{padding:.6rem;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+.svc-title{font-weight:600}
+.svc-url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;color:var(--accent)}
+select{border:1px solid var(--line2);border-radius:8px;padding:.28rem .5rem;background:var(--card);font:inherit;font-size:.85rem}
+.tag{border-radius:999px;padding:.12rem .6rem;font-size:.78rem;border:1px solid var(--line2)}
+.tag.on{background:#eef6ef;border-color:#cbe7cf;color:#1a7f37}
+.tag.off{background:#f0f1f3;border-color:#d9dce1;color:#57606a}
+.btn{border:1px solid var(--line2);background:var(--card);border-radius:9px;padding:.35rem .8rem;font:inherit;font-size:.85rem;cursor:pointer;color:var(--ink)}
+.btn:hover{border-color:#c9c2b4}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger);border-color:#f3c8c8}
+.actions{display:flex;gap:.4rem;justify-content:flex-end}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.field{margin-bottom:1rem}
+label{display:block;font-size:.85rem;color:var(--mut);margin:0 0 .3rem}
+input[type=text],textarea,select.full{width:100%;padding:.6rem .75rem;border:1px solid var(--line2);border-radius:10px;font:inherit;background:var(--card)}
+textarea{min-height:84px;resize:vertical}
+.check{display:flex;align-items:center;gap:.5rem;font-size:.9rem;margin:.6rem 0 1rem}
+.check input{width:auto}
+.msg{padding:.7rem 1rem;border-radius:12px;margin-top:1rem;font-size:.9rem;display:none}
+.msg.ok{background:#eef6ef;border:1px solid #cbe7cf;color:#1a7f37}
+.msg.err{background:#fdeeee;border:1px solid #f3c8c8;color:var(--danger)}
+.msg.info{background:var(--accent-soft);border:1px solid #d4d8ff;color:#3a3f9e}
+.mut{color:var(--mut);font-size:.85rem}
+.preview{margin-top:.8rem;padding:.9rem 1rem;border:1px dashed var(--line2);border-radius:12px;background:#fbfaf7;display:none}
+.preview.show{display:block}
+.preview .p-title{font-weight:600;font-size:1.05rem}
+.preview .p-name{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--accent);margin:.3rem 0}
+.preview .p-note{color:var(--mut);font-size:.85rem}
+.dim{color:var(--faint);font-size:.8rem}
+.spin{opacity:.5;pointer-events:none}
+@media(max-width:640px){.row{grid-template-columns:1fr}.actions{justify-content:flex-start}}
+</style>
+</head>
+<body><div class="wrap">
+  <div class="top"><h1>Управление сервисами</h1><a href="/">← Витрина</a></div>
+  <p class="lead">Единый шлюз на одном порту. Список, доступ, включение, перегенерация метаданных и автоматическое создание нового сервиса через общий бэкенд.</p>
+
+  <div id="banner" class="banner" style="display:none"></div>
+
+  <section>
+    <h2>Сервисы</h2>
+    <table id="services"><tbody id="rows"><tr><td colspan="5" class="dim">Загрузка…</td></tr></tbody></table>
+  </section>
+
+  <section>
+    <h2>Создать сервис</h2>
+    <form id="create">
+      <div class="field"><label>Что делает сервис</label><textarea id="f-desc" placeholder="Например: загружает фото детали и создаёт по нему STL-модель" required></textarea></div>
+      <div class="row">
+        <div class="field"><label>Доступ</label><select id="f-access" class="full"><option value="public">всем (public)</option><option value="registered">зарегистрированным</option><option value="admin">только админ</option></select></div>
+        <div class="field"><label>Уточнения к сценарию (необязательно)</label><input type="text" id="f-guidance" placeholder="Что ещё учесть: формат результата, пакетность и т.д."/></div>
+      </div>
+      <p class="mut" style="margin:0">Форму ввода (текст, файл, список полей), имя, название и сценарий подберёт LLM автоматически.</p>
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn" id="preview-btn">Предпросмотр</button>
+        <button type="submit" class="btn primary" id="create-btn">Создать сервис</button>
+      </div>
+      <div id="preview" class="preview"></div>
+      <div id="create-msg" class="msg"></div>
+    </form>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+let services=[];
+
+function showMsg(elm, text, kind){elm.textContent=text;elm.className="msg "+(kind||"");elm.style.display="block"}
+
+async function api(path,opts){
+  const r=await fetch("api/"+path,{headers:{"Content-Type":"application/json"},...opts});
+  const d=await r.json().catch(()=>({ok:false,error:"bad response"}));
+  if(r.status===403){
+    showMsg($("create-msg"),"Нет доступа. Установи ADMIN_KEY (env/.env) и передавай его заголовком x-admin-key или cookie agenthaus_admin.","err");
+    $("banner").textContent="Админ-доступ выключен: задай ADMIN_KEY, чтобы управлять сервисами.";
+    $("banner").style.display="block";
+  }
+  return d;
+}
+
+async function refresh(){
+  const d=await api("services");
+  if(!d.ok)return;
+  services=d.services||[];
+  $("rows").innerHTML=services.map(s=>`
+    <tr>
+      <td><div class="svc-title">${esc(s.title||s.name)}</div><div class="svc-url">/${esc(s.name)}/</div></td>
+      <td><span class="tag ${s.enabled?"on":"off"}">${s.enabled?"вкл":"выкл"}</span></td>
+      <td>
+        <select data-svc="${esc(s.name)}" data-kind="access" class="access">
+          <option value="public" ${s.access==="public"?"selected":""}>всем</option>
+          <option value="registered" ${s.access==="registered"?"selected":""}>зарегистрир.</option>
+          <option value="admin" ${s.access==="admin"?"selected":""}>админ</option>
+        </select>
+      </td>
+      <td>
+        <div class="actions">
+          <button class="btn" data-svc="${esc(s.name)}" data-kind="regenerate">Регенер. мета</button>
+          <button class="btn" data-svc="${esc(s.name)}" data-kind="toggle">${s.enabled?"Выключить":"Включить"}</button>
+          <a class="btn" href="/${esc(s.name)}/" target="_blank">Открыть</a>
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+$("rows").addEventListener("click",async e=>{
+  const btn=e.target.closest("button[data-kind]");
+  if(!btn)return;
+  const name=btn.dataset.svc, kind=btn.dataset.kind;
+  btn.disabled=true;
+  if(kind==="toggle"){
+    const s=services.find(x=>x.name===name);
+    const d=await api(`services/${encodeURIComponent(name)}/toggle`,{method:"POST",body:JSON.stringify({enabled:!s.enabled})});
+    if(d.ok)await refresh();
+  } else if(kind==="regenerate"){
+    const d=await api(`services/${encodeURIComponent(name)}/regenerate`,{method:"POST",body:"{}"});
+    if(d.ok){await refresh();alert("Метаданные обновлены")}else{alert("Ошибка: "+(d.error||""))}
+  }
+  btn.disabled=false;
+});
+
+$("rows").addEventListener("change",async e=>{
+  if(e.target.dataset.kind!=="access")return;
+  const name=e.target.dataset.svc, access=e.target.value;
+  const d=await api(`services/${encodeURIComponent(name)}/access`,{method:"POST",body:JSON.stringify({access})});
+  if(d.ok)await refresh();
+});
+
+$("preview-btn").addEventListener("click",async ()=>{
+  const desc=$("f-desc").value.trim();
+  const box=$("preview"),msg=$("create-msg");
+  msg.style.display="none";
+  if(!desc){box.classList.remove("show");box.innerHTML="";return;}
+  box.classList.add("show");box.innerHTML="<div class='p-note'>Генерирую имя и название…</div>";
+  const btn=$("preview-btn");btn.disabled=true;
+  const d=await api("preview-service",{method:"POST",body:JSON.stringify({description:desc})});
+  btn.disabled=false;
+  if(d.ok){
+    box.innerHTML=`<div class="p-title">${d.icon?d.icon+" ":""}${esc(d.title)}</div>
+      <div class="p-name">/${esc(d.name)}/</div>
+      <div class="p-note">Имя, форму и сценарий подберёт LLM. Если есть уточнения — добавь их в поле выше.</div>`;
+  } else {
+    box.innerHTML=`<div class="p-note">Предпросмотр недоступен (${esc(d.error||"")}) — создание возможно, имя будет сгенерировано при создании.</div>`;
+  }
+});
+
+$("create").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const btn=$("create-btn");btn.disabled=true;btn.classList.add("spin");showMsg($("create-msg"),"Создаю сервис…","info");
+  const d=await api("create-service",{method:"POST",body:JSON.stringify({
+    description:$("f-desc").value.trim(),
+    access:$("f-access").value,
+    guidance:$("f-guidance").value.trim(),
+  })});
+  if(d.ok){
+    showMsg($("create-msg"),`Сервис «${d.name}» создан (${d.note||""}). Путь: /${d.name}/`,"ok");
+    e.target.reset();await refresh();
+  } else {
+    showMsg($("create-msg"),"Ошибка: "+(d.error||""),"err");
+  }
+  btn.disabled=false;btn.classList.remove("spin");
+});
+
+refresh();
+</script>
+</body></html>

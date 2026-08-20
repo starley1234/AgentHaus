@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# agent-canvas (собственная сборка с твоими правками: RU-локализация + светлая
+# тема). Собирается из локального исходника, поэтому содержит все изменения.
+#
+# Настройки подтягиваются из файла `.env` (см. `.env.example`) в корне проекта.
+# Создай свой `.env` здесь (в корне) — он уже в .gitignore, в git не попадёт.
+#
+# Запуск (из корня проекта):
+#   docker compose up -d
+# Интерфейс: http://localhost:8000/canvas
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  agenthaus:
+    build:
+      # Контекст сборки — корень репозитория (`.`), чтобы Dockerfile мог
+      # скопировать и собрать локальный software-agent-sdk вместе с фронтендом.
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        # Значения по умолчанию берутся из config/defaults.json. Docker build
+        # (в отличие от node scripts/docker-build.mjs) не читает JSON, поэтому
+        # указываем их здесь. При желании переопредели через .env.
+        AGENT_SERVER_IMAGE: "${AGENT_SERVER_IMAGE:-ghcr.io/openhands/agent-server:1.40.1-python}"
+        AUTOMATION_VERSION: "${AUTOMATION_VERSION:-1.6.0}"
+        VITE_BASE_PATH: "${VITE_BASE_PATH:-/canvas}"
+        # Рабочая директория для новых диалогов. По умолчанию /projects (смонтированный
+        # хост-каталог), чтобы файлы, созданные агентом, переживали пересборку образа.
+        # Внутри контейнера рабочая директория = <VITE_WORKING_DIR>/<id_hex>.
+        VITE_WORKING_DIR: "${VITE_WORKING_DIR:-/projects}"
+    image: agenthaus:local
+    container_name: agenthaus
+    restart: unless-stopped
+    ports:
+      - "${AGENT_CANVAS_PORT:-8000}:8000"
+      # ВНИМАНИЕ: сервисы-прослойки (services/…) запускаются на ХОСТЕ (node
+      # server.mjs) и слушают порты 8290–8300. Проброс этих портов в контейнер
+      # занимает их на хосте (docker-proxy), вызывая EADDRINUSE. Поэтому проброс
+      # по умолчанию отключён. Включай его ТОЛЬКО если тебе нужно, чтобы агент
+      # ВНУТРИ контейнера публиковал свои веб-серверы наружу (и не запускай
+      # хостовые сервисы на тех же портах одновременно):
+      #   - "8290-8300:8290-8300"
+    extra_hosts:
+      # Чтобы из контейнера были видны сервисы на хосте (Ollama, LM Studio, vLLM).
+      # Провайдера указывай как http://host.docker.internal:<port>/v1
+      - "host.docker.internal:host-gateway"
+    environment:
+      # ── Свой LLM-провайдер (через переменные окружения, defaults на старте) ──
+      # Эти значения попадают в agent-server. Чтобы провайдер отображался и
+      # использовался в интерфейсе, создай LLM-профиль в Settings → LLM settings
+      # (Base URL + модель + ключ) и сделай его активным. Env-переменные задают
+      # значение по умолчанию для agent-server, но НЕ заполняют выпадающие
+      # списки провайдеров в UI автоматически.
+      LLM_MODEL: "${LLM_MODEL:-}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_API_VERSION: "${LLM_API_VERSION:-}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-}"
+      # ── Vision: включить обработку изображений для своих моделей ──
+      # Через запятую перечисли подстроки имён моделей, которые должны
+      # считаться vision-способными (если LiteLLM/реестр их не знает), напр.:
+      #   OPENHANDS_VISION_MODELS: "unsloth/gemma,my-vision-model"
+      OPENHANDS_VISION_MODELS: "${OPENHANDS_VISION_MODELS:-}"
+      # ── Прокси для внешних LLM-провайдеров и загрузки модулей (openhands.dev, GitHub) ──
+      # Единый переключатель «через прокси/напрямую»: если HTTP_PROXY задан в
+      # .env — исходящий трафик (LLM, MCP, навыки/плагины, git) идёт через него;
+      # если пуст — прокси отключён (прямые подключения).
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-${HTTP_PROXY}}"
+      ALL_PROXY: "${ALL_PROXY:-${HTTP_PROXY}}"
+      NO_PROXY: "${NO_PROXY:-localhost,127.0.0.1}"
+      # ── Навыки/расширения (OpenHands/extensions, вендоренный каталог в образе) ──
+      # По умолчанию агент читает навыки из локального каталога
+      # /opt/agent-canvas/extensions (зашит в образ, без сети). Если нужен другой
+      # источник (например своя папка на хосте) — переопредели через .env.
+      EXTENSIONS_REPO: "${EXTENSIONS_REPO:-/opt/agent-canvas/extensions}"
+      # Маркетплейс-манифест внутри каталога (по умолчанию выбирается сам:
+      # openhands-extensions.json, иначе default.json).
+      # EXTENSIONS_MARKETPLACE: "marketplaces/openhands-extensions.json"
+      # ── Безопасность: свой ключ вместо автогенерации ──
+      LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY:-}"
+      # ── При необходимости — внешний URL (если публикуешь наружу) ──
+      AUTOMATION_BASE_URL: "${AUTOMATION_BASE_URL:-http://localhost:${AGENT_CANVAS_PORT:-8000}}"
+    volumes:
+      # Персистентность: настройки, секреты, диалоги, база автоматизаций.
+      - openhands_data:/home/openhands/.openhands
+      # Папка с проектами, с которыми будет работать агент.
+      - "${PROJECTS_PATH:-./projects}:/projects"
+
+volumes:
+  openhands_data:

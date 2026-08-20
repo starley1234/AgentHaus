@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DocuGen — документация по коду</title>
+    <style>
+      :root{--bg:#f6f7fb;--card:#fff;--ink:#171a23;--mut:#5f6875;--line:#e6e9f0;--accent:#0f766e;--accent2:#0d9488;--ok:#16a34a;--err:#dc2626}
+      *{box-sizing:border-box}
+      body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+      .grad{position:sticky;top:0;z-index:5;background:linear-gradient(120deg,#0f766e,#0d9488);color:#fff;padding:.7rem 1.25rem}
+      .grad .in{max-width:920px;margin:0 auto;display:flex;align-items:center;gap:.6rem;font-weight:600}
+      .wrap{max-width:920px;margin:0 auto;padding:2rem 1.25rem 4rem}
+      .hero{text-align:center;margin-bottom:2rem}
+      .hero h1{font-size:2.3rem;margin:.2rem 0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+      .hero p{color:var(--mut);max-width:560px;margin:.5rem auto 0}
+      .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem}
+      label{display:block;font-size:.85rem;font-weight:600;color:var(--mut);margin:.9rem 0 .3rem}
+      input{width:100%;padding:.7rem .9rem;border:1px solid var(--line);border-radius:10px;font-size:1rem;background:#fbfcfe}
+      input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:linear-gradient(120deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:11px;padding:.8rem 1.3rem;font-size:1rem;font-weight:600;cursor:pointer;width:100%;margin-top:1.2rem}
+      .btn:hover{transform:translateY(-1px)}
+      .hint{font-size:.8rem;color:var(--mut);margin-top:.5rem}
+      .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:.6rem;display:none}
+      .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s}
+      .err{color:var(--err);margin-top:.8rem;font-weight:600}
+      .job{border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.7rem;background:#fff;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+      .job .t{flex:1;min-width:180px;font-weight:600}
+      .chip{padding:.25rem .6rem;border-radius:99px;font-size:.75rem;font-weight:700}
+      .chip.running{background:#e6f7f5;color:var(--accent)}
+      .chip.finished{background:#e7f8ee;color:var(--ok)}
+      .chip.error{background:#fdeaea;color:var(--err)}
+      .job a{color:var(--accent);text-decoration:none;font-weight:600}
+      .empty{color:var(--mut);text-align:center;padding:1rem}
+      .flex{display:flex;gap:.5rem;flex-wrap:wrap}
+    </style>
+  </head>
+  <body>
+    <div class="grad"><div class="in">📚 DocuGen</div></div>
+    <div class="wrap">
+      <div class="hero"><h1>Документация по коду</h1><p>Укажите путь к папке репозитория — ИИ изучит код и соберёт аккуратный сайт документации.</p></div>
+      <div class="card">
+        <label for="repo">Путь к репозиторию (на хосте) *</label>
+        <input id="repo" placeholder="Например: /home/user/myproject или ./projects/myapp" />
+        <button class="btn" id="go">Сгенерировать документацию</button>
+        <div class="hint">Агент прочитает README и код, затем напишет разделы: обзор, установка, использование, архитектура, API.</div>
+        <div id="status"></div>
+        <div class="bar" id="bar"><i id="barfill"></i></div>
+        <div id="error" class="err"></div>
+      </div>
+      <h2 style="font-size:1.15rem;margin:1.6rem 0 .7rem">Проекты</h2>
+      <div id="jobs"></div>
+      <div id="result"></div>
+    </div>
+    <script>
+      const $=(id)=>document.getElementById(id);let pollers={};
+      function chip(s){const m={running:"Выполняется",finished:"Готово",error:"Ошибка"};return `<span class="chip ${s}">${m[s]||s}</span>`;}
+      function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+      async function refresh(){const r=await(await fetch("api/jobs")).json();const b=$("jobs");
+        if(!r.jobs||!r.jobs.length){b.innerHTML='<div class="empty">Пока нет проектов.</div>';return;}
+        b.innerHTML=r.jobs.map(j=>`<div class="job"><div class="t">${esc(j.title||"Проект")}</div><div class="m">${chip(j.status)} ${new Date(j.createdAt).toLocaleString()}</div>${j.status==="finished"?`<div class="flex"><a href="${j.site_url}" target="_blank">Открыть документацию ↗</a></div>`:j.status==="error"?`<span class="err" style="margin:0">${esc(j.error||"")}</span>`:""}</div>`).join("");
+        r.jobs.forEach(j=>{if(j.status==="running")startPoll(j.id);});}
+      function startPoll(id){if(pollers[id])return;const st=Date.now();pollers[id]=setInterval(async()=>{const r=await(await fetch(`api/status?id=${id}`)).json();
+        if(r.status==="finished"||r.status==="error"){clearInterval(pollers[id]);delete pollers[id];if(r.status==="finished")showResult(id);await refresh();}else if(Date.now()-st>30*60*1000){clearInterval(pollers[id]);delete pollers[id];}},3000);}
+      async function showResult(id){const r=await(await fetch(`api/result?id=${id}`)).json();if(!r.ok)return;
+        $("result").innerHTML=`<div class="card"><h3 style="margin:0 0 .5rem">✅ Документация готова</h3><p style="color:var(--mut)">${r.sections.length} разделов. Файлы: ${esc(r.site_path||"")}</p><div class="flex"><a class="btn" style="width:auto;padding:.6rem 1rem" href="${r.site_url}" target="_blank">Открыть документацию ↗</a></div></div>`;}
+      $("go").addEventListener("click",async()=>{const repo=$("repo").value.trim();if(!repo){$("error").textContent="Укажите путь";return;}
+        $("error").textContent="";$("result").innerHTML="";$("bar").style.display="block";$("barfill").style.width="5%";$("status").textContent="Запускаю…";
+        const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({repo_path:repo})});
+        const d=await res.json();if(!d.ok){$("error").textContent=d.error||"Ошибка";return;}
+        const st=Date.now();pollers[d.jobId]=setInterval(async()=>{$("barfill").style.width=(5+Math.min(.9,(Date.now()-st)/(25*60*1000))*95)+"%";$("status").textContent="Изучаю код и пишу документацию…";
+          const r=await(await fetch(`api/status?id=${d.jobId}`)).json();
+          if(r.status==="finished"){clearInterval(pollers[d.jobId]);delete pollers[d.jobId];$("barfill").style.width="100%";$("status").textContent="Готово!";await showResult(d.jobId);await refresh();}
+          else if(r.status==="error"){clearInterval(pollers[d.jobId]);delete pollers[d.jobId];$("status").textContent="";$("error").textContent=r.error||"Ошибка";}},3000);});
+      refresh();setInterval(refresh,8000);
+    </script>
+  </body>
+</html>

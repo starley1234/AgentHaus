@@ -1,0 +1,30 @@
+{
+  "id": "sequential-thinking",
+  "name": "Последовательное мышление",
+  "description": "Позволяет агенту строить и пересматривать цепочку структурированных размышлений.",
+  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking",
+  "iconBg": "var(--oh-color-base)",
+  "keywords": [
+    "reasoning",
+    "planning",
+    "thoughts"
+  ],
+  "connectionOptions": [
+    {
+      "id": "none",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "sequential_thinking",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-sequential-thinking"
+        ]
+      },
+      "auth": {
+        "strategy": "none"
+      }
+    }
+  ]
+}

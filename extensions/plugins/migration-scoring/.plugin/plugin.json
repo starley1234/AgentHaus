@@ -1,0 +1,19 @@
+{
+  "name": "migration-scoring",
+  "version": "1.0.0",
+  "description": "Оценка качества миграции кода по покрытию, корректности и стилю. Формирует исполнительные отчёты с практическими рекомендациями.",
+  "author": {
+    "name": "OpenHands",
+    "email": "contact@all-hands.dev"
+  },
+  "homepage": "https://github.com/OpenHands/extensions",
+  "repository": "https://github.com/OpenHands/extensions",
+  "license": "MIT",
+  "keywords": [
+    "migration",
+    "scoring",
+    "quality",
+    "evaluation",
+    "reporting"
+  ]
+}

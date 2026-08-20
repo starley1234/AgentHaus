@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentHaus — Дискуссия агентов</title>
+    <style>
+      :root{
+        --bg:#ffffff; --bg-soft:#f9fafb; --border:#e5e7eb; --ink:#111827;
+        --mut:#6b7280; --accent:#10a37f; --accent-hover:#0e8a6c; --err:#ef4444;
+      }
+      *{box-sizing:border-box}
+      body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;min-height:100vh}
+      .top{max-width:680px;margin:0 auto;padding:3rem 1.25rem 1rem;text-align:center}
+      .logo{font-size:2.2rem;font-weight:700;letter-spacing:-.02em;margin:0}
+      .logo span{color:var(--accent)}
+      .sub{color:var(--mut);margin:.4rem auto 0;max-width:520px;font-size:.95rem}
+      .card{max-width:680px;margin:1.5rem auto 4rem;padding:0 1.25rem}
+      .panel{background:var(--bg-soft);border:1px solid var(--border);border-radius:16px;padding:1.25rem}
+      .field{margin-bottom:1.1rem}
+      label{display:block;font-size:.85rem;font-weight:500;color:var(--ink);margin-bottom:.35rem}
+      input[type=text],select{width:100%;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;font-size:.95rem;background:#fff;color:var(--ink)}
+      input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+      .hint{font-size:.8rem;color:var(--mut);margin-top:.3rem}
+      .agents-title{font-size:.85rem;font-weight:600;color:var(--ink);margin:.6rem 0 .4rem}
+      .agent{border:1px solid var(--border);border-radius:12px;padding:.8rem;background:#fff;margin-bottom:.6rem}
+      .agent .ahead{display:flex;align-items:center;gap:.5rem;margin-bottom:.55rem}
+      .agent .tag{font-size:.75rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+      .agent .rm{margin-left:auto;background:none;border:none;color:var(--mut);cursor:pointer;font-size:1rem;line-height:1}
+      .agent .rm:hover{color:var(--err)}
+      .agent .arow{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+      @media(max-width:560px){.agent .arow{grid-template-columns:1fr}}
+      .add{background:none;border:1px solid var(--border);border-radius:10px;padding:.45rem .9rem;font-size:.85rem;color:var(--ink);cursor:pointer}
+      .add:hover{border-color:var(--accent);color:var(--accent)}
+      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1.1rem}
+      @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+      .checks{display:flex;gap:1.4rem;margin-top:.9rem;flex-wrap:wrap}
+      .checks label{display:flex;align-items:center;gap:.4rem;margin:0;font-weight:500}
+      .checks input{width:auto}
+      .btn{width:100%;margin-top:1.2rem;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:.7rem;font-size:1rem;font-weight:600;cursor:pointer;transition:background .15s}
+      .btn:hover{background:var(--accent-hover)}
+      .btn:disabled{opacity:.6;cursor:not-allowed}
+      .bar{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:1rem;display:none}
+      .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+      #live{white-space:pre-wrap;margin-top:1rem;font-size:.85rem;color:var(--mut)}
+      .err{color:var(--err);margin-top:.8rem;font-weight:600}
+      #result{margin-top:1.2rem}
+      .result-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1.1rem}
+      .result-card .ok{font-weight:600;margin-bottom:.5rem}
+      .link{display:inline-block;background:var(--accent);color:#fff;border-radius:9px;padding:.55rem 1rem;text-decoration:none;font-weight:600;margin-top:.4rem}
+      .meta{color:var(--mut);font-size:.85rem;margin-top:.4rem}
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <h1 class="logo">Дискуссия<span>·</span>агентов</h1>
+      <p class="sub">2–3 агента обсуждают тему в N раундов с ограничением контекста и суммаризацией. Каждый участник — на своём LLM-профиле. Опционально — вердикт арбитра.</p>
+    </div>
+
+    <div class="card">
+      <div class="panel">
+        <div class="field">
+          <label for="topic">Тема</label>
+          <input type="text" id="topic" placeholder="Например: польза и риски автономных агентов" />
+        </div>
+
+        <div class="agents-title">Участники</div>
+        <div id="agents"></div>
+        <button class="add" id="add-agent">+ Добавить участника</button>
+
+        <div class="grid2">
+          <div class="field">
+            <label for="rounds">Раундов</label>
+            <select id="rounds">
+              <option>2</option><option selected>3</option><option>4</option><option>5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="window">Окно контекста (реплик)</label>
+            <select id="window">
+              <option>2</option><option selected>4</option><option>6</option><option>8</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input type="checkbox" id="summarize" checked /> Суммаризация раундов</label>
+          <label><input type="checkbox" id="arbiter" /> Арбитр</label>
+        </div>
+
+        <button class="btn" id="go">Запустить дискуссию</button>
+        <div class="bar" id="bar"><i id="barfill"></i></div>
+        <div id="live"></div>
+        <div class="err" id="error"></div>
+        <div id="result"></div>
+      </div>
+    </div>
+
+    <script>
+      const $=(id)=>document.getElementById(id);
+      const ROLES=[["Писатель","writer"],["Критик","critic"],["Исследователь","researcher"],["Инженер","engineer"],["Прагматик","pragmatist"]];
+      let PROFILES=[]; let polls={};
+
+      async function loadProfiles(){
+        try{
+          const r=await(await fetch("api/profiles")).json();
+          PROFILES=r.profiles||[];
+        }catch(e){PROFILES=[];}
+        // пере-рендер select'ов профилей уже существующих участников
+        document.querySelectorAll(".a-profile").forEach((sel)=>{fillProfileSel(sel);});
+      }
+      function fillProfileSel(sel){
+        sel.innerHTML='<option value="">Профиль по умолчанию</option>';
+        PROFILES.forEach(p=>{const o=document.createElement("option");o.value=p.name;o.textContent=p.model?`${p.name} · ${p.model}`:p.name;sel.appendChild(o);});
+      }
+      function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+      function agentRow(role){
+        const d=document.createElement("div");d.className="agent";
+        d.innerHTML=`
+          <div class="ahead"><span class="tag">Участник</span><button class="rm" type="button" title="Убрать">✕</button></div>
+          <div class="arow">
+            <div><label>Роль</label><select class="a-role"></select></div>
+            <div><label>LLM-профиль</label><select class="a-profile"></select></div>
+          </div>
+          <label class="tools-chk" style="display:flex;align-items:center;gap:.4rem;margin-top:.6rem;font-weight:500">
+            <input type="checkbox" class="a-tools" /> Использовать инструменты
+          </label>`;
+        const roleSel=d.querySelector(".a-role");
+        ROLES.forEach(([l,v])=>{const o=document.createElement("option");o.value=v;o.textContent=l;roleSel.appendChild(o);});
+        roleSel.value=role||"writer";
+        fillProfileSel(d.querySelector(".a-profile"));
+        d.querySelector(".rm").onclick=()=>d.remove();
+        return d;
+      }
+      const box=$("agents");
+      box.appendChild(agentRow("writer"));
+      box.appendChild(agentRow("critic"));
+      $("add-agent").onclick=()=>{ if(box.children.length<3) box.appendChild(agentRow()); };
+      loadProfiles();
+
+      $("go").onclick=async()=>{
+        const topic=$("topic").value.trim();
+        if(!topic){$("error").textContent="Введите тему";return;}
+        const agents=[...box.querySelectorAll(".agent")].map(r=>({
+          name:r.querySelector(".a-role").value,
+          profile:r.querySelector(".a-profile").value||undefined,
+          allow_tools:r.querySelector(".a-tools").checked
+        }));
+        $("error").textContent="";$("result").innerHTML="";$("live").textContent="";
+        $("bar").style.display="block";$("barfill").style.width="4%";$("go").disabled=true;
+        const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          topic,agents,rounds:Number($("rounds").value),window_size:Number($("window").value),
+          summarize:$("summarize").checked,with_arbiter:$("arbiter").checked})});
+        const d=await res.json();
+        if(!d.ok){$("error").textContent=d.error||"Ошибка";$("go").disabled=false;return;}
+        const start=Date.now();
+        polls[d.jobId]=setInterval(async()=>{
+          const st=await(await fetch(`api/status?id=${d.jobId}`)).json();
+          $("barfill").style.width=(4+Math.min(.92,(Date.now()-start)/(6*60*1000))*96)+"%";
+          $("live").textContent=`Статус: ${st.status} · раундов ${st.rounds} · реплик ${st.transcriptCount||0}`;
+          if(st.status==="finished"){
+            clearInterval(polls[d.jobId]);delete polls[d.jobId];$("barfill").style.width="100%";$("go").disabled=false;
+            const r=await(await fetch(`api/result?id=${d.jobId}`)).json();
+            $("result").innerHTML=`<div class="result-card"><div class="ok">Готово — ${r.transcript.length} реплик, ${r.rounds} раундов</div><div class="meta">Участники: ${r.agents.join(", ")}</div><a class="link" href="${r.site_url}" target="_blank">Открыть стенограмму ↗</a></div>`;
+          }else if(st.status==="error"){
+            clearInterval(polls[d.jobId]);delete polls[d.jobId];$("go").disabled=false;$("error").textContent=st.error||"Ошибка";
+          }
+        },3000);
+      };
+    </script>
+  </body>
+</html>

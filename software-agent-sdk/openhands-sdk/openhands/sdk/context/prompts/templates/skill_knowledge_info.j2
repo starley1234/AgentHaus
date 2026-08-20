@@ -1,0 +1,12 @@
+{% for agent_info in triggered_agents %}
+<EXTRA_INFO>
+Следующая информация включена на основе совпадения по ключевому слову «{{ agent_info.trigger }}».
+Она может быть релевантна запросу пользователя, а может и нет.
+{% if agent_info.location %}
+Расположение навыка: {{ agent_info.location }}
+(Используй этот путь для разрешения относительных ссылок на файлы в содержимом навыка ниже)
+{% endif %}
+
+{{ agent_info.content }}
+</EXTRA_INFO>
+{% endfor %}

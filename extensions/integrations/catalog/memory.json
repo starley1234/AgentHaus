@@ -1,0 +1,31 @@
+{
+  "id": "memory",
+  "name": "Memory",
+  "description": "Постоянная память «ключ-значение» для агента между диалогами.",
+  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+  "iconBg": "#7C3AED",
+  "keywords": [
+    "memory",
+    "kv",
+    "state",
+    "persistence"
+  ],
+  "connectionOptions": [
+    {
+      "id": "none",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "memory",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-memory"
+        ]
+      },
+      "auth": {
+        "strategy": "none"
+      }
+    }
+  ]
+}

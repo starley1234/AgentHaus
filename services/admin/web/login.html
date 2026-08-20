@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Вход · Управление сервисами</title>
+<style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--line2:#e2dccf;--accent:#5b5ff0}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55}
+.wrap{max-width:420px;margin:0 auto;padding:3.5rem 1.25rem}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:1.8rem;margin:0 0 .4rem}
+.lead{color:var(--mut);margin:0 0 1.6rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+label{display:block;font-size:.85rem;color:var(--mut);margin:0 0 .3rem}
+input[type=password]{width:100%;padding:.65rem .8rem;border:1px solid var(--line2);border-radius:10px;font:inherit;background:var(--card);margin-bottom:1rem}
+button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem;font:inherit;cursor:pointer}
+button:disabled{opacity:.6}
+.msg{padding:.7rem 1rem;border-radius:12px;margin-top:1rem;font-size:.9rem;display:none}
+.msg.err{background:#fdeeee;border:1px solid #f3c8c8;color:#b91c1c}
+.msg.ok{background:#eef6ef;border:1px solid #cbe7cf;color:#1a7f37}
+.hint{margin-top:1.2rem;font-size:.82rem;color:#9a9588;line-height:1.5}
+.hint code{background:#f0ede6;padding:.05em .4em;border-radius:5px}
+a{color:var(--accent)}
+</style>
+</head>
+<body><div class="wrap">
+  <h1>Вход</h1>
+  <p class="lead">Панель управления сервисами доступна администраторам.</p>
+  <div class="card">
+    <form id="login">
+      <label for="key">ADMIN_KEY</label>
+      <input type="password" id="key" placeholder="Введи ключ администратора" autofocus/>
+      <button type="submit" id="go">Войти</button>
+      <div id="msg" class="msg"></div>
+    </form>
+  </div>
+  <p class="hint">
+    Ключ задаётся в <code>ADMIN_KEY</code> (см. <code>.env</code>) и запуском
+    <code>./services/run.sh</code>. Вход ставит cookie <code>agenthaus_admin</code>.
+    Для API можно вместо формы слать заголовок <code>x-admin-key: &lt;ключ&gt;</code>.
+    <br/><a href="/">← На главную</a>
+  </p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+$("login").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const btn=$("go"),msg=$("msg");
+  btn.disabled=true;msg.style.display="none";
+  try{
+    const r=await fetch("api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:$("key").value})});
+    const d=await r.json();
+    if(r.ok){msg.className="msg ok";msg.style.display="block";msg.textContent="Вход выполнен, загружаю…";setTimeout(()=>location.reload(),400);}
+    else{msg.className="msg err";msg.style.display="block";msg.textContent=d.error==="bad key"?"Неверный ключ":"Нет доступа (ADMIN_KEY не задан в .env)";}
+  }catch(err){msg.className="msg err";msg.style.display="block";msg.textContent="Ошибка: "+err}
+  btn.disabled=false;
+});
+</script>
+</body></html>

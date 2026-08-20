@@ -1,0 +1,19 @@
+{
+  "id": "jira-issue-to-pr",
+  "name": "Задача Jira в PR GitHub",
+  "category": "Управление проектами",
+  "description": "Следит за проектом Jira Cloud на предмет задач с заданной меткой и автоматически открывает PR в GitHub.",
+  "requires": {
+    "integrations": {
+      "jira": {
+        "message": "Reads the project for issues carrying the trigger label."
+      },
+      "github": {
+        "message": "Opens a pull request on the repository named in the ticket."
+      }
+    }
+  },
+  "popularityRank": 85,
+  "estimatedSetupMinutes": 5,
+  "exampleImplementation": "Trigger: cron polling (e.g. every 5 minutes)\nRequired secrets: Jira API token, GitHub personal access token (repo + workflow scope)\n\n1. Collect Jira base URL, email, API token secret name, label to watch, and cron schedule from the user. No GitHub repo is needed at deploy time - each ticket must include the target repo (owner/repo) in its body.\n2. Poll POST /rest/api/3/search/jql on the Jira Cloud instance to find open issues carrying the configured label.\n3. Deduplicate against a KV-store-backed set of already-processed issue keys so re-runs never create duplicate PRs.\n4. For each new issue, start an independent OpenHands agent conversation that extracts the GitHub repo from the ticket body, clones it, creates a branch named after the Jira key, implements or scaffolds the requested change, and opens a pull request.\n5. Immediately after the conversation is created, post a Jira comment on the issue: 'I'm on it: <conversation URL>'.\n6. Persist the processed issue key immediately after dispatching so the next poll skips it."
+}

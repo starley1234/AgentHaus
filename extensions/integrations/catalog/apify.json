@@ -1,0 +1,41 @@
+{
+  "id": "apify",
+  "name": "Apify Actors",
+  "description": "Запускайте любые из 5000+ акторов Apify (скрейперы, автоматизации) прямо из агента.",
+  "docsUrl": "https://docs.apify.com/platform/integrations/mcp",
+  "iconBg": "#10b981",
+  "keywords": [
+    "scraping",
+    "automation",
+    "crawl",
+    "actors"
+  ],
+  "connectionOptions": [
+    {
+      "id": "api",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "apify",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@apify/actors-mcp-server"
+        ],
+        "envFields": [
+          {
+            "key": "APIFY_TOKEN",
+            "label": "Apify token",
+            "type": "password",
+            "required": true,
+            "helperText": "API token from your Apify account settings.",
+            "helperLink": "https://console.apify.com/account/integrations"
+          }
+        ]
+      },
+      "auth": {
+        "strategy": "api_key"
+      }
+    }
+  ]
+}

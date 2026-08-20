@@ -1,0 +1,22 @@
+{
+  "name": "openhands",
+  "version": "0.1.0",
+  "description": "Единый плагин OpenHands — объединяет навыки Cloud CLI, REST API, Автоматизаций и Software Agent SDK в один плагин.",
+  "author": {
+    "name": "OpenHands",
+    "email": "contact@all-hands.dev"
+  },
+  "homepage": "https://github.com/OpenHands/extensions",
+  "repository": "https://github.com/OpenHands/extensions",
+  "license": "MIT",
+  "keywords": [
+    "openhands",
+    "cloud",
+    "api",
+    "automation",
+    "cli",
+    "delegation",
+    "sdk",
+    "agent"
+  ]
+}

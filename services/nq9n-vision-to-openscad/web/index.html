@@ -1,0 +1,130 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>"3D-Конструктор по фото"</title>
+<style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--accent:#5b5ff0}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.65}
+.wrap{max-width:720px;margin:0 auto;padding:3rem 1.25rem 5rem}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:2rem;margin:.1rem 0 .4rem}
+.sub{color:var(--mut);margin:0 0 2rem;font-size:1.02rem}
+label{font-size:.85rem;color:var(--mut);display:block;margin:1rem 0 .35rem}
+input[type=text],input[type=number],input[type=file],textarea,select{width:100%;padding:.7rem .85rem;border:1px solid var(--line);border-radius:10px;background:var(--card);font:inherit;margin-bottom:.2rem}
+input[type=file]{padding:.55rem;cursor:pointer}
+textarea{min-height:90px;resize:vertical}
+button#go{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem 1.5rem;font:inherit;font-weight:500;cursor:pointer;margin-top:1.2rem}
+button#go:disabled{opacity:.6;cursor:default}
+.job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.85rem 1rem;margin:.6rem 0}
+.job .t{font-weight:600}
+.btn-link{display:inline-block;color:var(--accent);text-decoration:none;font-size:.92rem;background:none;border:0;padding:0;cursor:pointer;font:inherit}
+.btn-link:hover{text-decoration:underline}
+.err{color:#b91c1c;font-size:.9rem}
+.md{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.5rem 1.7rem;margin-top:1.6rem}
+.md h1,.md h2,.md h3{border-bottom:2px solid var(--line);padding-bottom:.4rem;margin:1.2rem 0 .5rem;font-family:Georgia,serif}
+.md h1{font-size:1.5rem}.md h2{font-size:1.3rem}.md h3{font-size:1.1rem}
+.md p{margin:.5rem 0}
+.md ul,.md ol{padding-left:1.3rem}
+.md li{margin:.25rem 0}
+.md code{background:#f0ede6;padding:.12em .4em;border-radius:5px;font-size:.9em}
+.md pre{background:#f6f4f0;padding:1rem;border-radius:10px;overflow:auto}
+.md pre code{background:none;padding:0}
+.md table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+.md th,.md td{border:1px solid var(--line);padding:.5rem .7rem;text-align:left}
+.md th{background:#f0ede6}
+.md a{color:var(--accent)}
+.md blockquote{border-left:3px solid var(--accent);margin:1rem 0;padding:.2rem 1rem;color:var(--mut)}
+@media(max-width:600px){h1{font-size:1.7rem}.wrap{padding:2rem 1rem}}
+</style></head><body><div class="wrap">
+<h1>📐 "3D-Конструктор по фото"</h1>
+<p class="sub">"Пользователь загружает изображение, агенты строят его конструкцию с помощью openscad, рендерит, валидирует, корректирует"</p>
+<label for="ftitle">Название задачи (необязательно)</label>
+<input type="text" id="ftitle" placeholder="Название результата">
+<label for="f_input_image">Изображение объекта</label>
+<input type="file" id="f_input_image" accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip" style="padding:.5rem;background:#fff">
+<label for="f_detail_level">Уровень детализации</label>
+<select id="f_detail_level" class="full"><option value="Низкий (быстро)">Низкий (быстро)</option><option value="Средний">Средний</option><option value="Высокий (точно)">Высокий (точно)</option></select>
+<label for="f_comments">Дополнительные пожелания</label>
+<textarea id="f_comments" placeholder="Укажите размеры или особенности, если нужно"></textarea>
+<button id="go">Запустить</button>
+<div id="out"></div>
+<div id="result"></div>
+<script>
+window.__FIELDS__ = [{"key":"input_image","label":"Изображение объекта","type":"file","placeholder":"Загрузите фото или схему","required":true},{"key":"detail_level","label":"Уровень детализации","type":"select","options":["Низкий (быстро)","Средний","Высокий (точно)"],"required":true},{"key":"comments","label":"Дополнительные пожелания","type":"textarea","placeholder":"Укажите размеры или особенности, если нужно","required":false}];
+
+const FIELDS = window.__FIELDS__;
+const esc = (s)=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $$ = (id)=>document.getElementById(id);
+let poll = null;
+function inlineMd(s){
+  let t = String(s??"");
+  t = t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return t;
+}
+function mdToHtml(md){
+  if(!md) return "";
+  const lines = String(md).replace(/\r\n/g,"\n").split("\n");
+  const out = []; let para=[]; let list=null; let table=null; let code=null;
+  const flushP=()=>{ if(para.length){ out.push("<p>"+para.join(" ")+"</p>"); para=[]; } };
+  const flushList=()=>{ if(list){ out.push("<"+list.tag+">"+list.items.map(x=>"<li>"+x+"</li>").join("")+"</"+list.tag+">"); list=null; } };
+  const flushTable=()=>{ if(table&&table.length){ let h="<table>"; table.forEach((r,i)=>{ h+="<tr>"+r.map(c=>{ const tg=i===0?"th":"td"; return "<"+tg+">"+inlineMd(c)+"</"+tg+">"; }).join("")+"</tr>"; }); out.push(h+"</table>"); } table=null; };
+  for(const line of lines){
+    if(code!==null){ if(line.trim().startsWith("```")){ out.push("<pre>"+code+"</pre>"); code=null; } else code+=esc(line)+"\n"; continue; }
+    if(line.trim().startsWith("```")){ flushP();flushList();flushTable(); code=""; continue; }
+    if(/^\s*\|/.test(line)){ flushP();flushList(); const c=line.trim().replace(/^\||\|$/g,"").split("|").map(x=>x.trim()); if(!c.every(x=>/^:?-+:?$/.test(x.replace(/-/g,"")))){ if(!table)table=[]; table.push(c);} continue; }
+    flushTable();
+    const h=line.match(/^(#{1,6})\s+(.*)$/); if(h){ flushP();flushList(); out.push("<h"+h[1].length+">"+inlineMd(h[2])+"</h"+h[1].length+">"); continue; }
+    if(/^\s*[-*]\s+/.test(line)){ flushP(); if(!list)list={tag:"ul",items:[]}; list.items.push(inlineMd(line.replace(/^\s*[-*]\s+/,""))); continue; }
+    if(/^\s*\d+\.\s+/.test(line)){ flushP(); if(!list)list={tag:"ol",items:[]}; list.items.push(inlineMd(line.replace(/^\s*\d+\.\s+/,""))); continue; }
+    flushList();
+    if(line.trim()===""){ flushP(); continue; }
+    para.push(inlineMd(line.trim()));
+  }
+  flushP();flushList();flushTable(); if(code!==null) out.push("<pre>"+code+"</pre>");
+  return out.join("\n");
+}
+function readFileAsBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]||"");r.onerror=rej;r.readAsDataURL(f);});}
+function chip(s){return s==='finished'?'✅ готово':s==='running'?'⏳ выполняется':s==='error'?'⚠️ ошибка':s;}
+async function refresh(){
+  const r = await (await fetch("api/jobs")).json();
+  const out=$$("out"); if(!r.jobs) return;
+  out.innerHTML = r.jobs.map(j=>{
+    let h=`<div class="t">${esc(j.title||"Задача")}</div><div>${chip(j.status)}</div>`;
+    if(j.status==="finished") h+=`<div><button class="btn-link" onclick="showResult('${j.id}')">Открыть результат ↗</button></div>`;
+    if(j.status==="error") h+=`<div class="err">${esc(j.error||"")}</div>`;
+    return `<div class="job">${h}</div>`;
+  }).join("");
+}
+async function showResult(id){
+  const r = await (await fetch(`api/result?id=${id}`)).json();
+  if(!r.ok) return;
+  const box=$$("result"); box.innerHTML="";
+  if(r.markdown){ const w=document.createElement("div"); w.className="md"; w.innerHTML=mdToHtml(r.markdown); box.appendChild(w); }
+  if(r.site_url){ const a=document.createElement("a"); a.className="btn-link"; a.href=r.site_url; a.target="_blank"; a.textContent="Открыть как сайт ↗"; box.appendChild(a); }
+  box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function start(){
+  const go=$$("go"); go.disabled=true; go.textContent="Запускаю…";
+  const payload={ title:(($$("ftitle")||{}).value||"").trim(), files:[] };
+  for(const f of FIELDS){
+    if(f.type==="file"){
+      const inp=$$("f_"+f.key);
+      if(inp&&inp.files&&inp.files[0]){ const file=inp.files[0]; payload.files.push({name:file.name,type:file.type||"application/octet-stream",data:await readFileAsBase64(file)}); }
+      else if(f.required){ alert("Загрузите файл: "+f.label); go.disabled=false; go.textContent="Запустить"; return; }
+    } else {
+      const el=$$("f_"+f.key); const v=el?el.value:"";
+      if(f.required && String(v).trim()===""){ alert("Заполните: "+f.label); go.disabled=false; go.textContent="Запустить"; return; }
+      payload[f.key]=v;
+    }
+  }
+  const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(!res.ok){ $$("out").innerHTML=`<div class="err">Ошибка запуска</div>`; go.disabled=false; go.textContent="Запустить"; return; }
+  const d=await res.json(); refresh();
+  poll=setInterval(async()=>{ const st=await (await fetch(`api/status?id=${d.jobId}`)).json(); refresh(); if(st.status!=="running"&&st.status!=="stuck"){ clearInterval(poll); go.disabled=false; go.textContent="Запустить"; } },2000);
+}
+$$("go").onclick=start; refresh();
+
+</script></div></body></html>

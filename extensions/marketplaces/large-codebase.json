@@ -1,0 +1,66 @@
+{
+  "name": "large-codebase",
+  "owner": {
+    "name": "OpenHands",
+    "email": "contact@all-hands.dev"
+  },
+  "metadata": {
+    "description": "OpenHands skills for interacting, improving, and refactoring large codebases",
+    "version": "1.0.0",
+    "pluginRoot": "./skills"
+  },
+  "plugins": [
+    {
+      "name": "add-javadoc",
+      "source": "./skills/add-javadoc",
+      "description": "Добавление подробной JavaDoc-документации к Java-классам и методам. Используй при документировании Java-кода.",
+      "category": "code-quality",
+      "keywords": [
+        "javadoc",
+        "java",
+        "documentation",
+        "api-docs"
+      ]
+    },
+    {
+      "name": "cobol-modernization",
+      "source": "./plugins/cobol-modernization",
+      "description": "Полный процесс миграции COBOL в Java: настройка сборки, основной код и сопутствующие изменения.",
+      "category": "development",
+      "keywords": [
+        "cobol",
+        "java",
+        "migration",
+        "mainframe",
+        "modernization"
+      ]
+    },
+    {
+      "name": "migration-scoring",
+      "source": "./plugins/migration-scoring",
+      "description": "Оценка качества миграции кода по покрытию, корректности и стилю с итоговым баллом.",
+      "category": "code-quality",
+      "keywords": [
+        "migration",
+        "scoring",
+        "quality",
+        "evaluation",
+        "reporting"
+      ]
+    },
+    {
+      "name": "spark-version-upgrade",
+      "source": "./skills/spark-version-upgrade",
+      "description": "Обновление приложений Apache Spark между мажорными версиями (2.x→3.x, 3.x→4.x) с учётом изменений API.",
+      "category": "environment",
+      "keywords": [
+        "spark",
+        "upgrade",
+        "migration",
+        "pyspark",
+        "scala",
+        "big-data"
+      ]
+    }
+  ]
+}

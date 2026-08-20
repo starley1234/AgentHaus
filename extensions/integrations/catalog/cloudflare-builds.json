@@ -1,0 +1,28 @@
+{
+  "id": "cloudflare-builds",
+  "name": "Cloudflare Builds",
+  "description": "Просматривайте Workers Builds — логи, статусы и повторный запуск упавших деплоев.",
+  "docsUrl": "https://developers.cloudflare.com/agents/model-context-protocol/",
+  "iconBg": "#F38020",
+  "logoUrl": "https://cdn.simpleicons.org/cloudflare/FFFFFF",
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "ci",
+    "builds",
+    "deploys"
+  ],
+  "connectionOptions": [
+    {
+      "id": "oauth",
+      "provider": "mcp",
+      "transport": {
+        "kind": "shttp",
+        "url": "https://builds.mcp.cloudflare.com/mcp"
+      },
+      "auth": {
+        "strategy": "oauth2"
+      }
+    }
+  ]
+}

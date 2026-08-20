@@ -1,0 +1,30 @@
+{
+  "id": "everything",
+  "name": "Everything (демо)",
+  "description": "Референсный сервер, использующий все возможности MCP — полезен для тестирования.",
+  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
+  "iconBg": "#6366F1",
+  "keywords": [
+    "demo",
+    "test",
+    "reference"
+  ],
+  "connectionOptions": [
+    {
+      "id": "none",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "everything",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-everything"
+        ]
+      },
+      "auth": {
+        "strategy": "none"
+      }
+    }
+  ]
+}

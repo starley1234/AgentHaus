@@ -1,0 +1,30 @@
+{
+  "id": "fetch",
+  "name": "Fetch",
+  "description": "Простой HTTP-загрузчик: скачивает URL и преобразует HTML в читаемый markdown.",
+  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+  "iconBg": "var(--oh-interactive-hover)",
+  "keywords": [
+    "http",
+    "web",
+    "url",
+    "scrape"
+  ],
+  "connectionOptions": [
+    {
+      "id": "none",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "fetch",
+        "command": "uvx",
+        "args": [
+          "mcp-server-fetch"
+        ]
+      },
+      "auth": {
+        "strategy": "none"
+      }
+    }
+  ]
+}

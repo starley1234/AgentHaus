@@ -1,0 +1,19 @@
+{
+  "name": "city-weather",
+  "version": "1.0.0",
+  "description": "Текущая погода, время и прогноз осадков для любого города.",
+  "author": {
+    "name": "JP Shackelford",
+    "email": "jpshackelford@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/jpshackelford/openhands-sample-plugins",
+  "repository": "https://github.com/jpshackelford/openhands-sample-plugins",
+  "license": "MIT",
+  "keywords": [
+    "weather",
+    "time",
+    "forecast",
+    "temperature",
+    "precipitation"
+  ]
+}

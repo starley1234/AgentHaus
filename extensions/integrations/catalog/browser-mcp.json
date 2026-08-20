@@ -1,0 +1,31 @@
+{
+  "id": "browser-mcp",
+  "name": "Browser MCP",
+  "description": "Управляйте локальной вкладкой браузера — навигация, клики, ввод текста и чтение DOM.",
+  "docsUrl": "https://browsermcp.io/",
+  "iconBg": "#0EA5E9",
+  "keywords": [
+    "browser",
+    "automation",
+    "chrome",
+    "playwright"
+  ],
+  "connectionOptions": [
+    {
+      "id": "none",
+      "provider": "mcp",
+      "transport": {
+        "kind": "stdio",
+        "serverName": "browser_mcp",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@browsermcp/mcp"
+        ]
+      },
+      "auth": {
+        "strategy": "none"
+      }
+    }
+  ]
+}

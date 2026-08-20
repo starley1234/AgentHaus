@@ -1,0 +1,18 @@
+{
+  "name": "issue-duplicate-checker",
+  "version": "0.1.0",
+  "description": "Поиск дубликатов задач GitHub с OpenHands Cloud и автоматизация жизненного цикла кандидатов-дубликатов.",
+  "author": {
+    "name": "OpenHands",
+    "email": "contact@all-hands.dev"
+  },
+  "homepage": "https://github.com/OpenHands/extensions",
+  "repository": "https://github.com/OpenHands/extensions",
+  "license": "MIT",
+  "keywords": [
+    "issues",
+    "duplicates",
+    "github",
+    "automation"
+  ]
+}

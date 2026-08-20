@@ -1,0 +1,42 @@
+# AgentHaus
+
+Самохостимый центр управления для агентов-программистов: русская локализация, светлая тема,
+автономный режим, вендоренный каталог навыков. Собирается целиком из этого репозитория.
+
+## Структура
+
+| Каталог | Что это |
+|---|---|
+| `frontend/` | UI AgentHaus (React + Vite) и его npm-сборка |
+| `software-agent-sdk/` | Python SDK агент-сервера (патчи: vision, автономный режим, critic и т.д.) |
+| `extensions/` | Вендоренный каталог навыков OpenHands/extensions (русифицирован) |
+| `docker/` | `Dockerfile` и `entrypoint.sh` для сборки образа |
+| `docker-compose.yml` | Оркестрация всего стека (frontend + agent-server + automation) |
+| `.env.example` | Шаблон настроек — скопируй в `.env` в корне |
+
+## Быстрый запуск (Docker)
+
+```sh
+cp .env.example .env   # заполни LLM-провайдера и другие настройки
+docker compose up -d
+```
+
+Интерфейс: http://localhost:8000/canvas
+
+Подробности: [`frontend/docs/DOCKER_DEPLOYMENT_RU.md`](frontend/docs/DOCKER_DEPLOYMENT_RU.md)
+
+## Запуск фронтенда в dev-режиме
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+## Документация
+
+- Развёртывание в Docker: [`frontend/docs/DOCKER_DEPLOYMENT_RU.md`](frontend/docs/DOCKER_DEPLOYMENT_RU.md)
+- Автономный режим: [`frontend/docs/AUTONOMOUS_MODE_RU.md`](frontend/docs/AUTONOMOUS_MODE_RU.md)
+- Навыки и их русификация: [`frontend/docs/SKILLS_RU.md`](frontend/docs/SKILLS_RU.md)
+- Среда разработки: [`frontend/docs/DEVELOPMENT.md`](frontend/docs/DEVELOPMENT.md)
+- Работа с OpenSCAD: [`frontend/docs/OPENSCAD_AGENT_RU.md`](frontend/docs/OPENSCAD_AGENT_RU.md)

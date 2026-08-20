@@ -1,0 +1,42 @@
+# Root .dockerignore — build context is the repo ROOT (see frontend/docker-compose.yml),
+# so these patterns apply to the whole repo. software-agent-sdk/ must NOT be
+# ignored — the Dockerfile installs it into the image.
+
+# Dependencies
+**/node_modules/
+**/build/
+**/dist/
+
+# Git & dev metadata
+.git/
+.github/
+.openhands/
+.agents/
+.pr/
+
+# Secrets / environment — keep API keys out of the image & context
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+
+# Test artifacts
+**/__tests__/
+**/tests/
+**/__mocks__/
+**/test-results/
+**/playwright-report*/
+**/coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Misc
+**/artifacts/
+**/*.tgz
+**/*.log

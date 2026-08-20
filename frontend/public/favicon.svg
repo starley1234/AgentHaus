@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ah-grad" x1="140" y1="90" x2="884" y2="934" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5b5ff0"/>
+      <stop offset="1" stop-color="#9a5ff0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#ah-grad)"/>
+  <path d="M512 190 128 840h256l128-260 128 260h256L512 190Z" fill="#ffffff"/>
+  <path d="M404 690h216" stroke="#ffffff" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="512" cy="500" r="80" fill="url(#ah-grad)"/>
+  <circle cx="512" cy="500" r="36" fill="#ffffff"/>
+</svg>
