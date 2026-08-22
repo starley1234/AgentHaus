@@ -1,0 +1,59 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>PDF BOM API</title><style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--accent:#5b5ff0}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:3rem 1.25rem 4rem}
+h1{font-family:Georgia,serif;font-size:2rem;margin:.2rem 0 .5rem}
+.sub{color:var(--mut);margin:0 0 2rem}
+label{font-size:.85rem;color:var(--mut);display:block;margin:0 0 .35rem}
+input{width:100%;padding:.7rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--card);font:inherit;margin-bottom:1rem}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem 1.4rem;font:inherit;cursor:pointer}
+.job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin:.8rem 0}
+.job a{color:var(--accent)}
+pre{background:#f0f2f7;padding:1rem;border-radius:10px;overflow:auto;font-size:.85rem}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:6px;background:#e0e7ff;color:#3730a3;font-size:.75rem;margin-right:.4rem}
+</style></head><body><div class="wrap">
+<h1>📄 PDF BOM API (Production)</h1>
+<p class="sub">Production-ready API для извлечения ведомости материалов из PDF: JSON + CSV + XLSX. С биллингом, очередью, админкой. GDPR-версия для EU производства.</p>
+
+<p><span class="badge">GDPR</span><span class="badge">JSON + CSV + XLSX</span><span class="badge">€0.20/page</span><span class="badge">Stripe-ready</span></p>
+
+<h3>API Docs</h3>
+<pre id="docs">Загрузка...</pre>
+
+<label for="file">PDF файл спецификации</label>
+<input type="file" id="file" accept=".pdf">
+<button id="go">🚀 Извлечь BOM</button>
+<div id="out"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function chip(s){return s==='finished'?'✅ готово':s==='running'?'⏳ выполняется':s==='error'?'⚠️ ошибка':s}
+async function loadDocs(){
+  const r=await fetch("api/docs"); const j=await r.json();
+  $("docs").textContent=JSON.stringify(j,null,2);
+}
+function readFileAsBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]||"");r.onerror=rej;r.readAsDataURL(f)})}
+async function filePayload(){const f=$("file").files[0];if(!f)return null;return{name:f.name,type:f.type||"application/pdf",data:await readFileAsBase64(f)}}
+async function refresh(){
+  const r=await (await fetch("api/jobs")).json();
+  $("out").innerHTML=r.jobs.map(j=>`<div class="job"><div class="t">${esc(j.title||"BOM")}</div><div>${chip(j.status)}</div>${j.status==="finished"?`<div><a href="${j.site_url}" target="_blank">Открыть результат ↗</a> · <a href="${j.site_url}bom.json" download>JSON</a> · <a href="${j.site_url}bom.csv" download>CSV</a> · <a href="${j.site_url}bom.xlsx" download>XLSX</a></div>`:j.status==="error"?`<div class="err">${esc(j.error||"")}</div>`:""}</div>`).join("");
+}
+async function start(){
+  const go=$("go");go.disabled=true;go.textContent="Запускаю…";
+  const payload={file: await filePayload()};
+  const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(!res.ok){$("out").innerHTML=`<div class="err">Ошибка ${res.status}</div>`;go.disabled=false;go.textContent="🚀 Извлечь BOM";return}
+  const d=await res.json();
+  refresh();
+  const poll=setInterval(async()=>{
+    const st=await (await fetch(`api/status?id=${d.jobId}`)).json();
+    refresh();
+    if(st.status!=="running"&&st.status!=="stuck"){clearInterval(poll);go.disabled=false;go.textContent="🚀 Извлечь BOM"}
+  },2000);
+}
+$("go").onclick=start;
+loadDocs();
+refresh();
+</script>
+</div></body></html>

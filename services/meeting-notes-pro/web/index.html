@@ -1,0 +1,52 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Meeting Notes Pro</title><style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--accent:#5b5ff0}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:3rem 1.25rem 4rem}
+h1{font-family:Georgia,serif;font-weight:600;font-size:2rem;margin:.2rem 0 .5rem}
+.sub{color:var(--mut);margin:0 0 2rem}
+label{font-size:.85rem;color:var(--mut);display:block;margin:0 0 .35rem}
+textarea,input{width:100%;padding:.7rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--card);font:inherit;margin-bottom:1rem}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem 1.4rem;font:inherit;cursor:pointer}
+.job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin:.8rem 0}
+.job a{color:var(--accent)}
+.err{color:#b91c1c}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:6px;background:#e0e7ff;color:#3730a3;font-size:.75rem;margin-right:.4rem}
+</style></head><body><div class="wrap">
+<h1>📝 Meeting Notes Pro</h1>
+<p class="sub">GDPR-версия для EU компаний: аудио/текст стенограммы → структурированный конспект с решениями, задачами (с ответственными и дедлайнами), вопросами. Интеграция Slack/Notion/Linear, экспорт. Self-hosted, без отправки в US.</p>
+
+<p><span class="badge">GDPR</span><span class="badge">Self-hosted</span><span class="badge">Slack + Notion</span><span class="badge">€0.10/встреча</span></p>
+
+<label for="inp">Текст стенограммы встречи (вставьте из Zoom, Whisper, Otter)</label>
+<textarea id="inp" rows="10" placeholder="Иван: Давайте обсудим релиз...
+Мария: Я предлагаю...
+..."></textarea>
+<label for="title">Название встречи</label>
+<input type="text" id="title" placeholder="Планирование релиза v2.0">
+<button id="go">🚀 Создать конспект</button>
+<div id="out"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function chip(s){return s==='finished'?'✅ готово':s==='running'?'⏳ выполняется':s==='error'?'⚠️ ошибка':s}
+async function refresh(){
+  const r=await (await fetch("api/jobs")).json();
+  $("out").innerHTML=r.jobs.map(j=>`<div class="job"><div class="t">${esc(j.title||"Встреча")}</div><div>${chip(j.status)}</div>${j.status==="finished"?`<div><a href="${j.site_url}" target="_blank">Открыть конспект ↗</a></div>`:j.status==="error"?`<div class="err">${esc(j.error||"")}</div>`:""}</div>`).join("");
+}
+async function start(){
+  const go=$("go");go.disabled=true;go.textContent="Создаю…";
+  const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input:$("inp").value.trim(),title:$("title").value.trim()})});
+  if(!res.ok){$("out").innerHTML=`<div class="err">Ошибка</div>`;go.disabled=false;go.textContent="🚀 Создать конспект";return}
+  const d=await res.json();
+  refresh();
+  const poll=setInterval(async()=>{
+    const st=await (await fetch(`api/status?id=${d.jobId}`)).json();
+    refresh();
+    if(st.status!=="running"&&st.status!=="stuck"){clearInterval(poll);go.disabled=false;go.textContent="🚀 Создать конспект"}
+  },2000);
+}
+$("go").onclick=start;
+refresh();
+</script>
+</div></body></html>
