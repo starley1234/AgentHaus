@@ -288,6 +288,11 @@ RUNTIME_SERVICES_INFO="$(node /opt/agent-canvas/runtime-services-info.mjs \
   --automation-url "$AUTOMATION_BASE_URL")"
 
 # EFFECTIVE_SESSION_KEY is set above from LOCAL_BACKEND_API_KEY or the persisted api-key.txt
+# Для продакшена также проксируем сервисы-деньги (services/*) через gateway на хосте,
+# чтобы они были доступны по единому порту 8000 (например, /simple-ui/ → gateway).
+# Gateway слушает на хосте на GATEWAY_PORT (по умолчанию 8290) и доступен из контейнера
+# как host.docker.internal:8290 благодаря extra_hosts в docker-compose.yml.
+# Если gateway не запущен на хосте — эти маршруты вернут 502, что нормально.
 node /opt/agent-canvas/static-server.mjs \
   --port "$PORT" \
   --host :: \
@@ -304,7 +309,19 @@ node /opt/agent-canvas/static-server.mjs \
   --route "/ready=http://127.0.0.1:${AGENT_SERVER_PORT}" \
   --route "/docs=http://127.0.0.1:${AGENT_SERVER_PORT}" \
   --route "/redoc=http://127.0.0.1:${AGENT_SERVER_PORT}" \
-  --route "/openapi.json=http://127.0.0.1:${AGENT_SERVER_PORT}" &
+  --route "/openapi.json=http://127.0.0.1:${AGENT_SERVER_PORT}" \
+  --route "/simple-ui=http://host.docker.internal:8290" \
+  --route "/bom-parse=http://host.docker.internal:8290" \
+  --route "/pdf-bom-api=http://host.docker.internal:8290" \
+  --route "/micro-saas-factory=http://host.docker.internal:8290" \
+  --route "/seo-affiliate-site=http://host.docker.internal:8290" \
+  --route "/meeting-notes-pro=http://host.docker.internal:8290" \
+  --route "/robokassa-payment=http://host.docker.internal:8290" \
+  --route "/book-site=http://host.docker.internal:8290" \
+  --route "/docs-site=http://host.docker.internal:8290" \
+  --route "/debate=http://host.docker.internal:8290" \
+  --route "/meeting-notes=http://host.docker.internal:8290" \
+  --route "/nq9n-vision-to-openscad=http://host.docker.internal:8290" &
 STATIC_PID=$!
 PIDS+=("$STATIC_PID")
 

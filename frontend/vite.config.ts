@@ -514,6 +514,56 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: !INSECURE_SKIP_VERIFY,
         },
+        // Прокси для денежных сервисов и простого UI через gateway :8290
+        // Чтобы http://localhost:3001/simple-ui/ работал в dev-режиме
+        "/simple-ui": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/bom-parse": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/pdf-bom-api": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/micro-saas-factory": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/seo-affiliate-site": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/meeting-notes-pro": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/robokassa-payment": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/book-site": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/docs-site": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/debate": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/meeting-notes": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
+        "/nq9n-vision-to-openscad": {
+          target: "http://127.0.0.1:8290",
+          changeOrigin: true,
+        },
       },
       watch: {
         ignored: ["**/node_modules/**", "**/.git/**"],
