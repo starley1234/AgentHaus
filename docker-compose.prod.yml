@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# AgentHaus — продакшен-оверрайд для docker-compose.yml
+# Расширяет базовый docker-compose.yml, добавляя:
+#   - ротацию логов (чтобы не забивать диск)
+#   - healthcheck (проверка /health)
+#   - env_file (явное указание .env)
+#   - опциональные лимиты ресурсов
+#   - tmpfs для /tmp
+#
+# Использование:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f --tail=100
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  agenthaus:
+    # Явно указать .env файл (базовый compose уже читает переменные через ${VAR:-default},
+    # но env_file гарантирует, что все переменные из .env попадут в контейнер)
+    env_file:
+      - .env
+
+    # Логирование с ротацией — критично для прода, иначе json-логи могут вырасти до гигабайтов
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+    # Healthcheck — Docker будет проверять, что сервис отвечает
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || curl -f http://localhost:18000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # tmpfs для временных файлов (ускоряет, не пишет на диск хоста)
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+
+    # Опционально: ограничение ресурсов (раскомментируй, если нужно)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "2"
+    #       memory: 4G
+    #     reservations:
+    #       cpus: "0.5"
+    #       memory: 1G
+
+    # Дополнительные лейблы для мониторинга
+    labels:
+      - "com.agenthaus.description=AgentHaus production"
+      - "com.agenthaus.managed-by=docker-compose"
+
+# Volume уже определён в базовом файле, здесь не переопределяем
+# Но можно добавить драйвер/опции если нужно
+# volumes:
+#   openhands_data:
+#     driver: local
