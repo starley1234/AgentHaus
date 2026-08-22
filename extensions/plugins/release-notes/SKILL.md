@@ -3,28 +3,31 @@ name: release-notes
 description: Генерация согласованных, хорошо структурированных заметок о релизе из истории git.
 triggers:
 - /release-notes
+- заметки о релизе
+- changelog
+- список изменений
 ---
 
-# Release Notes Generator Plugin
+# Плагин генератора Release Notes
 
-Automates the generation of standardized release notes for OpenHands repositories using an OpenHands agent. The agent reviews the release range, judges significance, groups related PRs, and produces concise markdown for GitHub releases or changelogs.
+Автоматизирует генерацию стандартизированных заметок о релизе для репозиториев OpenHands с использованием агента OpenHands. Агент просматривает диапазон релиза, оценивает значимость, группирует связанные PR и выдаёт краткий markdown для релизов GitHub или changelog.
 
-## Features
+## Возможности
 
-- **Automatic tag detection**: Finds the previous release tag to determine the commit range
-- **Agent-based editing**: Lets the agent decide which changes matter, open with a short conversational summary, and group related PRs into higher-signal summaries while keeping toolkit-maintainer-only details out of the main sections unless they are unusually significant
-- **Structured GitHub context**: Supplies PR titles, labels, descriptions, and contributor metadata to guide the agent
-- **Contributor attribution**: Includes PR numbers and author usernames for each change
-- **Attribution validation**: Verifies every change bullet contains explicit PR/commit references and the matching author handles
-- **Full coverage appendix**: Appends a compact `### 🔎 Small Fixes/Internal Changes` section grouped by author when needed so every PR and author in the release range is still listed somewhere in the final markdown
-- **New contributor highlighting**: Identifies first-time human contributors from merged PR history and excludes bot accounts
-- **Flexible output**: Can update GitHub release notes or generate CHANGELOG.md entries
+- **Автоматическое определение тегов**: Находит предыдущий тег релиза для определения диапазона коммитов
+- **Редактирование на основе агента**: Позволяет агенту решать, какие изменения важны, начинать с короткого разговорного резюме и группировать связанные PR в более высокосигнальные саммари, держа детали только для мейнтейнеров тулкита вне основных разделов, если они не необычно значимы
+- **Структурированный контекст GitHub**: Передаёт заголовки PR, метки, описания и метаданные контрибьюторов, чтобы направлять агента
+- **Атрибуция контрибьюторов**: Включает номера PR и юзернеймы авторов для каждого изменения
+- **Валидация атрибуции**: Проверяет, что каждый пункт изменений содержит явные ссылки на PR/коммиты и соответствующие хэндлы авторов
+- **Аппендикс полного покрытия**: Добавляет компактный раздел `### 🔎 Мелкие фиксы/Внутренние изменения`, сгруппированный по автору, когда нужно, чтобы каждый PR и автор в диапазоне релиза всё равно был перечислен где-то в финальном markdown
+- **Подсветка новых контрибьюторов**: Определяет первых человеческих контрибьюторов из истории смерженных PR и исключает бот-аккаунты
+- **Гибкий вывод**: Может обновлять заметки о релизе GitHub или генерировать записи CHANGELOG.md
 
-## Quick Start
+## Быстрый старт
 
-### As a GitHub Action
+### Как GitHub Action
 
-Copy the workflow file to your repository:
+Скопируйте файл workflow в ваш репозиторий:
 
 ```bash
 mkdir -p .github/workflows
@@ -32,7 +35,7 @@ curl -o .github/workflows/release-notes.yml \
   https://raw.githubusercontent.com/OpenHands/extensions/main/plugins/release-notes/workflows/release-notes.yml
 ```
 
-PowerShell equivalent:
+Эквивалент PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force .github\workflows | Out-Null
@@ -41,52 +44,52 @@ Invoke-WebRequest `
   -OutFile .github\workflows\release-notes.yml
 ```
 
-Configure required secrets (see the README for details).
+Настройте необходимые секреты (см. README для деталей).
 
-### Manual Invocation
+### Ручной вызов
 
-Use the `/release-notes` trigger in an OpenHands conversation to generate release notes for the current repository.
+Используйте триггер `/release-notes` в беседе OpenHands, чтобы сгенерировать заметки о релизе для текущего репозитория.
 
-## Release Notes Format
+## Формат Release Notes
 
-Generated release notes follow this structure:
+Сгенерированные заметки о релизе следуют этой структуре:
 
 ```markdown
 ## [v1.2.0] - 2026-03-06
 
-### ⚠️ Breaking Changes
-- Remove deprecated `--legacy` CLI flag (#456) @maintainer
+### ⚠️ Критические изменения
+- Удаление устаревшего флага CLI `--legacy` (#456) @maintainer
 
-### ✨ New Features
-- Add support for Claude Sonnet 4.6 model (#445) @contributor1
+### ✨ Новые возможности
+- Добавлена поддержка модели Claude Sonnet 4.6 (#445) @contributor1
 
-### 🐛 Bug Fixes
-- Fix WebSocket reconnection on network interruption (#451) @contributor3
+### 🐛 Исправления ошибок
+- Исправлено переподключение WebSocket при разрыве сети (#451) @contributor3
 
-### 📚 Documentation
-- Update installation guide (#442) @contributor2
+### 📚 Документация
+- Обновлён гайд установки (#442) @contributor2
 
-### 👥 New Contributors
-- @contributor3 made their first contribution in #451
+### 👥 Новые контрибьюторы
+- @contributor3 сделал первый вклад в #451
 
-**Full Changelog**: https://github.com/org/repo/compare/v1.1.0...v1.2.0
+**Полный список изменений**: https://github.com/org/repo/compare/v1.1.0...v1.2.0
 ```
 
-## Change Categorization
+## Категоризация изменений
 
-Changes are categorized based on:
+Изменения категоризируются на основе:
 
-1. **Conventional commit prefixes**: `feat:`, `fix:`, `docs:`, `chore:`, `BREAKING:`
-2. **PR labels**: `breaking-change`, `bug`, `enhancement`, `documentation`
+1. **Префиксов conventional commits**: `feat:`, `fix:`, `docs:`, `chore:`, `BREAKING:`
+2. **Меток PR**: `breaking-change`, `bug`, `enhancement`, `documentation`
 
-| Category | Commit Prefixes | PR Labels |
+| Категория | Префиксы коммитов | Метки PR |
 |----------|-----------------|-----------|
-| Breaking Changes | `BREAKING:`, `!:` suffix | `breaking-change`, `breaking` |
-| Features | `feat:`, `feature:` | `enhancement`, `feature` |
-| Bug Fixes | `fix:`, `bugfix:` | `bug`, `bugfix` |
-| Documentation | `docs:` | `documentation`, `docs` |
-| Internal | `chore:`, `ci:`, `refactor:`, `test:` | `internal`, `chore`, `ci` |
+| Критические изменения | `BREAKING:`, суффикс `!:` | `breaking-change`, `breaking` |
+| Возможности | `feat:`, `feature:` | `enhancement`, `feature` |
+| Исправления ошибок | `fix:`, `bugfix:` | `bug`, `bugfix` |
+| Документация | `docs:` | `documentation`, `docs` |
+| Внутреннее | `chore:`, `ci:`, `refactor:`, `test:` | `internal`, `chore`, `ci` |
 
-## Configuration
+## Конфигурация
 
-See the [README](./README.md) for full configuration options and workflow setup instructions.
+См. [README](./README.md) для полных опций конфигурации и инструкций по настройке workflow.

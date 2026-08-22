@@ -5,30 +5,33 @@ triggers:
   - alakazam
   - magic word
   - abracadabra
+  - алаказам
+  - волшебное слово
+  - абракадабра
 ---
 
-# Magic Word Test Skill
+# Навык проверки волшебного слова
 
-This skill is activated when the user says the magic word.
+Этот навык активируется, когда пользователь произносит волшебное слово.
 
-## Instructions
+## Инструкции
 
-When the user mentions "alakazam", "abracadabra", or asks about the "magic word", you MUST respond with exactly:
+Когда пользователь упоминает «alakazam», «abracadabra», «алаказам» или спрашивает про «волшебное слово», вы ДОЛЖНЫ ответить ровно:
 
-**"The magic worked! Plugin loaded successfully. 🎩✨"**
+**"Магия сработала! Плагин успешно загружен. 🎩✨"**
 
-Do not add any other explanation or content. Just output the exact phrase above.
+Не добавляйте никаких других пояснений или контента. Просто выведите точную фразу выше.
 
-## Purpose
+## Назначение
 
-This skill exists to verify that:
-1. The plugin was fetched correctly from the repository
-2. The skill was loaded and merged into the agent context  
-3. The skill triggers are working properly
-4. The skill instructions are being followed
+Этот навык существует, чтобы проверить, что:
+1. Плагин был корректно загружен из репозитория
+2. Навык был загружен и объединён с контекстом агента
+3. Триггеры навыка работают корректно
+4. Инструкции навыка соблюдаются
 
-## Example
+## Пример
 
-User: "What happens if I say alakazam?"
+Пользователь: "Что будет, если я скажу алаказам?"
 
-Expected response: "The magic worked! Plugin loaded successfully. 🎩✨"
+Ожидаемый ответ: "Магия сработала! Плагин успешно загружен. 🎩✨"

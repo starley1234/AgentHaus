@@ -1,10 +1,10 @@
-# Release Notes Generator Plugin
+# Плагин генератора Release Notes
 
-Automated release notes generation using OpenHands agents. This plugin provides GitHub workflows that generate consistent, well-structured release notes when release tags are pushed.
+Автоматизированная генерация release notes с использованием агентов OpenHands. Этот плагин предоставляет GitHub workflow, которые генерируют единообразные, хорошо структурированные заметки о релизе при пуше тегов релиза.
 
-## Quick Start
+## Быстрый старт
 
-Copy the workflow file to your repository:
+Скопируйте файл workflow в ваш репозиторий:
 
 ```bash
 mkdir -p .github/workflows
@@ -12,42 +12,42 @@ curl -o .github/workflows/release-notes.yml \
   https://raw.githubusercontent.com/OpenHands/extensions/main/plugins/release-notes/workflows/release-notes.yml
 ```
 
-Then configure the required secrets (see [Installation](#installation) below).
+Затем настройте необходимые секреты (см. [Установка](#установка) ниже).
 
-## Features
+## Возможности
 
-- **Automatic Tag Detection**: Automatically finds the previous release tag to determine the commit range
-- **Agent-Based Summaries**: Uses an OpenHands agent to judge significance, merge related PRs, and decide what is worth mentioning
-- **Structured GitHub Context**: Feeds the agent merged PR titles, labels, bodies, authors, and contributor information for the release range
-- **Conventional Commits Support**: Uses commit prefixes (`feat:`, `fix:`, `docs:`, etc.) as categorization hints for the agent
-- **PR Label Support**: Uses GitHub PR labels as additional hints for the agent
-- **Contributor Attribution**: Includes PR numbers and author usernames for each change the agent keeps
-- **Attribution Validation**: Fails the workflow if any release-range PR/commit or corresponding author is omitted from the final notes
-- **Deterministic Coverage Appendix**: When the agent omits lower-signal PRs, the action appends a compact `### 🔎 Small Fixes/Internal Changes` appendix grouped by author so every PR and author in the release range is still listed somewhere in the output
-- **New Contributor Highlighting**: Identifies first-time human contributors from merged PR history and excludes bot accounts
-- **Flexible Output**: Updates GitHub release notes directly or outputs for CHANGELOG.md
+- **Автоматическое определение тегов**: Автоматически находит предыдущий тег релиза для определения диапазона коммитов
+- **Саммари на основе агента**: Использует агента OpenHands для оценки значимости, объединения связанных PR и решения, что стоит упоминать
+- **Структурированный контекст GitHub**: Передаёт агенту заголовки, метки, тела, авторов и информацию о контрибьюторах смерженных PR для диапазона релиза
+- **Поддержка Conventional Commits**: Использует префиксы коммитов (`feat:`, `fix:`, `docs:` и т.д.) как подсказки категоризации для агента
+- **Поддержка меток PR**: Использует метки GitHub PR как дополнительные подсказки для агента
+- **Атрибуция контрибьюторов**: Включает номера PR и юзернеймы авторов для каждого изменения, которое агент сохраняет
+- **Валидация атрибуции**: Проваливает workflow, если какой-либо PR/коммит диапазона релиза или соответствующий автор опущен из финальных заметок
+- **Детерминированный аппендикс покрытия**: Когда агент опускает низкосигнальные PR, action добавляет компактный аппендикс `### 🔎 Мелкие фиксы/Внутренние изменения`, сгруппированный по автору, чтобы каждый PR и автор в диапазоне релиза всё равно был перечислен где-то в выводе
+- **Подсветка новых контрибьюторов**: Определяет первых человеческих контрибьюторов из истории смерженных PR и исключает бот-аккаунты
+- **Гибкий вывод**: Обновляет заметки о релизе GitHub напрямую или выводит для CHANGELOG.md
 
-## Plugin Contents
+## Содержимое плагина
 
 ```
 plugins/release-notes/
-├── README.md              # This file
-├── SKILL.md               # Plugin definition
-├── action.yml             # Composite GitHub Action
-├── scripts/               # Python scripts
-│   ├── agent_script.py    # OpenHands agent orchestration
+├── README.md              # Этот файл
+├── SKILL.md               # Определение плагина
+├── action.yml             # Композитный GitHub Action
+├── scripts/               # Python-скрипты
+│   ├── agent_script.py    # Оркестрация агента OpenHands
 │   ├── generate_release_notes.py
 │   ├── prompt.py
 │   └── validate_release_notes.py
-└── workflows/             # Example GitHub workflow files
+└── workflows/             # Примеры файлов GitHub workflow
     └── release-notes.yml
 ```
 
-## Installation
+## Установка
 
-### 1. Copy the Workflow File
+### 1. Скопируйте файл workflow
 
-Copy the workflow file to your repository's `.github/workflows/` directory:
+Скопируйте файл workflow в каталог `.github/workflows/` вашего репозитория:
 
 ```bash
 mkdir -p .github/workflows
@@ -55,168 +55,167 @@ curl -o .github/workflows/release-notes.yml \
   https://raw.githubusercontent.com/OpenHands/extensions/main/plugins/release-notes/workflows/release-notes.yml
 ```
 
-### 2. Configure Secrets
+### 2. Настройте секреты
 
-Add the following secrets in your repository settings (**Settings → Secrets and variables → Actions**):
+Добавьте следующие секреты в настройках репозитория (**Settings → Secrets and variables → Actions**):
 
-| Secret | Required | Description |
+| Секрет | Обязательно | Описание |
 |--------|----------|-------------|
-| `LLM_API_KEY` | Yes | API key for the LLM used by the OpenHands agent |
-| `GITHUB_TOKEN` | Auto | Provided automatically by GitHub Actions |
+| `LLM_API_KEY` | Да | API-ключ для LLM, используемого агентом OpenHands |
+| `GITHUB_TOKEN` | Авто | Предоставляется автоматически GitHub Actions |
 
-**Note**: The default `GITHUB_TOKEN` is sufficient for most use cases. For repositories that need elevated permissions, use a personal access token.
+**Примечание**: Дефолтного `GITHUB_TOKEN` достаточно для большинства случаев. Для репозиториев, которым нужны повышенные права, используйте personal access token.
 
-### 3. Customize the Workflow (Optional)
+### 3. Настройте workflow (опционально)
 
-Edit the workflow file to customize:
+Отредактируйте файл workflow для кастомизации:
 
 ```yaml
-- name: Generate Release Notes
+- name: Генерация Release Notes
   uses: OpenHands/extensions/plugins/release-notes@main
   with:
-    # The release tag to generate notes for
+    # Тег релиза, для которого генерировать заметки
     tag: ${{ github.ref_name }}
 
-    # Optional: Override previous tag detection
+    # Опционально: Переопределить определение предыдущего тега
     # previous-tag: v1.0.0
 
-    # Include internal/infrastructure changes (default: false)
+    # Включать внутренние/инфраструктурные изменения (по умолчанию: false)
     include-internal: false
 
-    # Output format: 'release' (GitHub release) or 'changelog' (CHANGELOG.md)
+    # Формат вывода: 'release' (релиз GitHub) или 'changelog' (CHANGELOG.md)
     output-format: release
 
-    # Optional model override
+    # Опциональное переопределение модели
     # llm-model: anthropic/claude-sonnet-4-5-20250929
 
-    # Secrets
+    # Секреты
     llm-api-key: ${{ secrets.LLM_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Usage
+## Использование
 
-### Automatic Triggers
+### Автоматические триггеры
 
-Release notes are automatically generated when:
+Release notes автоматически генерируются когда:
 
-1. A tag matching `v[0-9]+.[0-9]+.[0-9]+*` is pushed (e.g., `v1.2.0`, `v2.0.0-beta.1`)
+1. Пушится тег, соответствующий `v[0-9]+.[0-9]+.[0-9]+*` (например, `v1.2.0`, `v2.0.0-beta.1`)
 
-### Manual Triggering
+### Ручной триггер
 
-You can also manually trigger release notes generation:
+Вы также можете вручную триггерить генерацию release notes:
 
-1. Go to **Actions** in your repository
-2. Select the "Generate Release Notes" workflow
-3. Click **Run workflow**
-4. Enter the tag to generate notes for
+1. Перейдите в **Actions** в вашем репозитории
+2. Выберите workflow "Generate Release Notes"
+3. Нажмите **Run workflow**
+4. Введите тег, для которого генерировать заметки
 
-## Action Inputs
+## Входные параметры Action
 
-| Input | Required | Default | Description |
+| Вход | Обязательно | По умолчанию | Описание |
 |-------|----------|---------|-------------|
-| `tag` | Yes | - | The release tag to generate notes for |
-| `previous-tag` | No | Auto-detect | Override automatic detection of previous release |
-| `include-internal` | No | `false` | Include internal/infrastructure changes |
-| `output-format` | No | `release` | Output format: `release` or `changelog` |
-| `llm-model` | No | `anthropic/claude-sonnet-4-5-20250929` | LLM used by the OpenHands agent |
-| `llm-base-url` | No | - | Optional custom LLM endpoint |
-| `llm-api-key` | Yes | - | API key for the OpenHands agent's LLM |
-| `github-token` | Yes | - | GitHub token for API access |
+| `tag` | Да | - | Тег релиза, для которого генерировать заметки |
+| `previous-tag` | Нет | Авто-определение | Переопределить автоматическое определение предыдущего релиза |
+| `include-internal` | Нет | `false` | Включать внутренние/инфраструктурные изменения |
+| `output-format` | Нет | `release` | Формат вывода: `release` или `changelog` |
+| `llm-model` | Нет | `anthropic/claude-sonnet-4-5-20250929` | LLM, используемая агентом OpenHands |
+| `llm-base-url` | Нет | - | Опциональный кастомный эндпоинт LLM |
+| `llm-api-key` | Да | - | API-ключ для LLM агента OpenHands |
+| `github-token` | Да | - | GitHub токен для доступа к API |
 
-## Action Outputs
+## Выходные параметры Action
 
-| Output | Description |
+| Выход | Описание |
 |--------|-------------|
-| `release-notes` | The generated release notes in markdown format |
-| `previous-tag` | The detected or provided previous release tag |
-| `commit-count` | Number of commits included in the release |
-| `contributor-count` | Number of unique contributors |
-| `new-contributor-count` | Number of first-time contributors |
+| `release-notes` | Сгенерированные release notes в формате markdown |
+| `previous-tag` | Обнаруженный или предоставленный предыдущий тег релиза |
+| `commit-count` | Количество коммитов, включённых в релиз |
+| `contributor-count` | Количество уникальных контрибьюторов |
+| `new-contributor-count` | Количество впервые контрибьютящих |
 
-## Release Notes Structure
+## Структура Release Notes
 
-Generated release notes follow this format:
+Сгенерированные release notes следуют этому формату:
 
 ```markdown
 ## [v1.2.0] - 2026-03-06
 
-### ⚠️ Breaking Changes
-- Remove deprecated `--legacy` CLI flag (#456) @maintainer
+### ⚠️ Критические изменения
+- Удалён устаревший флаг CLI `--legacy` (#456) @maintainer
 
-### ✨ New Features
-- Add support for Claude Sonnet 4.6 model (#445) @contributor1
-- Implement parallel tool execution (#438) @contributor2
+### ✨ Новые возможности
+- Добавлена поддержка модели Claude Sonnet 4.6 (#445) @contributor1
+- Реализовано параллельное выполнение инструментов (#438) @contributor2
 
-### 🐛 Bug Fixes
-- Fix WebSocket reconnection on network interruption (#451) @contributor3
-- Resolve memory leak in long-running sessions (#447) @maintainer
+### 🐛 Исправления ошибок
+- Исправлено переподключение WebSocket при разрыве сети (#451) @contributor3
+- Устранена утечка памяти в длительных сессиях (#447) @maintainer
 
-### 📚 Documentation
-- Update installation guide for v1.2 (#442) @contributor2
+### 📚 Документация
+- Обновлён гайд установки для v1.2 (#442) @contributor2
 
-### 🏗️ Internal/Infrastructure
-- Upgrade CI to use Node 20 (#440) @maintainer
+### 🏗️ Внутреннее/Инфраструктура
+- Обновлён CI для использования Node 20 (#440) @maintainer
 
-### 👥 New Contributors
-- @contributor3 made their first contribution in #451
+### 👥 Новые контрибьюторы
+- @contributor3 сделал первый вклад в #451
 
-**Full Changelog**: https://github.com/org/repo/compare/v1.1.0...v1.2.0
+**Полный список изменений**: https://github.com/org/repo/compare/v1.1.0...v1.2.0
 ```
 
-## Change Categorization
+## Категоризация изменений
 
-The agent receives deterministic categorization hints, but it makes the final decision about significance, grouping, and which entries to keep.
+Агент получает детерминированные подсказки категоризации, но сам принимает финальное решение о значимости, группировке и какие записи оставить.
 
-### 1. Conventional Commit Prefixes
+### 1. Префиксы Conventional Commits
 
-| Prefix | Category |
+| Префикс | Категория |
 |--------|----------|
-| `BREAKING:` or `!:` suffix | ⚠️ Breaking Changes |
-| `feat:`, `feature:` | ✨ New Features |
-| `fix:`, `bugfix:` | 🐛 Bug Fixes |
-| `docs:` | 📚 Documentation |
-| `chore:`, `ci:`, `refactor:`, `test:`, `build:` | 🏗️ Internal/Infrastructure |
+| `BREAKING:` или суффикс `!:` | ⚠️ Критические изменения |
+| `feat:`, `feature:` | ✨ Новые возможности |
+| `fix:`, `bugfix:` | 🐛 Исправления ошибок |
+| `docs:` | 📚 Документация |
+| `chore:`, `ci:`, `refactor:`, `test:`, `build:` | 🏗️ Внутреннее/Инфраструктура |
 
-### 2. PR Labels
+### 2. Метки PR
 
-| Labels | Category |
+| Метки | Категория |
 |--------|----------|
-| `breaking-change`, `breaking` | ⚠️ Breaking Changes |
-| `enhancement`, `feature` | ✨ New Features |
-| `bug`, `bugfix` | 🐛 Bug Fixes |
-| `documentation`, `docs` | 📚 Documentation |
-| `internal`, `chore`, `ci`, `dependencies` | 🏗️ Internal/Infrastructure |
+| `breaking-change`, `breaking` | ⚠️ Критические изменения |
+| `enhancement`, `feature` | ✨ Новые возможности |
+| `bug`, `bugfix` | 🐛 Исправления ошибок |
+| `documentation`, `docs` | 📚 Документация |
+| `internal`, `chore`, `ci`, `dependencies` | 🏗️ Внутреннее/Инфраструктура |
 
-## Content Guidelines
+## Гайдлайны контента
 
-The generator follows these principles:
+Генератор следует этим принципам:
 
-- **Conversational overview**: Starts with a short plain-language summary of the release before the detailed sections
-- **Concise but informative**: The agent decides which changes matter and can merge related PRs into a single higher-signal bullet
-- **User-focused**: The agent prioritizes end-user and client-developer impact over low-level implementation detail
-- **Internal changes stay secondary**: CI churn, prompt tweaks, workflow plumbing, contributor ergonomics, and similar toolkit-maintainer details belong in `### 🔎 Small Fixes/Internal Changes` unless they are unusually significant
-- **Scannable**: Easy to quickly find relevant changes
-- **Imperative mood**: Uses "Add feature" not "Added feature"
-- **Attribution**: Includes PR number and author for traceability
+- **Разговорный обзор**: Начинается с короткого резюме релиза простым языком перед детальными разделами
+- **Кратко, но информативно**: Агент решает, какие изменения важны, и может объединить связанные PR в один более высокосигнальный пункт
+- **Фокус на пользователе**: Агент приоритизирует влияние на конечного пользователя и разработчика-клиента над низкоуровневыми деталями реализации
+- **Внутренние изменения остаются вторичными**: Чурн CI, твики промптов, plumbing workflow, эргономика контрибьюторов и подобные детали, интересные только мейнтейнерам тулкита, принадлежат в `### 🔎 Мелкие фиксы/Внутренние изменения`, если они не необычно значимы
+- **Сканируемо**: Легко быстро найти релевантные изменения
+- **Повелительное наклонение**: Использует «Добавить фичу», а не «Добавлена фича»
+- **Атрибуция**: Включает номер PR и автора для трассируемости
 
-## Validation Guardrail
+## Защита валидацией
 
-After the agent writes `release_notes.md`, the action runs `scripts/validate_release_notes.py`.
-That validator rebuilds the deterministic PR/author context for the same tag range and checks that the final notes:
+После того как агент пишет `release_notes.md`, action запускает `scripts/validate_release_notes.py`. Этот валидатор пересобирает детерминированный контекст PR/автора для того же диапазона тегов и проверяет, что финальные заметки:
 
-- include at least one explicit PR or commit reference in every user-facing change bullet
-- include the author handle for every referenced PR or commit
-- do not reference unknown PRs or commits
-- cover every PR/commit in the release range somewhere in the markdown
+- включают хотя бы одну явную ссылку на PR или коммит в каждом пользовательском пункте изменений
+- включают хэндл автора для каждого упомянутого PR или коммита
+- не ссылаются на неизвестные PR или коммиты
+- покрывают каждый PR/коммит в диапазоне релиза где-то в markdown
 
-If the agent keeps the main sections concise and omits lower-signal PRs, `agent_script.py` inserts a compact `### 🔎 Small Fixes/Internal Changes` appendix before the full changelog link. That appendix is grouped by author so the output remains readable while still being exhaustive.
+Если агент делает основные разделы краткими и опускает низкосигнальные PR, `agent_script.py` вставляет компактный аппендикс `### 🔎 Мелкие фиксы/Внутренние изменения` перед ссылкой на полный changelog. Этот аппендикс сгруппирован по автору, чтобы вывод оставался читаемым, но при этом исчерпывающим.
 
-## Customizing Output
+## Кастомизация вывода
 
-### Excluding Internal Changes
+### Исключение внутренних изменений
 
-By default, internal/infrastructure changes are excluded. To include them:
+По умолчанию внутренние/инфраструктурные изменения исключены. Чтобы включить их:
 
 ```yaml
 - uses: OpenHands/extensions/plugins/release-notes@main
@@ -224,9 +223,9 @@ By default, internal/infrastructure changes are excluded. To include them:
     include-internal: true
 ```
 
-### Generating CHANGELOG.md Entries
+### Генерация записей CHANGELOG.md
 
-To generate output suitable for a CHANGELOG.md file:
+Чтобы сгенерировать вывод, подходящий для файла CHANGELOG.md:
 
 ```yaml
 - uses: OpenHands/extensions/plugins/release-notes@main
@@ -234,50 +233,50 @@ To generate output suitable for a CHANGELOG.md file:
     output-format: changelog
 ```
 
-Then use the output in a subsequent step:
+Затем используйте вывод в последующем шаге:
 
 ```yaml
-- name: Update CHANGELOG
+- name: Обновление CHANGELOG
   run: |
     echo "${{ steps.release-notes.outputs.release-notes }}" >> CHANGELOG.md
 ```
 
-## Troubleshooting
+## Устранение неполадок
 
-### Missing LLM Credentials
+### Отсутствуют учётные данные LLM
 
-Make sure `LLM_API_KEY` is configured in repository secrets and passed to the action.
+Убедитесь, что `LLM_API_KEY` настроен в секретах репозитория и передан в action.
 
-### Release Notes Not Generated
+### Release Notes не сгенерированы
 
-1. Check that the tag matches the semver pattern: `v[0-9]+.[0-9]+.[0-9]+*`
-2. Verify the workflow file is in `.github/workflows/`
-3. Check the Actions tab for error messages
+1. Проверьте, что тег соответствует паттерну semver: `v[0-9]+.[0-9]+.[0-9]+*`
+2. Убедитесь, что файл workflow находится в `.github/workflows/`
+3. Проверьте вкладку Actions на сообщения об ошибках
 
-### Wrong Previous Tag Detected
+### Обнаружен неправильный предыдущий тег
 
-Use the `previous-tag` input to override automatic detection:
+Используйте вход `previous-tag` для переопределения автоматического определения:
 
 ```yaml
 previous-tag: v1.0.0
 ```
 
-### Missing Contributors
+### Отсутствуют контрибьюторы
 
-The generator uses the GitHub API to fetch PR authors. Ensure:
-1. Commits are associated with merged PRs
-2. The `GITHUB_TOKEN` has read access to pull requests
+Генератор использует GitHub API для получения авторов PR. Убедитесь:
+1. Коммиты связаны со смерженными PR
+2. `GITHUB_TOKEN` имеет доступ на чтение к пулл-реквестам
 
-## Security
+## Безопасность
 
-- Uses the default `GITHUB_TOKEN` for API access
-- No secrets are persisted or logged
-- Read-only access to repository history and PRs
+- Использует дефолтный `GITHUB_TOKEN` для доступа к API
+- Никакие секреты не сохраняются и не логируются
+- Доступ только на чтение к истории репозитория и PR
 
-## Contributing
+## Участие
 
-See the main [extensions repository](https://github.com/OpenHands/extensions) for contribution guidelines.
+См. основной [репозиторий расширений](https://github.com/OpenHands/extensions) для гайдлайнов по участию.
 
-## License
+## Лицензия
 
-This plugin is part of the OpenHands extensions repository. See [LICENSE](../../LICENSE) for details.
+Этот плагин — часть репозитория расширений OpenHands. См. [LICENSE](../../LICENSE) для деталей.

@@ -1,55 +1,55 @@
 ---
 allowed-tools: Bash(curl:*), Bash(cat:*), Bash(echo:*), Bash(jq:*)
-description: Create a new OpenHands automation with cron scheduling
+description: Создать новую автоматизацию OpenHands с cron-расписанием
 ---
 
-# Create OpenHands Automation
+# Создание автоматизации OpenHands
 
-Guide the user through creating a new automation interactively.
+Проведите пользователя через интерактивное создание новой автоматизации.
 
-**API Base URL:** `https://app.all-hands.dev/api/automation/v1`
+**Базовый URL API:** `https://app.all-hands.dev/api/automation/v1`
 
-**Full API Reference:** See [skills/openhands-automation/SKILL.md](../../../skills/openhands-automation/SKILL.md) for complete documentation.
+**Полный справочник API:** См. [skills/openhands-automation/SKILL.md](../../../skills/openhands-automation/SKILL.md) для полной документации.
 
-> **⚠️ CRITICAL:** Always use the **preset/prompt endpoint** to create automations. Do NOT write custom SDK scripts or create tarballs unless the user explicitly requests it. If the prompt approach cannot meet the user's needs, explain the available options and let them choose.
+> **⚠️ КРИТИЧНО:** Всегда используйте эндпоинт **preset/prompt** для создания автоматизаций. НЕ пишите кастомные SDK-скрипты и не создавайте tarball, если пользователь явно не просит. Если подход через промпт не может удовлетворить потребности пользователя, объясните доступные опции и дайте ему выбрать.
 
-## Workflow
+## Процесс
 
-### Step 1: Understand What the User Wants
+### Шаг 1: Поймите, чего хочет пользователь
 
-Ask the user to describe what the automation should do. In most cases, the user's description can be used directly as the prompt for the preset endpoint.
+Попросите пользователя описать, что должна делать автоматизация. В большинстве случаев описание пользователя можно напрямую использовать как промпт для эндпоинта preset.
 
-### Step 2: Collect Required Fields
+### Шаг 2: Соберите обязательные поля
 
-1. **Name**: Descriptive name for the automation (1-500 characters)
-2. **Prompt**: What the automation should do — use the user's description
-3. **Cron Schedule**: e.g., `0 9 * * 1` (Mondays at 9 AM UTC)
-4. **Timezone** (optional): IANA timezone (default: UTC)
-5. **Timeout** (optional): Max execution time in seconds
+1. **Название**: Описательное имя автоматизации (1-500 символов)
+2. **Промпт**: Что должна делать автоматизация — используйте описание пользователя
+3. **Cron-расписание**: например, `0 9 * * 1` (по понедельникам в 9 утра UTC)
+4. **Часовой пояс** (опционально): IANA-часовой пояс (по умолчанию: UTC)
+5. **Таймаут** (опционально): Максимальное время выполнения в секундах
 
-### Step 3: Create the Automation
+### Шаг 3: Создайте автоматизацию
 
 ```bash
 curl -X POST "https://app.all-hands.dev/api/automation/v1/preset/prompt" \
   -H "Authorization: Bearer ${OPENHANDS_API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "USER_PROVIDED_NAME",
-    "prompt": "USER_PROVIDED_DESCRIPTION_OF_WHAT_TO_DO",
+    "name": "ИМЯ_ОТ_ПОЛЬЗОВАТЕЛЯ",
+    "prompt": "ОПИСАНИЕ_ОТ_ПОЛЬЗОВАТЕЛЯ_ЧТО_ДЕЛАТЬ",
     "trigger": {
       "type": "cron",
-      "schedule": "USER_PROVIDED_SCHEDULE",
-      "timezone": "USER_PROVIDED_TIMEZONE_OR_UTC"
+      "schedule": "РАСПИСАНИЕ_ОТ_ПОЛЬЗОВАТЕЛЯ",
+      "timezone": "ЧАСОВОЙ_ПОЯС_ОТ_ПОЛЬЗОВАТЕЛЯ_ИЛИ_UTC"
     }
   }'
 ```
 
-### Step 4: Present Result
+### Шаг 4: Представьте результат
 
-**On success (HTTP 201):** Show automation ID, name, schedule, and status.
+**При успехе (HTTP 201):** Покажите ID автоматизации, имя, расписание и статус.
 
-**On error:** Show the error message from the API response.
+**При ошибке:** Покажите сообщение об ошибке из ответа API.
 
-### If the Preset Is Not Enough
+### Если пресета недостаточно
 
-If the user needs custom dependencies, a non-Python entrypoint, or full control over the SDK code, explain the options and let them decide. If they choose a custom automation, refer to [references/custom-automation.md](../../../skills/openhands-automation/references/custom-automation.md) for the tarball upload and custom creation workflow.
+Если пользователю нужны кастомные зависимости, не-Python точка входа или полный контроль над кодом SDK, объясните опции и дайте ему решить. Если он выберет кастомную автоматизацию, обратитесь к [references/custom-automation.md](../../../skills/openhands-automation/references/custom-automation.md) для workflow загрузки tarball и кастомного создания.

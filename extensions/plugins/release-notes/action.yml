@@ -1,6 +1,6 @@
 ---
-name: OpenHands Release Notes Generator
-description: Generate agent-authored release notes from git history and PR context
+name: OpenHands Генератор Release Notes
+description: Генерация release notes, созданных агентом, из истории git и контекста PR
 author: OpenHands
 
 branding:
@@ -9,56 +9,56 @@ branding:
 
 inputs:
     tag:
-        description: The release tag to generate notes for
+        description: Тег релиза, для которого генерировать заметки
         required: true
     previous-tag:
-        description: Override automatic detection of previous release tag
+        description: Переопределить автоматическое определение предыдущего тега релиза
         required: false
         default: ''
     include-internal:
-        description: Include internal/infrastructure changes in the release notes
+        description: Включать внутренние/инфраструктурные изменения в заметки о релизе
         required: false
         default: 'false'
     output-format:
-        description: "Output format: 'release' (GitHub release) or 'changelog' (CHANGELOG.md)"
+        description: "Формат вывода: 'release' (релиз GitHub) или 'changelog' (CHANGELOG.md)"
         required: false
         default: release
     llm-model:
-        description: LLM model to use for agent-based release note generation
+        description: LLM-модель для генерации release notes на основе агента
         required: false
         default: anthropic/claude-sonnet-4-5-20250929
     llm-base-url:
-        description: LLM base URL (optional, for custom LLM endpoints)
+        description: Базовый URL LLM (опционально, для кастомных эндпоинтов LLM)
         required: false
         default: ''
     llm-api-key:
-        description: LLM API key (required)
+        description: API-ключ LLM (обязательно)
         required: true
     github-token:
-        description: GitHub token for API access (required)
+        description: GitHub токен для доступа к API (обязательно)
         required: true
 
 outputs:
     release-notes:
-        description: The generated release notes in markdown format
+        description: Сгенерированные заметки о релизе в формате markdown
         value: ${{ steps.generate.outputs.release_notes }}
     previous-tag:
-        description: The detected or provided previous release tag
+        description: Обнаруженный или предоставленный предыдущий тег релиза
         value: ${{ steps.generate.outputs.previous_tag }}
     commit-count:
-        description: Number of commits included in the release
+        description: Количество коммитов, включённых в релиз
         value: ${{ steps.generate.outputs.commit_count }}
     contributor-count:
-        description: Number of unique contributors
+        description: Количество уникальных контрибьюторов
         value: ${{ steps.generate.outputs.contributor_count }}
     new-contributor-count:
-        description: Number of first-time contributors
+        description: Количество впервые контрибьютящих
         value: ${{ steps.generate.outputs.new_contributor_count }}
 
 runs:
     using: composite
     steps:
-        - name: Checkout extensions repository
+        - name: Checkout репозитория расширений
           uses: actions/checkout@v4
           with:
               repository: OpenHands/extensions
@@ -66,17 +66,17 @@ runs:
               path: extensions
               sparse-checkout: plugins/release-notes
 
-        - name: Set up Python
+        - name: Настройка Python
           uses: actions/setup-python@v5
           with:
               python-version: '3.12'
 
-        - name: Install uv
+        - name: Установка uv
           uses: astral-sh/setup-uv@v6
           with:
               enable-cache: true
 
-        - name: Generate release notes
+        - name: Генерация release notes
           id: generate
           shell: bash
           env:
@@ -93,7 +93,7 @@ runs:
               uv run --with openhands-sdk --with openhands-tools \
                 python extensions/plugins/release-notes/scripts/agent_script.py
 
-        - name: Validate PR and author attribution
+        - name: Валидация атрибуции PR и авторов
           shell: bash
           env:
               GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -104,7 +104,7 @@ runs:
           run: |
               python extensions/plugins/release-notes/scripts/validate_release_notes.py
 
-        - name: Update GitHub release (if release format)
+        - name: Обновление релиза GitHub (если формат release)
           if: inputs.output-format == 'release'
           shell: bash
           env:
@@ -112,7 +112,7 @@ runs:
               INPUTS_TAG: ${{ inputs.tag }}
           run: |
               if [ -f release_notes.md ]; then
-                echo "Updating release notes for tag $INPUTS_TAG"
+                echo "Обновление заметок о релизе для тега $INPUTS_TAG"
                 gh release edit "$INPUTS_TAG" --notes-file release_notes.md || \
-                  echo "Note: Could not update release. Release may not exist yet."
+                  echo "Примечание: Не удалось обновить релиз. Релиз может ещё не существовать."
               fi

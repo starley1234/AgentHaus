@@ -3,62 +3,64 @@ name: openhands
 description: Единый плагин OpenHands — объединяет навыки OpenHands Cloud CLI, Cloud REST API, Автоматизаций и Software Agent SDK.
 triggers:
 - /openhands-cloud
+- openhands cloud
+- openhands api
+- openhands автоматизация
 ---
 
-# OpenHands — Cloud, API, Automations & SDK
+# OpenHands — Cloud, API, Автоматизации и SDK
 
-This plugin bundles all OpenHands capabilities under one roof:
+Этот плагин объединяет все возможности OpenHands под одной крышей:
 
-| Capability | Skill | When to use |
-|---|---|---|
-| **CLI** (`openhands cloud`) | — (plugin-only) | Send a task to Cloud and get a conversation URL |
-| **Cloud REST API (V1)** | `openhands-api` | Start/inspect conversations, delegate work, access sandboxes |
-| **Automations API** | `openhands-automation` | Create and manage scheduled cron tasks |
-| **Software Agent SDK** | `openhands-sdk` | Build agents with the Python SDK — custom tools, LLMs, conversations, delegation |
+| Возможность | Навык | Когда использовать |
+|---|---|--- |
+| **CLI** (`openhands cloud`) | — (только плагин) | Отправить задачу в Cloud и получить URL беседы |
+| **Cloud REST API (V1)** | `openhands-api` | Запуск/просмотр бесед, делегирование работы, доступ к песочницам |
+| **API автоматизаций** | `openhands-automation` | Создание и управление запланированными cron-задачами |
+| **Software Agent SDK** | `openhands-sdk` | Создание агентов с Python SDK — кастомные инструменты, LLM, беседы, делегирование |
 
-Each capability is also available as a standalone skill under `skills/`.
-This plugin provides a unified entry point and the CLI integration script.
+Каждая возможность также доступна как отдельный навык в `skills/`. Этот плагин предоставляет единую точку входа и скрипт интеграции CLI.
 
-## Authentication — try CLI first
+## Аутентификация — сначала пробуйте CLI
 
-1. **Check if the OpenHands CLI is installed:**
+1. **Проверьте, установлен ли OpenHands CLI:**
 
 ```bash
-command -v openhands &>/dev/null && echo "CLI available" || echo "CLI not found"
+command -v openhands &>/dev/null && echo "CLI доступен" || echo "CLI не найден"
 ```
 
-PowerShell check:
+Проверка в PowerShell:
 
 ```powershell
-if (Get-Command openhands -ErrorAction SilentlyContinue) { "CLI available" } else { "CLI not found" }
+if (Get-Command openhands -ErrorAction SilentlyContinue) { "CLI доступен" } else { "CLI не найден" }
 ```
 
-2. **If CLI is available**, use it — it manages auth and API keys automatically.
-3. **If CLI is not available**, check for an API key:
-   - Preferred env var: `OPENHANDS_CLOUD_API_KEY`
-   - Backward-compatible: `OPENHANDS_API_KEY`
-   - Header: `Authorization: Bearer <key>`
-4. **If neither exists**, ask the user whether they'd like to install the CLI:
+2. **Если CLI доступен**, используйте его — он автоматически управляет аутентификацией и API-ключами.
+3. **Если CLI недоступен**, проверьте наличие API-ключа:
+   - Предпочитаемая переменная окружения: `OPENHANDS_CLOUD_API_KEY`
+   - Обратная совместимость: `OPENHANDS_API_KEY`
+   - Заголовок: `Authorization: Bearer <key>`
+4. **Если ни того, ни другого нет**, спросите пользователя, хочет ли он установить CLI:
    ```bash
    uv tool install openhands --python 3.12
-   openhands cloud  # starts auth flow
+   openhands cloud  # запускает поток аутентификации
    ```
 
-## Quick start — send a task via CLI
+## Быстрый старт — отправка задачи через CLI
 
 ```bash
-./scripts/run.sh "Investigate flaky tests in tests/test_api.py"
+./scripts/run.sh "Исследуй нестабильные тесты в tests/test_api.py"
 ```
 
-The script checks for the CLI, installs it if needed, sends the task, and opens the resulting conversation URL.
-On Windows, run this POSIX shell script from Git Bash or WSL (`bash scripts/run.sh "Investigate flaky tests in tests/test_api.py"`) unless a native PowerShell launcher is available.
+Скрипт проверяет CLI, устанавливает при необходимости, отправляет задачу и открывает URL полученной беседы.
+В Windows запускайте этот POSIX shell-скрипт из Git Bash или WSL (`bash scripts/run.sh "Исследуй нестабильные тесты в tests/test_api.py"`), если нет нативного PowerShell-лаунчера.
 
-If the script exits with code `2` (`AUTH_REQUIRED`), ask the user to complete authentication in the browser, then re-run.
+Если скрипт завершается с кодом `2` (`AUTH_REQUIRED`), попросите пользователя завершить аутентификацию в браузере, затем запустите повторно.
 
-## Bundled skills
+## Встроенные навыки
 
-For full API references, see the individual skills:
+Полные справочники API см. в отдельных навыках:
 
-- **`skills/openhands-api`** — Cloud REST API: endpoints, polling, delegation, events, debugging, Python/TypeScript clients
-- **`skills/openhands-automation`** — Automations API: presets, CRUD, cron schedules, plugin preset, custom automations
-- **`skills/openhands-sdk`** — Software Agent SDK: building agents, custom tools, LLM config, conversations, sub-agent delegation, MCP, security, persistence
+- **`skills/openhands-api`** — Cloud REST API: эндпоинты, опрос, делегирование, события, отладка, клиенты Python/TypeScript
+- **`skills/openhands-automation`** — API автоматизаций: пресеты, CRUD, cron-расписания, пресет плагина, кастомные автоматизации
+- **`skills/openhands-sdk`** — Software Agent SDK: создание агентов, кастомные инструменты, конфигурация LLM, беседы, делегирование под-агентам, MCP, безопасность, персистентность

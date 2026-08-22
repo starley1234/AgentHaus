@@ -1,19 +1,19 @@
-# Improve Agent Readiness
+# Улучшение готовности к агенту
 
-Take an agent readiness report and turn its gaps into concrete, repo-appropriate fixes.
+Возьмите отчёт о готовности агента и превратите его пробелы в конкретные, подходящие для репозитория исправления.
 
-## Triggers
+## Триггеры
 
-This skill is activated by the following keywords:
+Этот навык активируется по ключевым словам:
 
 - `improve-agent-readiness`
 
-## Prerequisites
+## Предварительные условия
 
-An agent readiness report must already exist — either from running `agent-readiness-report` on the target repo or provided directly by the user. If no report exists, run the readiness report skill first.
+Отчёт о готовности агента уже должен существовать — либо из запуска `agent-readiness-report` на целевом репозитории, либо предоставленный пользователем. Если отчёта нет, сначала запустите навык отчёта о готовности.
 
-## What This Does
+## Что делает
 
-1. **Reads the report** — identifies every missing feature across all five pillars
-2. **Proposes 5–10 high-impact fixes** — ranked by how directly each change helps an agent complete coding tasks, not by checklist coverage
-3. **Implements on request** — applies approved fixes with atomic commits, then updates the readiness report to reflect the new state
+1. **Читает отчёт** — определяет каждую отсутствующую функцию по всем пяти столпам
+2. **Предлагает 5–10 высокоэффективных исправлений** — ранжированных по тому, насколько напрямую каждое изменение помогает агенту выполнять задачи кодинга, а не по покрытию чек-листа
+3. **Реализует по запросу** — применяет одобренные исправления атомарными коммитами, затем обновляет отчёт о готовности, чтобы отразить новое состояние

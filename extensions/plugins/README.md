@@ -1,30 +1,29 @@
-# Plugins Directory
+# Каталог плагинов
 
-This directory contains OpenHands plugins - extensions with executable code components such as hooks and advanced scripts.
+Этот каталог содержит плагины OpenHands — расширения с исполняемыми компонентами кода, такими как хуки и продвинутые скрипты.
 
-## What are Plugins?
+## Что такое плагины?
 
-Plugins differ from skills in that they include executable code that can hook into OpenHands workflows:
+Плагины отличаются от навыков тем, что включают исполняемый код, который может встраиваться в рабочие процессы OpenHands:
 
-- **hooks/**: Scripts that run at specific points in the agent lifecycle
-- **scripts/**: Executable utilities that extend agent capabilities
+- **hooks/**: Скрипты, которые запускаются в определённых точках жизненного цикла агента
+- **scripts/**: Исполняемые утилиты, расширяющие возможности агента
 
-## Structure
+## Структура
 
-Each plugin follows the same structure as a skill but with additional executable components:
+Каждый плагин повторяет структуру навыка, но с дополнительными исполняемыми компонентами:
 
 ```
 plugins/
 └── my-plugin/
-    ├── SKILL.md          # Plugin definition and documentation
-    ├── hooks/            # Lifecycle hooks (optional)
+    ├── SKILL.md          # Определение плагина и документация
+    ├── hooks/            # Хуки жизненного цикла (опционально)
     │   ├── pre-task.sh
     │   └── post-task.sh
-    └── scripts/          # Utility scripts (optional)
+    └── scripts/          # Вспомогательные скрипты (опционально)
         └── helper.py
 ```
 
-## Contributing
+## Вклад в проект
 
-See the main [README](../README.md) for contribution guidelines.
-
+Смотрите рекомендации по участию в основном [README](../README.md).

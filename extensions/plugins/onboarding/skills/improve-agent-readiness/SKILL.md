@@ -4,164 +4,140 @@ description: Использование отчёта о готовности а�
 triggers:
 - improve-agent-readiness
 - agent onboarding
+- улучшение готовности
+- онбординг агента
 ---
 
-# Agent Onboarding
+# Онбординг агента
 
-Take a readiness report and turn its gaps into concrete, repo-appropriate fixes.
+Возьмите отчёт о готовности и превратите его пробелы в конкретные, подходящие для репозитория исправления.
 
-## Prerequisites
+## Предварительные условия
 
-This skill expects an agent readiness report to already exist — either from
-running `agent-readiness-report` on this repo or provided by the user.  If no report
-exists, run the readiness report skill first.
+Этот навык ожидает, что отчёт о готовности агента уже существует — либо из запуска `agent-readiness-report` на этом репозитории, либо предоставленный пользователем. Если отчёта нет, сначала запустите навык отчёта о готовности.
 
-## How to run
+## Как запускать
 
-### Step 1: Read the report
+### Шаг 1: Прочитайте отчёт
 
-Identify every **✗** (missing) feature across all five pillars.
+Определите каждую функцию **✗** (отсутствующую) по всем пяти столпам.
 
-### Step 2: Propose high-impact fixes
+### Шаг 2: Предложите высокоэффективные исправления
 
-Don't try to fix everything.  Pick the **5–10 changes that would help agents the
-most** across all pillars, ranked by impact.  Not every pillar needs to be
-represented — focus on what matters most for this repo.  The goal is to
-meaningfully improve the score, not to hit 74/74.
+Не пытайтесь исправить всё. Выберите **5–10 изменений, которые помогут агентам больше всего** по всем столпам, ранжированных по влиянию. Не каждый столп должен быть представлен — фокус на том, что важнее всего для этого репозитория. Цель — значимо улучшить оценку, а не достичь 74/74.
 
-**Ranking heuristic** — rank by how directly the change helps an agent complete a
-coding task in this repo:
+**Эвристика ранжирования** — ранжируйте по тому, насколько напрямую изменение помогает агенту выполнить задачу кодинга в этом репозитории:
 
-1. Things that unblock agents from working at all (AGENTS.md, build commands,
-   bootstrap scripts, dev environment setup)
-2. Things that give agents faster feedback on their work (pre-commit hooks, test
-   documentation, PR templates with checklists)
-3. Things that improve quality or process (CI caching, label automation, spell
-   checking, merge queues)
-4. Things that improve governance or compliance (SECURITY.md, CODEOWNERS,
-   actionlint, CodeQL)
+1. То, что разблокирует агентов для работы вообще (AGENTS.md, команды сборки, bootstrap-скрипты, настройка dev-окружения)
+2. То, что даёт агентам более быструю обратную связь о работе (pre-commit хуки, документация тестов, шаблоны PR с чек-листами)
+3. То, что улучшает качество или процесс (кэширование CI, автоматизация меток, проверка орфографии, очереди мержа)
+4. То, что улучшает управление или соответствие (SECURITY.md, CODEOWNERS, actionlint, CodeQL)
 
-A single change that lets an agent build and test the project outranks a 2-for-1
-that addresses minor gaps.
+Одно изменение, позволяющее агенту собрать и протестировать проект, превосходит два-в-одном, закрывающих незначительные пробелы.
 
-Proposals should fit **this specific repo**:
+Предложения должны подходить **конкретно этому репозиторию**:
 
-- Look at the languages, frameworks, and tools already in use
-- Look at the project structure (monorepo vs single package, etc.)
-- Look at what's already partially in place (don't reinvent what exists)
-- Propose additions that match the repo's existing conventions and style
+- Смотрите на языки, фреймворки и инструменты, уже используемые
+- Смотрите на структуру проекта (монорепозиторий vs одиночный пакет и т.д.)
+- Смотрите, что уже частично на месте (не изобретайте то, что существует)
+- Предлагайте дополнения, соответствующие существующим конвенциям и стилю репозитория
 
-For each proposal, include:
-- What to add or change
-- Where it goes (file path)
-- Which pillar(s) it improves
-- **Why it's high impact** — use the feature descriptions in
-  `references/criteria.md` to explain what goes wrong for agents without this
-  feature.  Don't just say "improves Agent Instructions" — say what the agent
-  can't do today and what it'll be able to do after the fix.
+Для каждого предложения включите:
+- Что добавить или изменить
+- Куда это идёт (путь к файлу)
+- Какой(ие) столп(ы) улучшает
+- **Почему это высокоэффективно** — используйте описания функций в `references/criteria.md`, чтобы объяснить, что идёт не так у агентов без этой функции. Не просто говорите «улучшает Инструкции для агента» — скажите, что агент не может делать сегодня и что сможет после исправления.
 
-### Step 3: Implement on request
+### Шаг 3: Реализуйте по запросу
 
-When the user approves fixes (all or a subset), implement them, then **update the
-readiness report** to reflect the new state.  Flip each addressed feature from ✗
-to ✓ and update the pillar counts and summary.  This ensures the next run of this
-skill won't re-propose fixes that have already been applied.
+Когда пользователь одобрит исправления (все или подмножество), реализуйте их, затем **обновите отчёт о готовности**, чтобы отразить новое состояние. Переключите каждую исправленную функцию с ✗ на ✓ и обновите счётчики столпов и резюме. Это гарантирует, что следующий запуск этого навыка не предложит повторно исправления, которые уже применены.
 
-Follow these rules:
+Следуйте этим правилам:
 
-- **Don't generate boilerplate** — content should be specific to this repo
-- **Match existing style** — if the repo uses tabs, use tabs; if docs are in
-  RDoc, don't write Markdown
-- **Don't over-generate** — a concise, accurate AGENTS.md beats a long generic
-  one
-- **Commit atomically** — one commit per logical fix, not one giant commit
+- **Не генерируйте шаблонный текст** — контент должен быть специфичным для этого репозитория
+- **Соответствуйте существующему стилю** — если в репозитории используются табы, используйте табы; если доки в RDoc, не пишите Markdown
+- **Не перегенерируйте** — краткий, точный AGENTS.md лучше длинного общего
+- **Коммитьте атомарно** — один коммит на логическое исправление, а не один гигантский коммит
 
-## Pillar-specific guidance
+## Гайдлайны по столпам
 
-### Agent Instructions fixes
+### Исправления Инструкций для агента
 
-The highest-impact fix is almost always an **agent instruction file** at the
-root.  A good one includes:
+Самое высокоэффективное исправление — почти всегда **файл инструкций для агента** в корне. Хороший включает:
 
-- Build / test / lint commands (copy from CI config or Makefile, not invented)
-- Project structure overview (what's in each top-level directory)
-- Key conventions (naming, architecture patterns, things to avoid)
-- Where to find more documentation
+- Команды сборки/тестов/линта (копируйте из конфига CI или Makefile, не придумывайте)
+- Обзор структуры проекта (что в каждом каталоге верхнего уровня)
+- Ключевые конвенции (именование, архитектурные паттерны, чего избегать)
+- Где найти больше документации
 
-If the repo is a monorepo, also consider per-component instruction files that
-cover component-specific conventions.
+Если репозиторий — монорепозиторий, также рассмотрите файлы инструкций для компонентов, покрывающие специфичные для компонента конвенции.
 
-Other common fixes:
-- Add AI IDE configuration if the team uses Cursor, Copilot, or Claude Code
-- Create a contributing guide if one doesn't exist
-- Add `.env.example` if the project uses environment variables
+Другие частые исправления:
+- Добавьте конфигурацию AI IDE, если команда использует Cursor, Copilot или Claude Code
+- Создайте гайд по участию, если его нет
+- Добавьте `.env.example`, если проект использует переменные окружения
 
-### Feedback Loops fixes
+### Исправления Петель обратной связи
 
-Focus on what gives agents the fastest signal:
+Фокус на том, что даёт агентам самый быстрый сигнал:
 
-- **Pre-commit hooks** are the single fastest feedback loop — configure them with
-  the linter and formatter the project already uses
-- **Test run documentation** in the agent instruction file — agents need to know
-  *exactly* which command runs which tests
-- If the project has no linter or formatter configured, propose one that matches
-  the language ecosystem (don't propose Prettier for a Go project)
+- **Pre-commit хуки** — самый быстрый цикл обратной связи — настройте их с линтером и форматтером, которые проект уже использует
+- **Документация запуска тестов** в файле инструкций агента — агентам нужно знать *точно*, какая команда запускает какие тесты
+- Если в проекте не настроен линтер или форматтер, предложите тот, что соответствует экосистеме языка (не предлагайте Prettier для Go-проекта)
 
-### Workflows & Automation fixes
+### Исправления Рабочих процессов и автоматизации
 
-Focus on structure that helps agents understand the process:
+Фокус на структуре, помогающей агентам понять процесс:
 
-- **PR template** with a checklist — agents follow checklists well
-- **Issue templates** for bugs and features — gives agents structured input
-- **CI concurrency control** — prevents agent-triggered CI from piling up
+- **Шаблон PR** с чек-листом — агенты хорошо следуют чек-листам
+- **Шаблоны issue** для багов и фич — дают агентам структурированный ввод
+- **Контроль конкурентности CI** — предотвращает нагромождение CI, вызванного агентом
 
-### Policy & Governance fixes
+### Исправления Политик и управления
 
-Focus on boundaries the agent needs to know:
+Фокус на границах, которые агент должен знать:
 
-- **CODEOWNERS** — agents should know who owns what before making changes
-- **Security policy** — agents need to know not to file public security issues
-- Agent-aware **.gitignore** entries — prevent agent config files from being
-  committed accidentally
+- **CODEOWNERS** — агенты должны знать, кто чем владеет, прежде чем вносить изменения
+- **Политика безопасности** — агенты должны знать, что не нужно создавать публичные security-issue
+- Записи **.gitignore**, учитывающие агента — предотвращают случайный коммит файлов конфигурации агента
 
-### Build & Dev Environment fixes
+### Исправления Сборки и окружения разработки
 
-Focus on reproducibility:
+Фокус на воспроизводимости:
 
-- **Dependency lockfile** if one doesn't exist — agents can't work with
-  non-deterministic installs
-- **Tool version pinning** — prevents "works on my machine" failures
-- **Single-command setup** — document or script the full bootstrap
+- **Лок-файл зависимостей**, если его нет — агенты не могут работать с недетерминированными установками
+- **Фиксация версий инструментов** — предотвращает сбои «работает у меня»
+- **Настройка одной командой** — задокументируйте или заскриптуйте полный bootstrap
 
-## Output format
+## Формат вывода
 
-Present proposals like this:
+Представляйте предложения так:
 
 ```
-# Agent Onboarding Proposals: {repo name}
+# Предложения по онбордингу агента: {repo name}
 
-Ranked by impact.  Implementing all of these would improve:
-Agent Instructions (+4), Feedback Loops (+2), Policy & Governance (+1)
+Ранжированы по влиянию. Реализация всего этого улучшит:
+Инструкции для агента (+4), Петли обратной связи (+2), Политики и управление (+1)
 
-1. **Create AGENTS.md** — Agent Instructions
-   - Include build commands from Makefile, test commands from CI, project structure
-   - Path: `./AGENTS.md`
-   - Right now agents have no way to learn this repo's conventions, banned
-     patterns, or how to build/test — they'll guess and get it wrong.
+1. **Создать AGENTS.md** — Инструкции для агента
+   - Включить команды сборки из Makefile, команды тестов из CI, структуру проекта
+   - Путь: `./AGENTS.md`
+   - Сейчас у агентов нет способа узнать конвенции этого репозитория, запрещённые
+     паттерны или как собирать/тестировать — они будут гадать и ошибаться.
 
-2. **Add pre-commit hooks** — Feedback Loops
-   - Configure with ruff (already in pyproject.toml) and mypy
-   - Path: `./.pre-commit-config.yaml`
-   - Agents currently don't find out about lint/type errors until CI runs.
-     Pre-commit hooks catch these in seconds instead of minutes.
+2. **Добавить pre-commit хуки** — Петли обратной связи
+   - Настроить с ruff (уже в pyproject.toml) и mypy
+   - Путь: `./.pre-commit-config.yaml`
+   - Сейчас агенты не узнают об ошибках линта/типов до запуска CI.
+     Pre-commit хуки ловят их за секунды, а не за минуты.
 
-3. **Add .env.example** — Agent Instructions, Build & Dev Environment
-   - Document the 3 env vars referenced in docker-compose.yml
-   - Path: `./.env.example`
-   - Agents can't start the dev server without knowing which env vars to set.
-     They'll either skip setup or hallucinate values.
+3. **Добавить .env.example** — Инструкции для агента, Сборка и окружение разработки
+   - Задокументировать 3 env-переменные, на которые ссылается docker-compose.yml
+   - Путь: `./.env.example`
+   - Агенты не могут запустить dev-сервер, не зная, какие env-переменные задать.
+     Они либо пропустят настройку, либо выдумают значения.
 
 ...
 
-Ready to implement? Reply with "all" or specify which proposals to apply.
+Готовы реализовать? Ответьте «все» или укажите, какие предложения применить.
 ```

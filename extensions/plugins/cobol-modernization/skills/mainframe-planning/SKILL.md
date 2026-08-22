@@ -8,67 +8,69 @@ triggers:
   - cics replacement
   - cobol transformation guide
   - mainframe dependency
+  - планирование мейнфрейма
+  - замена cics
 ---
 
-Create a comprehensive transformation guide that maps each mainframe dependency to its standard COBOL replacement.
+Создайте исчерпывающее руководство по трансформации, которое сопоставляет каждую зависимость от мейнфрейма с её заменой на стандартный COBOL.
 
-This guide is a prerequisite for the actual transformation — DO NOT modify any code, only create the guide.
+Это руководство — обязательное условие для самой трансформации — НЕ изменяйте код, только создайте руководство.
 
-## Output Format
+## Формат вывода
 
-Document each mainframe-specific construct with:
+Задокументируйте каждую специфичную для мейнфрейма конструкцию с указанием:
 
-1. **Pattern**: The mainframe construct (e.g., `EXEC CICS READ FILE(...)`)
-2. **Replacement**: The standard COBOL equivalent
-3. **Error Handling**: How to replicate the mainframe's error behavior
-   - Map CICS RESP/RESP2 codes to FILE STATUS equivalents
-   - Specify which FILE STATUS values to check (e.g., 00=success, 23=not found, 35=file not exists)
-4. **Resource Cleanup**: Any cleanup the replacement requires (CICS auto-manages resources; file I/O does not)
-5. **Edge Cases**: Behavior differences between mainframe and standard COBOL
+1. **Паттерн**: Конструкция мейнфрейма (например, `EXEC CICS READ FILE(...)`)
+2. **Замена**: Стандартный эквивалент COBOL
+3. **Обработка ошибок**: Как воспроизвести поведение ошибок мейнфрейма
+   - Сопоставьте коды CICS RESP/RESP2 с эквивалентами FILE STATUS
+   - Укажите, какие значения FILE STATUS проверять (например, 00=успех, 23=не найдено, 35=файл не существует)
+4. **Очистка ресурсов**: Какая очистка требуется замене (CICS управляет ресурсами автоматически; файловый ввод/вывод — нет)
+5. **Граничные случаи**: Различия в поведении между мейнфреймом и стандартным COBOL
 
-## Constructs to Address
+## Конструкции для рассмотрения
 
-### Data Operations (CICS/IMS/VSAM)
+### Операции с данными (CICS/IMS/VSAM)
 
-- READ, WRITE, REWRITE, DELETE operations
-- STARTBR, READNEXT, READPREV (browse operations)
-- CICS error handling: HANDLE CONDITION, RESP/RESP2 options
-- VSAM → sequential or indexed file I/O
+- Операции READ, WRITE, REWRITE, DELETE
+- STARTBR, READNEXT, READPREV (операции просмотра)
+- Обработка ошибок CICS: HANDLE CONDITION, опции RESP/RESP2
+- VSAM → последовательный или индексированный файловый ввод/вывод
 
-### UI/Terminal Operations (BMS maps, screens)
+### UI/Терминальные операции (BMS-карты, экраны)
 
-- SEND MAP, RECEIVE MAP → these can be MOCKED or stubbed
-- Screen I/O is not needed for business logic validation
-- Document how to replace with simple ACCEPT/DISPLAY or test harness stubs
-- Focus on preserving the data flow, not the UI interaction
+- SEND MAP, RECEIVE MAP → могут быть ЗАГЛУШЕНЫ (MOCKED) или заменены заглушками
+- Экранный ввод/вывод не нужен для валидации бизнес-логики
+- Задокументируйте, как заменить на простые ACCEPT/DISPLAY или заглушки тестового harness
+- Сфокусируйтесь на сохранении потока данных, а не на взаимодействии с UI
 
-### Other Mainframe Constructs
+### Прочие конструкции мейнфрейма
 
-- Mainframe data types (COMP-3 packed decimal, etc.)
-- JCL-embedded constructs
-- IMS calls (if present)
+- Типы данных мейнфрейма (COMP-3 packed decimal и т.д.)
+- Конструкции, встроенные в JCL
+- Вызовы IMS (если присутствуют)
 
-## Critical Requirements
+## Критические требования
 
-- Every CICS command that can fail MUST have an error handling replacement documented
-- UI operations should be clearly marked as "mock/stub" so the agent doesn't get stuck on them
-- Prefer: file-based I/O over mainframe I/O, standard data types over mainframe types
+- Каждая команда CICS, которая может завершиться неудачей, ДОЛЖНА иметь задокументированную замену обработки ошибок
+- UI-операции должны быть чётко помечены как «заглушка/mock», чтобы агент не застрял на них
+- Предпочтение: файловый ввод/вывод вместо ввода/вывода мейнфрейма, стандартные типы данных вместо типов мейнфрейма
 
-## Common Mappings Reference
+## Справочник частых сопоставлений
 
-### FILE STATUS Codes
+### Коды FILE STATUS
 
-| Code | Meaning | CICS Equivalent |
+| Код | Значение | Эквивалент CICS |
 |------|---------|-----------------|
-| 00 | Success | Normal completion |
-| 23 | Record not found | NOTFND condition |
-| 35 | File does not exist | NOTOPEN condition |
-| 22 | Duplicate key | DUPREC condition |
-| 3x | I/O errors | Various IOERR conditions |
+| 00 | Успех | Нормальное завершение |
+| 23 | Запись не найдена | Условие NOTFND |
+| 35 | Файл не существует | Условие NOTOPEN |
+| 22 | Дублирующийся ключ | Условие DUPREC |
+| 3x | Ошибки ввода/вывода | Различные условия IOERR |
 
-### CICS to Standard COBOL
+### CICS → Стандартный COBOL
 
-| CICS Command | Standard COBOL |
+| Команда CICS | Стандартный COBOL |
 |--------------|----------------|
 | `EXEC CICS READ FILE(...)` | `READ filename INTO...` |
 | `EXEC CICS WRITE FILE(...)` | `WRITE record-name FROM...` |

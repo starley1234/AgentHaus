@@ -4,11 +4,11 @@ module.exports = async ({ github, context, core }) => {
   const normalizedCommenter = commenter.toLowerCase();
 
   if (normalizedCommenter.endsWith("[bot]") || normalizedCommenter === "all-hands-bot") {
-    core.info(`Skipping duplicate-candidate label removal for bot comment from ${commenter || "unknown"}`);
+    core.info(`Пропуск удаления метки duplicate-candidate для комментария бота от ${commenter || "неизвестный"}`);
     return;
   }
 
-  core.info(`Removing duplicate-candidate label from issue #${issueNumber} after comment from ${commenter}`);
+  core.info(`Удаление метки duplicate-candidate с issue #${issueNumber} после комментария от ${commenter}`);
 
   try {
     await github.rest.issues.removeLabel({
@@ -19,7 +19,7 @@ module.exports = async ({ github, context, core }) => {
     });
   } catch (error) {
     if (error.status === 404) {
-      core.info(`duplicate-candidate label was already removed from issue #${issueNumber}`);
+      core.info(`Метка duplicate-candidate уже была удалена с issue #${issueNumber}`);
       return;
     }
     throw error;

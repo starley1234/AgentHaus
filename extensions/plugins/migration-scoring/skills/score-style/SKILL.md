@@ -7,44 +7,46 @@ triggers:
   - style score
   - code quality score
   - style evaluation
+  - оценка стиля
+  - качество кода
 ---
 
-Evaluate migrated code against style guidelines and best practices.
+Оцените мигрированный код по руководствам стиля и лучшим практикам.
 
-This skill scores code quality aspects that are independent of functional correctness — focusing on readability, maintainability, and adherence to conventions.
+Этот навык оценивает аспекты качества кода, независимые от функциональной корректности — фокус на читаемости, поддерживаемости и соблюдении конвенций.
 
-## Default Scoring Criteria
+## Критерии оценки по умолчанию
 
-Unless a custom rubric is provided, score on these attributes (1-5 scale):
+Если не предоставлена пользовательская рубрика, оценивайте по этим атрибутам (шкала 1-5):
 
-### Naming Conventions (1-5)
-- 1: Inconsistent or meaningless names
-- 3: Mostly follows conventions, some issues
-- 5: Clear, consistent, idiomatic names
+### Конвенции именования (1-5)
+- 1: Несогласованные или бессмысленные имена
+- 3: В основном следует конвенциям, есть проблемы
+- 5: Понятные, согласованные, идиоматичные имена
 
-### Code Organization (1-5)
-- 1: Monolithic, hard to navigate
-- 3: Some structure, could be cleaner
-- 5: Well-organized, logical structure
+### Организация кода (1-5)
+- 1: Монолитный, трудно навигировать
+- 3: Некоторая структура, можно чище
+- 5: Хорошо организованная, логичная структура
 
-### Error Handling (1-5)
-- 1: Missing or swallowed exceptions
-- 3: Basic error handling present
-- 5: Comprehensive, appropriate error handling
+### Обработка ошибок (1-5)
+- 1: Отсутствуют или проглатываются исключения
+- 3: Базовая обработка ошибок присутствует
+- 5: Исчерпывающая, уместная обработка ошибок
 
-### Documentation (1-5)
-- 1: No documentation
-- 3: Some documentation, inconsistent
-- 5: Thorough, helpful documentation
+### Документация (1-5)
+- 1: Нет документации
+- 3: Некоторая документация, несогласованная
+- 5: Тщательная, полезная документация
 
-### Idiomaticity (1-5)
-- 1: Non-idiomatic, smells like translated code
-- 3: Mostly idiomatic, some foreign patterns
-- 5: Fully idiomatic, natural code
+### Идиоматичность (1-5)
+- 1: Неидиоматичный, пахнет переведённым кодом
+- 3: В основном идиоматичный, есть чужеродные паттерны
+- 5: Полностью идиоматичный, естественный код
 
-## Output Format
+## Формат вывода
 
-Save scores as a JSON file:
+Сохраните оценки как JSON-файл:
 
 ```json
 {
@@ -54,53 +56,53 @@ Save scores as a JSON file:
     "error_handling": 5,
     "documentation": 4,
     "idiomaticity": 4,
-    "justification": "Good naming and error handling. Some methods could be extracted for better organization."
+    "justification": "Хорошее именование и обработка ошибок. Некоторые методы можно выделить для лучшей организации."
   }
 }
 ```
 
-## Custom Rubric
+## Пользовательская рубрика
 
-If a custom rubric is provided, use its attributes and scoring criteria instead of the defaults. The rubric should define:
-- Attribute names
-- Score meanings for each level (1-5)
-- Examples of good/bad code for each attribute
+Если предоставлена пользовательская рубрика, используйте её атрибуты и критерии оценки вместо дефолтных. Рубрика должна определять:
+- Имена атрибутов
+- Значения оценок для каждого уровня (1-5)
+- Примеры хорошего/плохого кода для каждого атрибута
 
-## Evaluation Guidelines
+## Руководства по оценке
 
-### What to Look For
+### На что смотреть
 
-**Positive indicators:**
-- Consistent naming (camelCase for Java, snake_case for Python)
-- Appropriate class/method sizes
-- Single responsibility principle followed
-- Meaningful comments (not obvious ones)
-- Standard library usage over custom implementations
-- Defensive programming practices
+**Позитивные индикаторы:**
+- Согласованное именование (camelCase для Java, snake_case для Python)
+- Подходящие размеры классов/методов
+- Соблюдение принципа единственной ответственности
+- Осмысленные комментарии (не очевидные)
+- Использование стандартной библиотеки вместо самописных реализаций
+- Практики защитного программирования
 
-**Negative indicators:**
-- Literal translations (COBOL-style Java)
-- God classes or methods
-- Magic numbers
-- Excessive comments or no comments
-- Reinvented wheels
-- Swallowed exceptions
-- Hardcoded values
+**Негативные индикаторы:**
+- Дословные переводы (Java в стиле COBOL)
+- God-классы или методы
+- Магические числа
+- Чрезмерные комментарии или их отсутствие
+- Изобретённые велосипеды
+- Проглоченные исключения
+- Захардкоженные значения
 
-### Language-Specific Considerations
+### Языково-специфичные нюансы
 
 **Java:**
-- Streams vs. for loops (both acceptable, but be consistent)
-- Optional vs. null checks
-- Record types for data classes
-- Builder pattern for complex objects
+- Streams vs. циклы for (оба допустимы, но будьте последовательны)
+- Optional vs. проверки null
+- Типы Record для классов данных
+- Паттерн Builder для сложных объектов
 
 **Python:**
-- Type hints
+- Аннотации типов
 - List comprehensions
-- Context managers
-- Pythonic idioms
+- Контекстные менеджеры
+- Pythonic-идиомы
 
-## Incremental Scoring
+## Инкрементальная оценка
 
-If a score file already exists, update it with new scores rather than replacing it entirely.
+Если файл оценок уже существует, обновите его новыми оценками, а не заменяйте полностью.

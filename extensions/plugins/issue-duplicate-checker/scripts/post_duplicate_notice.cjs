@@ -8,15 +8,15 @@ module.exports = async ({ github, context, core }) => {
   try {
     candidates = JSON.parse(process.env.CANDIDATE_ISSUES_JSON || "[]");
   } catch (error) {
-    core.setFailed(`Invalid candidate JSON: ${error.message}`);
+    core.setFailed(`Неверный JSON кандидатов: ${error.message}`);
     return;
   }
   if (!Array.isArray(candidates)) {
-    core.setFailed("CANDIDATE_ISSUES_JSON is not an array");
+    core.setFailed("CANDIDATE_ISSUES_JSON не является массивом");
     return;
   }
   if (candidates.length === 0) {
-    core.warning(`No candidate issues were returned for issue #${issueNumber}; skipping.`);
+    core.warning(`Кандидаты в дубликаты не возвращены для issue #${issueNumber}; пропускаем.`);
     return;
   }
 
@@ -44,17 +44,17 @@ module.exports = async ({ github, context, core }) => {
       }));
     } catch (error) {
       if (error.status === 404) {
-        core.setFailed(`Canonical issue #${canonicalIssueNumber} does not exist.`);
+        core.setFailed(`Канонический issue #${canonicalIssueNumber} не существует.`);
         return false;
       }
       throw error;
     }
     if (canonicalIssue.pull_request) {
-      core.setFailed(`Canonical issue #${canonicalIssueNumber} is a pull request, not an issue.`);
+      core.setFailed(`Канонический issue #${canonicalIssueNumber} является пулл-реквестом, а не issue.`);
       return false;
     }
     if (canonicalIssue.state !== "open" || canonicalIssue.locked) {
-      core.setFailed(`Canonical issue #${canonicalIssueNumber} must be an open, unlocked issue.`);
+      core.setFailed(`Канонический issue #${canonicalIssueNumber} должен быть открытым, незаблокированным issue.`);
       return false;
     }
     return true;
@@ -74,7 +74,7 @@ module.exports = async ({ github, context, core }) => {
         repo: context.repo.repo,
         name: candidateLabel,
         color: "f97316",
-        description: "Potential duplicate awaiting auto-close or maintainer review",
+        description: "Потенциальный дубликат, ожидающий автозакрытия или проверки мейнтейнером",
       });
     }
 
@@ -110,11 +110,11 @@ module.exports = async ({ github, context, core }) => {
   }
 
   if (!Number.isInteger(canonicalIssueNumber) || canonicalIssueNumber <= 0) {
-    core.setFailed(`No canonical issue number was returned for issue #${issueNumber}.`);
+    core.setFailed(`Канонический номер issue не был возвращён для issue #${issueNumber}.`);
     return;
   }
   if (canonicalIssueNumber === issueNumber) {
-    core.setFailed(`Duplicate check cannot mark issue #${issueNumber} as a duplicate of itself.`);
+    core.setFailed(`Проверка дубликатов не может пометить issue #${issueNumber} как дубликат самого себя.`);
     return;
   }
 
@@ -122,8 +122,8 @@ module.exports = async ({ github, context, core }) => {
 
   const marker = `<!-- openhands-duplicate-check canonical=${canonicalIssueNumber} auto-close=${autoClose ? "true" : "false"} -->`;
   const header = candidates.length === 1
-    ? "Found 1 possible duplicate issue:"
-    : `Found ${candidates.length} possible duplicate issues:`;
+    ? "Найден 1 возможный дубликат issue:"
+    : `Найдено ${candidates.length} возможных дубликатов issue:`;
   const candidateLines = candidates.map((candidate, index) =>
     `${index + 1}. [#${candidate.number}](${candidate.url}) — ${candidate.title}`,
   );
@@ -135,24 +135,24 @@ module.exports = async ({ github, context, core }) => {
   if (classification === "overlapping-scope") {
     sections.push(
       "",
-      "These may not be exact duplicates, but the scope appears to overlap enough that keeping discussion in one place may be more useful.",
+      "Это могут быть не точные дубликаты, но область, похоже, достаточно пересекается, чтобы обсуждение в одном месте было более полезным.",
     );
   }
 
   if (autoClose) {
     sections.push(
       "",
-      `This issue will be automatically closed as a duplicate in ${closeAfterDays} days.`,
+      `Этот issue будет автоматически закрыт как дубликат через ${closeAfterDays} дней.`,
       "",
-      "- If your issue is a duplicate, please close it and 👍 the existing issue instead",
-      "- To prevent auto-closure, add a comment or 👎 this comment",
+      "- Если ваш issue — дубликат, пожалуйста, закройте его и поставьте 👍 существующему issue",
+      "- Чтобы предотвратить автозакрытие, добавьте комментарий или поставьте 👎 этому комментарию",
     );
   }
 
   sections.push(
     "",
     marker,
-    "_This comment was created by an AI assistant (OpenHands) on behalf of the repository maintainer._",
+    "_Этот комментарий был создан ИИ-ассистентом (OpenHands) от имени мейнтейнера репозитория._",
   );
   const body = sections.join("\n").trim();
 
@@ -173,7 +173,7 @@ module.exports = async ({ github, context, core }) => {
     page += 1;
   }
   if (page > maxCommentPages) {
-    core.setFailed(`Stopped loading comments for issue #${issueNumber} after ${maxCommentPages} pages.`);
+    core.setFailed(`Остановлена загрузка комментариев для issue #${issueNumber} после ${maxCommentPages} страниц.`);
     return;
   }
 
@@ -195,17 +195,17 @@ module.exports = async ({ github, context, core }) => {
         });
         if (autoClose) await ensureCandidateLabelOnIssue();
         else await removeCandidateLabelFromIssue();
-        core.info(`Updated existing duplicate check comment ${existing.id} on issue #${issueNumber}.`);
+        core.info(`Обновлён существующий комментарий проверки дубликатов ${existing.id} на issue #${issueNumber}.`);
         return;
       }
       if (autoClose) await ensureCandidateLabelOnIssue();
       else await removeCandidateLabelFromIssue();
     } else {
       core.warning(
-        `Duplicate check comment already exists on issue #${issueNumber} but its marker could not be parsed; leaving label state unchanged.`,
+        `Комментарий проверки дубликатов уже существует на issue #${issueNumber}, но его маркер не удалось распарсить; состояние метки не изменено.`,
       );
     }
-    core.info(`Duplicate check comment already exists on issue #${issueNumber}; skipping.`);
+    core.info(`Комментарий проверки дубликатов уже существует на issue #${issueNumber}; пропускаем.`);
     return;
   }
 

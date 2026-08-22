@@ -4,38 +4,35 @@ description: Оценка того, насколько кодовая база �
 triggers:
 - agent-readiness-report
 - readiness report
+- отчёт о готовности
+- готовность к агенту
 ---
 
-# Agent Readiness Report
+# Отчёт о готовности к агенту
 
-Evaluate how well a repository supports autonomous AI-assisted development.
+Оцените, насколько хорошо репозиторий поддерживает автономную разработку с помощью ИИ.
 
-## What this does
+## Что делает
 
-Assess a codebase across five pillars that determine whether an AI agent can
-work effectively in a repository.  The output is a structured report identifying
-what's present and what's missing.
+Оценивает кодовую базу по пяти столпам, определяющим, может ли ИИ-агент эффективно работать в репозитории. Результат — структурированный отчёт, показывающий, что присутствует и чего не хватает.
 
-## Five Pillars
+## Пять столпов
 
-| Pillar | Question | Features |
+| Столп | Вопрос | Функций |
 |--------|----------|----------|
-| **Agent Instructions** | Does the agent know what to do? | 18 |
-| **Feedback Loops** | Does the agent know if it's right? | 16 |
-| **Workflows & Automation** | Does the process support agent work? | 15 |
-| **Policy & Governance** | Does the agent know the rules? | 13 |
-| **Build & Dev Environment** | Can the agent build and run the project? | 12 |
+| **Инструкции для агента** | Знает ли агент, что делать? | 18 |
+| **Петли обратной связи** | Знает ли агент, правильно ли он? | 16 |
+| **Рабочие процессы и автоматизация** | Поддерживает ли процесс работу агента? | 15 |
+| **Политики и управление** | Знает ли агент правила? | 13 |
+| **Сборка и окружение разработки** | Может ли агент собрать и запустить проект? | 12 |
 
-74 features total.  See `references/criteria.md` for the full list with
-descriptions and evidence examples.
+Всего 74 функции. См. `references/criteria.md` для полного списка с описаниями и примерами доказательств.
 
-## How to run
+## Как запускать
 
-### Step 1: Run the scanner scripts
+### Шаг 1: Запустите скрипты-сканеры
 
-Five shell scripts gather filesystem signals — file existence, config patterns,
-directory structures.  They surface what's present so you don't have to run
-dozens of `find` commands manually.
+Пять shell-скриптов собирают сигналы файловой системы — существование файлов, паттерны конфигов, структуры каталогов. Они показывают, что присутствует, чтобы не пришлось вручную запускать десятки команд `find`.
 
 ```bash
 bash scripts/scan_agent_instructions.sh /path/to/repo
@@ -45,80 +42,71 @@ bash scripts/scan_policy.sh /path/to/repo
 bash scripts/scan_build_env.sh /path/to/repo
 ```
 
-Or scan all five at once:
+Или просканируйте все пять сразу:
 
 ```bash
 for s in scripts/scan_*.sh; do bash "$s" /path/to/repo; echo; done
 ```
 
-On Windows, run these `.sh` helpers from Git Bash or WSL and pass a path that environment can read. Native PowerShell cannot execute the shell scripts directly.
+В Windows запускайте эти `.sh`-хелперы из Git Bash или WSL и передавайте путь, читаемый этой средой. Нативный PowerShell не может выполнять shell-скрипты напрямую.
 
-**Important**: The scripts are helpers, not scorers.  They find files and
-patterns but do not evaluate quality.  Many features require judgment that only
-reading the actual files can provide — for example, whether a README includes
-real build commands or just badges, whether inline documentation is systematic or
-scattered, whether an AI usage policy has meaningful boundaries.
+**Важно**: Скрипты — это хелперы, а не скореры. Они находят файлы и паттерны, но не оценивают качество. Многие функции требуют суждения, которое возможно только при чтении самих файлов — например, содержит ли README реальные команды сборки или только бейджи, систематична ли встроенная документация или разрознена, имеет ли политика использования AI осмысленные границы.
 
-### Step 2: Evaluate each feature
+### Шаг 2: Оцените каждую функцию
 
-Walk through `references/criteria.md` pillar by pillar.  For each feature:
+Пройдитесь по `references/criteria.md` столп за столпом. Для каждой функции:
 
-1. Check the scanner output for relevant signals
-2. For features the scanner can't fully evaluate, inspect the files yourself
-3. Mark each feature: **✓** (present), **✗** (missing), or **—** (not applicable)
+1. Проверьте вывод сканера на релевантные сигналы
+2. Для функций, которые сканер не может полностью оценить, изучите файлы самостоятельно
+3. Отметьте каждую функцию: **✓** (присутствует), **✗** (отсутствует) или **—** (неприменимо)
 
-Features that require judgment (not fully covered by scanners):
-- Does the README actually contain build/run/test commands? (not just that it exists)
-- Is inline documentation systematic across the public API?
-- Are examples actually runnable?
-- Does the contributing guide include code standards?
-- Is there a meaningful AI usage policy?
-- Is the architecture documentation current?
-- Are tests documented well enough for an agent to run them?
+Функции, требующие суждения (не полностью покрытые сканерами):
+- Содержит ли README реально команды сборки/запуска/тестов? (а не просто существует)
+- Систематична ли встроенная документация по публичному API?
+- Действительно ли примеры запускаемы?
+- Включает ли гайд по участию стандарты кода?
+- Есть ли осмысленная политика использования AI?
+- Актуальна ли документация архитектуры?
+- Достаточно ли хорошо задокументированы тесты, чтобы агент мог их запустить?
 
-### Step 3: Write the report
+### Шаг 3: Напишите отчёт
 
-Structure the output as:
+Структурируйте вывод как:
 
 ```
-# Agent Readiness Report: {repo name}
+# Отчёт о готовности к агенту: {repo name}
 
-## Summary
-- Features present: X / 74
-- Strongest pillar: {pillar}
-- Weakest pillar: {pillar}
+## Резюме
+- Функций присутствует: X / 74
+- Сильнейший столп: {столп}
+- Слабейший столп: {столп}
 
-## Pillar 1 · Agent Instructions (X / 18)
-✓ Agent instruction file — AGENTS.md at root
-✓ AI IDE configuration — .cursor/rules/ with 3 rule files
-✗ Multi-model support — only Cursor configured
+## Столп 1 · Инструкции для агента (X / 18)
+✓ Файл инструкций для агента — AGENTS.md в корне
+✓ Конфигурация AI IDE — .cursor/rules/ с 3 файлами правил
+✗ Поддержка нескольких моделей — настроен только Cursor
 ...
 
-## Pillar 2 · Feedback Loops (X / 16)
+## Столп 2 · Петли обратной связи (X / 16)
 ...
 
-## Pillar 3 · Workflows & Automation (X / 15)
+## Столп 3 · Рабочие процессы и автоматизация (X / 15)
 ...
 
-## Pillar 4 · Policy & Governance (X / 13)
+## Столп 4 · Политики и управление (X / 13)
 ...
 
-## Pillar 5 · Build & Dev Environment (X / 12)
+## Столп 5 · Сборка и окружение разработки (X / 12)
 ...
 
 ```
 
-For each passing feature, briefly note what evidence you found.
-For each failing feature, note what's missing.
+Для каждой проходящей функции кратко укажите, какие доказательства вы нашли.
+Для каждой падающей — что отсутствует.
 
-## What makes these features useful
+## Почему эти функции полезны
 
-Every feature answers: *if this is missing, what goes wrong for the AI agent?*
-Features like "agent instruction file" and "tool server configuration" exist
-because agents need them.  Features like "linter" and "CI pipeline" exist because
-agents need fast, clear feedback on whether their changes are correct — not
-because they're general best practices.
+Каждая функция отвечает: *если этого нет, что пойдёт не так у ИИ-агента?*
+Функции вроде «файл инструкций для агента» и «конфигурация сервера инструментов» существуют, потому что они нужны агентам. Функции вроде «линтер» и «CI-пайплайн» существуют, потому что агентам нужна быстрая, чёткая обратная связь о том, правильны ли их изменения — а не потому, что это общие лучшие практики.
 
-The criteria were derived from analysis of 123 real repositories across five
-AI-readiness categories, then filtered for features that actually affect agent
-effectiveness.
+Критерии были получены из анализа 123 реальных репозиториев по пяти категориям готовности к ИИ, затем отфильтрованы по функциям, которые действительно влияют на эффективность агента.

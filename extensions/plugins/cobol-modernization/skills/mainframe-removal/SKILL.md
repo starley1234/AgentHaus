@@ -8,55 +8,58 @@ triggers:
   - cobol transformation
   - cics removal
   - standard cobol
+  - удаление мейнфрейма
+  - трансформация cobol
+  - удаление cics
 ---
 
-Apply the transformations from a transformation guide to convert mainframe-specific COBOL to standard COBOL.
+Примените трансформации из руководства по трансформации, чтобы преобразовать специфичный для мейнфрейма COBOL в стандартный COBOL.
 
-**Prerequisite**: A transformation guide must exist (see `cobol-mainframe-planning` skill).
+**Предварительное условие**: Должно существовать руководство по трансформации (см. навык `cobol-mainframe-planning`).
 
-## Transformation Requirements
+## Требования к трансформации
 
-### Data Operations
+### Операции с данными
 
-- Replace each CICS/VSAM construct with its standard COBOL equivalent per the plan
-- Add FILE STATUS checks after EVERY file operation:
-  - Check for success (00) before proceeding
-  - Handle "not found" (23) distinctly from I/O errors (3x)
-  - Handle "file not exists" (35) at OPEN time
-- Add explicit CLOSE statements in all code paths (including error paths)
+- Замените каждую конструкцию CICS/VSAM на её стандартный эквивалент COBOL согласно плану
+- Добавьте проверки FILE STATUS после КАЖДОЙ файловой операции:
+  - Проверяйте успех (00) перед продолжением
+  - Обрабатывайте «не найдено» (23) отдельно от ошибок ввода/вывода (3x)
+  - Обрабатывайте «файл не существует» (35) при OPEN
+- Добавьте явные инструкции CLOSE во всех ветках кода (включая ветки ошибок)
 
-### UI/Terminal Operations (BMS maps, SEND/RECEIVE)
+### UI/Терминальные операции (BMS-карты, SEND/RECEIVE)
 
-- Replace with simple stubs or ACCEPT/DISPLAY statements
-- Do NOT spend time replicating screen layouts
-- Focus on preserving data flow, not UI fidelity
+- Замените на простые заглушки или инструкции ACCEPT/DISPLAY
+- НЕ тратьте время на воспроизведение макетов экранов
+- Сфокусируйтесь на сохранении потока данных, а не на точности UI
 
-### Error Handling
+### Обработка ошибок
 
-- Replace CICS RESP/RESP2 checks with equivalent FILE STATUS logic
-- Replace HANDLE CONDITION with explicit status checking after operations
-- Ensure error paths don't leave files open
+- Замените проверки CICS RESP/RESP2 на эквивалентную логику FILE STATUS
+- Замените HANDLE CONDITION на явную проверку статуса после операций
+- Убедитесь, что ветки ошибок не оставляют файлы открытыми
 
-See [references/cics-transformation-examples.md](references/cics-transformation-examples.md) for before/after code examples.
+См. [references/cics-transformation-examples.md](references/cics-transformation-examples.md) с примерами кода до/после.
 
-## Verification
+## Верификация
 
-After transformation:
-- Code MUST compile without errors
-- Test with valid input → should execute core business logic
-- Test with missing/invalid files → should fail gracefully, not crash
+После трансформации:
+- Код ДОЛЖЕН компилироваться без ошибок
+- Тест с валидным вводом → должен выполнять основную бизнес-логику
+- Тест с отсутствующими/невалидными файлами → должен завершаться корректно, а не падать
 
-## Preserve
+## Сохранить
 
-- All original business logic
-- Data transformations and calculations
-- Validation rules
+- Всю исходную бизнес-логику
+- Трансформации и расчёты данных
+- Правила валидации
 
-## Checklist
+## Чек-лист
 
-- [ ] All EXEC CICS commands replaced
-- [ ] FILE STATUS declared for all files
-- [ ] FILE STATUS checked after every I/O operation
-- [ ] CLOSE statements in all code paths
-- [ ] Code compiles successfully
-- [ ] Basic test execution passes
+- [ ] Все команды EXEC CICS заменены
+- [ ] FILE STATUS объявлен для всех файлов
+- [ ] FILE STATUS проверяется после каждой операции ввода/вывода
+- [ ] Инструкции CLOSE есть во всех ветках кода
+- [ ] Код успешно компилируется
+- [ ] Базовый тестовый прогон проходит

@@ -1,10 +1,10 @@
-# PR Review Plugin
+# Плагин ревью PR
 
-Automated pull request review using OpenHands agents. This plugin provides GitHub workflows that automatically review PRs with detailed, inline code review comments.
+Автоматизированное ревью пулл-реквестов с использованием агентов OpenHands. Этот плагин предоставляет GitHub workflow, которые автоматически ревьюят PR с детальными inline-комментариями к коду.
 
-## Quick Start
+## Быстрый старт
 
-Copy both workflow files to your repository:
+Скопируйте оба файла workflow в ваш репозиторий:
 
 ```bash
 mkdir -p .github/workflows
@@ -14,42 +14,42 @@ curl -o .github/workflows/pr-review-evaluation.yml \
   https://raw.githubusercontent.com/OpenHands/extensions/main/.github/workflows/pr-review-evaluation.yml
 ```
 
-Then configure the required secrets (see [Installation](#installation) below).
+Затем настройте необходимые секреты (см. [Установка](#установка) ниже).
 
-## Features
+## Возможности
 
-- **Automated PR Reviews**: Triggered when PRs are opened, marked ready, or when a reviewer is requested
-- **Inline Code Comments**: Posts review comments directly on specific lines of code
-- **Unified Review Style**: Rigorous code review combining pragmatic engineering analysis with data structure and simplicity focus
-- **A/B Testing**: Support for testing multiple LLM models
-- **Review Context Awareness**: Considers previous reviews and unresolved threads
-- **Evidence Enforcement**: Optional check that PR descriptions include concrete end-to-end proof the code works, not just test output
-- **Sub-Agent Delegation**: Split large PR reviews across multiple sub-agents, one per file, then consolidate findings (see [Known Limitations](#known-limitations-sub-agent-delegation))
-- **Observability**: Optional Laminar integration for tracing and evaluation
+- **Автоматизированные ревью PR**: Срабатывает при открытии PR, пометке готовым или при запросе ревьюера
+- **Inline-комментарии к коду**: Публикует комментарии ревью прямо на конкретных строках кода
+- **Единый стиль ревью**: Тщательное код-ревью, сочетающее прагматичный инженерный анализ с фокусом на структуры данных и простоту
+- **A/B тестирование**: Поддержка тестирования нескольких LLM-моделей
+- **Осведомлённость о контексте ревью**: Учитывает предыдущие ревью и нерешённые треды
+- **Принудительная проверка доказательств**: Опциональная проверка, что описания PR включают конкретное сквозное доказательство работоспособности кода, а не только вывод тестов
+- **Делегирование под-агентам**: Разделение больших ревью PR между несколькими под-агентами, по одному на файл, затем консолидация находок (см. [Известные ограничения](#известные-ограничения-делегирование-под-агентам))
+- **Наблюдаемость**: Опциональная интеграция с Laminar для трейсинга и оценки
 
-## Plugin Contents
+## Содержимое плагина
 
 ```
 plugins/pr-review/
-├── README.md              # This file
-├── action.yml             # Composite GitHub Action
-├── skills/                # Symbolic links to review skills
+├── README.md              # Этот файл
+├── action.yml             # Композитный GitHub Action
+├── skills/                # Символические ссылки на навыки ревью
 │   ├── code-review -> ../../../skills/code-review
 │   └── github-pr-review -> ../../../skills/github-pr-review
-├── workflows/             # Example GitHub workflow files
+├── workflows/             # Примеры файлов GitHub workflow
 │   ├── pr-review-by-openhands.yml
 │   └── pr-review-evaluation.yml
-└── scripts/               # Python scripts for review execution
-    ├── agent_script.py    # Main PR review agent script
-    ├── prompt.py          # Prompt template for reviews
-    └── evaluate_review.py # Evaluation script for merged/closed PRs
+└── scripts/               # Python-скрипты для выполнения ревью
+    ├── agent_script.py    # Основной скрипт агента ревью PR
+    ├── prompt.py          # Шаблон промпта для ревью
+    └── evaluate_review.py # Скрипт оценки для смерженных/закрытых PR
 ```
 
-## Installation
+## Установка
 
-### 1. Copy the Workflow Files
+### 1. Скопируйте файлы workflow
 
-Copy the workflow files to your repository's `.github/workflows/` directory:
+Скопируйте файлы workflow в каталог `.github/workflows/` вашего репозитория:
 
 ```bash
 mkdir -p .github/workflows
@@ -59,62 +59,55 @@ curl -o .github/workflows/pr-review-evaluation.yml \
   https://raw.githubusercontent.com/OpenHands/extensions/main/.github/workflows/pr-review-evaluation.yml
 ```
 
-### 2. Configure Secrets
+### 2. Настройте секреты
 
-Add the following secrets in your repository settings (**Settings → Secrets and variables → Actions**):
+Добавьте следующие секреты в настройках репозитория (**Settings → Secrets and variables → Actions**):
 
-| Secret | Required | Description |
+| Секрет | Обязательно | Описание |
 |--------|----------|-------------|
-| `LLM_API_KEY` | Yes for `api-key` mode | API key for your LLM provider |
-| `GITHUB_TOKEN` | Auto | Provided automatically by GitHub Actions |
-| `LMNR_SKILLS_API_KEY` | No | Laminar API key (org-level secret; mapped to `LMNR_PROJECT_API_KEY` env var in workflows) |
+| `LLM_API_KEY` | Да для режима `api-key` | API-ключ для вашего LLM-провайдера |
+| `GITHUB_TOKEN` | Авто | Предоставляется автоматически GitHub Actions |
+| `LMNR_SKILLS_API_KEY` | Нет | API-ключ Laminar (секрет уровня организации; мапится в переменную окружения `LMNR_PROJECT_API_KEY` в workflow) |
 
-**Note**: To post review comments from a bot account instead of `GITHUB_TOKEN`, use a bot token scoped to the repository's trust boundary. On **public** repositories, use `OPENHANDS_BOT_GITHUB_PAT_PUBLIC` — a fine-grained token limited to public repositories. On **private** repositories, use a bot token scoped to that repository. Never give a public repository a token that can reach private repositories.
+**Примечание**: Чтобы публиковать комментарии ревью от имени бот-аккаунта вместо `GITHUB_TOKEN`, используйте токен бота, ограниченный границей доверия репозитория. На **публичных** репозиториях используйте `OPENHANDS_BOT_GITHUB_PAT_PUBLIC` — fine-grained токен, ограниченный публичными репозиториями. На **приватных** репозиториях используйте токен бота, ограниченный этим репозиторием. Никогда не давайте публичному репозиторию токен, который может достичь приватных репозиториев.
 
-### 3. Customize the Workflow (Optional)
+### 3. Настройте workflow (опционально)
 
-Edit the workflow file to customize:
+Отредактируйте файл workflow для кастомизации:
 
 ```yaml
-- name: Run PR Review
+- name: Запуск ревью PR
   uses: OpenHands/extensions/plugins/pr-review@main
   with:
-    # LLM model(s) - comma-separated for A/B testing
+    # LLM-модель(и) - через запятую для A/B тестирования
     llm-model: anthropic/claude-sonnet-4-5-20250929
 
-    # Optional: Custom LLM endpoint
+    # Опционально: Кастомный LLM-эндпоинт
     # llm-base-url: https://your-llm-proxy.example.com
     
-    # [DEPRECATED] review-style is no longer used; standard and roasted are merged
+    # [УСТАРЕЛО] review-style больше не используется; standard и roasted объединены
     # review-style: roasted
 
-    # Optional: require an Evidence section proving the code works end-to-end
+    # Опционально: требовать раздел Evidence, доказывающий работоспособность кода сквозным образом
     # require-evidence: 'true'
     
-    # Pin to a specific version (tag, branch, or commit SHA)
+    # Зафиксировать конкретную версию (тег, ветка или SHA коммита)
     extensions-version: main
     
-    # Secrets
+    # Секреты
     llm-api-key: ${{ secrets.LLM_API_KEY }}
     github-token: ${{ secrets.GITHUB_TOKEN }}
     
-    # Optional: Enable Laminar observability
+    # Опционально: Включить наблюдаемость Laminar
     # lmnr-api-key: ${{ secrets.LMNR_PROJECT_API_KEY }}
 ```
 
-#### Experimental: ACP review backend
+#### Экспериментально: ACP-бэкенд ревью
 
-Use `agent-kind: acp` to run the reviewer through an ACP-compatible
-agent server. In this mode, OpenHands still loads review skills and plugin
-prompt context, but the ACP server owns model access, authentication, and tool
-execution. Install the ACP CLI and configure its authentication in the runner
-environment before invoking this action. Sub-agent delegation is disabled in ACP
-mode because delegation depends on OpenHands agent runtime details such as
-TaskToolSet, agent registration, and tool routing that ACP servers do not expose
-consistently.
+Используйте `agent-kind: acp` для запуска ревьюера через ACP-совместимый агент-сервер. В этом режиме OpenHands по-прежнему загружает навыки ревью и контекст промпта плагина, но ACP-сервер владеет доступом к модели, аутентификацией и выполнением инструментов. Установите ACP CLI и настройте его аутентификацию в окружении раннера перед вызовом этого action. Делегирование под-агентам отключено в ACP-режиме, потому что делегирование зависит от деталей рантайма агента OpenHands, таких как TaskToolSet, регистрация агента и маршрутизация инструментов, которые ACP-серверы не экспонируют консистентно.
 
 ```yaml
-- name: Run PR Review
+- name: Запуск ревью PR
   uses: OpenHands/extensions/plugins/pr-review@main
   with:
     agent-kind: acp
@@ -123,36 +116,25 @@ consistently.
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Authentication.** ACP servers typically support two authentication methods.
-The simplest is API key authentication: store your provider API key as a
-repository secret (e.g. `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) and pass it to the ACP server as an
-environment variable in the workflow step. Most ACP servers will pick up the
-standard provider key automatically. Alternatively, subscription-based tools
-such as Codex support device-code login, which lets you use a ChatGPT
-Plus/Pro subscription without a separate API key - see the example below.
+**Аутентификация.** ACP-серверы обычно поддерживают два метода аутентификации. Самый простой — аутентификация по API-ключу: сохраните ключ API провайдера как секрет репозитория (например, `OPENAI_API_KEY` или `ANTHROPIC_API_KEY`) и передайте его ACP-серверу как переменную окружения в шаге workflow. Большинство ACP-серверов автоматически подхватит стандартный ключ провайдера. Альтернативно, инструменты на основе подписки, такие как Codex, поддерживают device-code логин, позволяющий использовать подписку ChatGPT Plus/Pro без отдельного API-ключа — см. пример ниже.
 
-Codex ACP example for a runner that stores Codex auth in a GitHub secret.
-Create `CODEX_AUTH_JSON_B64` from a trusted machine where the Codex CLI is
-installed, then complete device-code login:
+Пример Codex ACP для раннера, хранящего Codex-аутентификацию в секрете GitHub. Создайте `CODEX_AUTH_JSON_B64` на доверенной машине, где установлен Codex CLI, затем завершите device-code логин:
 
 ```bash
 codex login --device-auth
 codex login status
 ```
 
-After login succeeds, encode the generated auth file:
+После успешного логина закодируйте сгенерированный файл аутентификации:
 
 ```bash
 base64 -w 0 "$HOME/.codex/auth.json"
 ```
 
-Store the printed value as the repository or organization secret
-`CODEX_AUTH_JSON_B64`. This secret contains your Codex authentication material;
-limit it to trusted self-hosted runners and avoid exposing it to workflows that
-run untrusted pull request code.
+Сохраните выведенное значение как секрет репозитория или организации `CODEX_AUTH_JSON_B64`. Этот секрет содержит ваш материал аутентификации Codex; ограничьте его доверенными self-hosted раннерами и избегайте его экспонирования в workflow, запускающих недоверенный код пулл-реквестов.
 
 ```yaml
-- name: Restore Codex auth
+- name: Восстановить Codex-аутентификацию
   env:
     CODEX_AUTH_JSON_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
   run: |
@@ -160,7 +142,7 @@ run untrusted pull request code.
     printf '%s' "$CODEX_AUTH_JSON_B64" | base64 -d > "$HOME/.codex/auth.json"
     chmod 600 "$HOME/.codex/auth.json"
 
-- name: Run PR Review
+- name: Запуск ревью PR
   uses: OpenHands/extensions/plugins/pr-review@main
   with:
     agent-kind: acp
@@ -168,226 +150,225 @@ run untrusted pull request code.
     llm-model: gpt-5.5
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
-- name: Cleanup Codex auth
+- name: Очистка Codex-аутентификации
   if: always()
   run: rm -f "$HOME/.codex/auth.json"
 ```
 
-### 4. Create the Review Label (Optional)
+### 4. Создайте метку ревью (опционально)
 
-Create a `review-this` label for manual review triggers:
+Создайте метку `review-this` для ручных триггеров ревью:
 
-1. Go to **Issues → Labels** in your repository
-2. Click **New label**
-3. Name: `review-this`
-4. Description: `Trigger OpenHands PR review`
-5. Click **Create label**
+1. Перейдите в **Issues → Labels** в вашем репозитории
+2. Нажмите **New label**
+3. Имя: `review-this`
+4. Описание: `Триггер ревью PR от OpenHands`
+5. Нажмите **Create label**
 
-## Usage
+## Использование
 
-### Automatic Triggers
+### Автоматические триггеры
 
-PR reviews are automatically triggered when:
+Ревью PR автоматически триггерятся когда:
 
-1. A new non-draft PR is opened (by non-first-time contributors)
-2. A draft PR is marked as ready for review
-3. The `review-this` label is added
-4. `openhands-agent` or `all-hands-bot` is requested as a reviewer
+1. Новый не-черновой PR открыт (не от впервые контрибьютящих)
+2. Черновой PR помечен как готовый к ревью
+3. Добавлена метка `review-this`
+4. `openhands-agent` или `all-hands-bot` запрошен как ревьюер
 
-### Requesting a Review
+### Запрос ревью
 
-**Option 1: Request as Reviewer (Recommended)**
-1. Open the PR
-2. Click **Reviewers** in the sidebar
-3. Select `openhands-agent` as a reviewer
+**Вариант 1: Запрос как ревьюера (рекомендуется)**
+1. Откройте PR
+2. Нажмите **Reviewers** в боковой панели
+3. Выберите `openhands-agent` как ревьюера
 
-**Option 2: Add Label**
-1. Open the PR
-2. Add the `review-this` label
+**Вариант 2: Добавить метку**
+1. Откройте PR
+2. Добавьте метку `review-this`
 
-## Action Inputs
+## Входные параметры Action
 
-| Input | Required | Default | Description |
+| Вход | Обязательно | По умолчанию | Описание |
 |-------|----------|---------|-------------|
-| `agent-kind` | No | `openhands` | Review backend: `openhands` for the standard SDK Agent or `acp` for an ACP-compatible agent server |
-| `llm-model` | No | `anthropic/claude-sonnet-4-5-20250929` | LLM model(s), comma-separated for A/B testing. In ACP mode this is passed to the ACP server when supported. |
-| `acp-command` | Yes for `acp` mode | `''` | Command used to start the ACP server. The command must already be available in the runner environment or be runnable through a package manager. Examples: `npx -y @zed-industries/codex-acp@0.12.0`, `codex-acp`, `claude-agent-acp`, `npx -y @agentclientprotocol/claude-agent-acp`. |
-| `acp-prompt-timeout` | No | `'1800'` | Timeout in seconds for one ACP prompt turn |
-| `llm-base-url` | No | `''` | Custom LLM endpoint URL |
-| `review-style` | No | `roasted` | **[DEPRECATED]** Previously chose between `standard` and `roasted` review styles. Now ignored — the styles have been merged into a single unified skill. |
-| `require-evidence` | No | `'false'` | Require the reviewer to enforce an `Evidence` section in the PR description with end-to-end proof: screenshots/videos for frontend work, commands and runtime output for backend or scripts, and an agent conversation link when applicable. Test output alone does not qualify. |
-| `use-sub-agents` | No | `'false'` | Enable sub-agent delegation for file-level reviews in `openhands` mode. The main agent acts as a coordinator that delegates per-file review work to `file_reviewer` sub-agents via the SDK TaskToolSet, then consolidates findings into a single PR review. Useful for large PRs with many changed files. **Disabled by default** due to high token costs and potential timeouts (see [#208](https://github.com/OpenHands/extensions/issues/208)). Set to `'true'` to opt in. Ignored in ACP mode. |
-| `collect-feedback` | No | `'true'` | Append a short feedback footer to the main automated review body asking maintainers to react with thumbs up/down. The evaluation workflow records these reaction counts for analysis. |
-| `extensions-repo` | No | `OpenHands/extensions` | Extensions repository |
-| `extensions-version` | No | `main` | Git ref (tag, branch, or SHA) |
-| `openhands-sdk-package` | No | `openhands-sdk` | Package spec passed to `uv --with`; override only when pinning a specific SDK build for testing or rollout control |
-| `llm-api-key` | Yes for `openhands` mode | - | LLM API key for the OpenHands agent. Ignored in ACP mode. |
-| `github-token` | Yes | - | GitHub token for API access |
-| `lmnr-api-key` | No | `''` | Laminar API key for observability |
-| `enable-uv-cache` | No | `'false'` | Enable setup-uv's GitHub Actions cache for Python deps. Default `false` for security (see [Caching and Security](#caching-and-security)). |
+| `agent-kind` | Нет | `openhands` | Бэкенд ревью: `openhands` для стандартного SDK-агента или `acp` для ACP-совместимого агент-сервера |
+| `llm-model` | Нет | `anthropic/claude-sonnet-4-5-20250929` | LLM-модель(и), через запятую для A/B тестирования. В режиме ACP передаётся ACP-серверу, когда поддерживается. |
+| `acp-command` | Да для режима `acp` | `''` | Команда для запуска ACP-сервера. Команда уже должна быть доступна в окружении раннера или запускаться через пакетный менеджер. Примеры: `npx -y @zed-industries/codex-acp@0.12.0`, `codex-acp`, `claude-agent-acp`, `npx -y @agentclientprotocol/claude-agent-acp`. |
+| `acp-prompt-timeout` | Нет | `'1800'` | Таймаут в секундах на один ход промпта ACP |
+| `llm-base-url` | Нет | `''` | Пользовательский URL эндпоинта LLM |
+| `review-style` | Нет | `roasted` | **[УСТАРЕЛО]** Ранее выбирал между стилями `standard` и `roasted`. Сейчас игнорируется — стили объединены в один единый навык. |
+| `require-evidence` | Нет | `'false'` | Требовать от ревьюера проверки раздела `Evidence` в описании PR со сквозным доказательством: скриншоты/видео для фронтенда, команды и вывод рантайма для бэкенда или скриптов, и ссылка на беседу агента когда применимо. Один вывод тестов не считается. |
+| `use-sub-agents` | Нет | `'false'` | Включить делегирование под-агентам для ревью на уровне файлов в режиме `openhands`. Основной агент выступает координатором, делегирующим работу по ревью файлов под-агентам `file_reviewer` через SDK TaskToolSet, затем консолидирует находки в одно ревью PR. Полезно для больших PR с множеством изменённых файлов. **Отключено по умолчанию** из-за высоких затрат на токены и потенциальных таймаутов (см. [#208](https://github.com/OpenHands/extensions/issues/208)). Установите `'true'` для включения. Игнорируется в режиме ACP. |
+| `collect-feedback` | Нет | `'true'` | Добавлять короткий футер обратной связи к основному телу автоматизированного ревью с просьбой к мейнтейнерам отреагировать thumbs up/down. Workflow оценки записывает эти счётчики реакций для анализа. |
+| `extensions-repo` | Нет | `OpenHands/extensions` | Репозиторий расширений |
+| `extensions-version` | Нет | `main` | Git ref (тег, ветка или SHA) |
+| `openhands-sdk-package` | Нет | `openhands-sdk` | Спецификация пакета, передаваемая в `uv --with`; переопределяйте только при фиксации конкретной сборки SDK для тестирования или контроля раскатки |
+| `llm-api-key` | Да для режима `openhands` | - | API-ключ LLM для агента OpenHands. Игнорируется в режиме ACP. |
+| `github-token` | Да | - | GitHub токен для доступа к API |
+| `lmnr-api-key` | Нет | `''` | API-ключ Laminar для наблюдаемости |
+| `enable-uv-cache` | Нет | `'false'` | Включить кэш GitHub Actions для setup-uv для Python-зависимостей. По умолчанию `false` для безопасности (см. [Кэширование и безопасность](#кэширование-и-безопасность)). |
 
-## Caching and Security
+## Кэширование и безопасность
 
-Python dependency caching is **disabled by default**. `uv run --with ...` re-downloads OpenHands SDK and its transitive deps on every run, which is slow but safe.
+Кэширование Python-зависимостей **отключено по умолчанию**. `uv run --with ...` повторно скачивает OpenHands SDK и его транзитивные зависимости при каждом запуске, что медленно, но безопасно.
 
-**Why it's off by default:** Prompt injection can coerce the reviewer into executing arbitrary commands during the review. A compromised review run could write a malicious wheel into the shared GitHub Actions cache. Any later, higher-privilege workflow in the same repository that hits the same cache key would silently execute the attacker's code — a supply-chain pivot.
+**Почему отключено по умолчанию:** Prompt injection может принудить ревьюера выполнить произвольные команды во время ревью. Скомпрометированный прогон ревью мог бы записать вредоносный wheel в общий кэш GitHub Actions. Любой последующий, более привилегированный workflow в том же репозитории, попадающий на тот же ключ кэша, тихо выполнил бы код злоумышленника — pivot цепочки поставок.
 
-**Enabling it is safe when:**
-- The runner is single-tenant (e.g. your own self-hosted runner, not shared with untrusted workflows).
-- You do not run other privileged workflows in the same repository that would consume setup-uv's cache.
-- You accept the residual risk in exchange for faster runs / lower disk writes.
+**Включение безопасно когда:**
+- Раннер single-tenant (например, ваш собственный self-hosted раннер, не разделяемый с недоверенными workflow).
+- Вы не запускаете другие привилегированные workflow в том же репозитории, которые бы потребляли кэш setup-uv.
+- Вы принимаете остаточный риск в обмен на более быстрые прогоны / меньшие записи на диск.
 
-**Self-hosted runners:** Consider mounting a host-level uv cache volume (e.g. `/home/runner/.cache` as a Docker volume) instead of — or in addition to — this option. A local volume is faster than a round trip to GHA cache storage and does not cross any trust boundary.
+**Self-hosted раннеры:** Рассмотрите монтирование host-level кэша uv (например, `/home/runner/.cache` как Docker volume) вместо — или в дополнение к — этой опции. Локальный volume быстрее, чем round-trip к хранилищу кэша GHA, и не пересекает границу доверия.
 
-## Known Limitations: Sub-Agent Delegation
+## Известные ограничения: Делегирование под-агентам
 
-The following are known constraints of the sub-agent delegation feature. These are acceptable tradeoffs for the improved review depth it provides, and none pose a security risk — in the worst case a review may be less thorough than expected, which the single-agent fallback (`use-sub-agents: 'false'`) addresses.
+Ниже — известные ограничения функции делегирования под-агентам. Это приемлемые компромиссы для улучшенной глубины ревью, и ни одно не представляет риска безопасности — в худшем случае ревью может быть менее тщательным, чем ожидается, что решается fallback на одного агента (`use-sub-agents: 'false'`).
 
-- **LLM-driven JSON parsing**: The coordinator agent relies on the LLM to parse and merge JSON responses from sub-agents. There is no code-level validation of sub-agent output, so malformed responses may cause incomplete reviews.
-- **Potential information loss during consolidation**: When merging findings from multiple sub-agents, the coordinator may lose or deduplicate findings imperfectly, especially for cross-file issues.
-- **Sub-agents have read-only tools**: File reviewer sub-agents have access to `terminal` and `file_editor` for inspecting full source files and surrounding context, but they cannot query the GitHub API or post reviews — only the coordinator handles GitHub interaction.
+- **JSON-парсинг, управляемый LLM**: Агент-координатор полагается на LLM для парсинга и мержа JSON-ответов от под-агентов. Нет валидации на уровне кода вывода под-агентов, поэтому malformed ответы могут привести к неполным ревью.
+- **Потенциальная потеря информации при консолидации**: При мерже находок от нескольких под-агентов координатор может потерять или дедуплицировать находки несовершенно, особенно для кросс-файловых проблем.
+- **Под-агенты имеют только read-only инструменты**: Под-агенты ревьюера файлов имеют доступ к `terminal` и `file_editor` для инспекции полных исходных файлов и окружающего контекста, но они не могут запрашивать GitHub API или публиковать ревью — только координатор обрабатывает взаимодействие с GitHub.
 
-To opt out, set `use-sub-agents: 'false'` in your workflow.
+Чтобы отказаться, установите `use-sub-agents: 'false'` в вашем workflow.
 
-## A/B Testing Multiple Models
+## A/B тестирование нескольких моделей
 
-Test different LLM models by providing a comma-separated list:
+Тестируйте разные LLM-модели, передавая список через запятую:
 
 ```yaml
 llm-model: 'anthropic/claude-sonnet-4-5-20250929,openai/gpt-4o,anthropic/claude-3-5-haiku-20241022'
 ```
 
-One model is randomly selected for each review. When Laminar observability is enabled, the selected model is logged for comparison.
+Одна модель случайно выбирается для каждого ревью. Когда включена наблюдаемость Laminar, выбранная модель логируется для сравнения.
 
-## Observability with Laminar
+## Наблюдаемость с Laminar
 
-### Setting Up Laminar
+### Настройка Laminar
 
-1. Create a project at [Laminar](https://www.lmnr.ai/)
-2. Copy your project API key
-3. Add `LMNR_PROJECT_API_KEY` to your repository secrets
-4. Uncomment the `lmnr-api-key` line in your workflow
+1. Создайте проект на [Laminar](https://www.lmnr.ai/)
+2. Скопируйте API-ключ вашего проекта
+3. Добавьте `LMNR_PROJECT_API_KEY` в секреты вашего репозитория
+4. Раскомментируйте строку `lmnr-api-key` в вашем workflow
 
-### What Gets Traced
+### Что трейсится
 
-- **Review Trace**: Full agent execution including diff analysis, review generation, and comment posting
-- **Metadata**: PR number, repository, review style, model used
-- **Feedback**: Optional thumbs up/down reactions on the footer appended to the generated PR review body
-- **Evaluation Trace**: (Optional) Created when PR is closed/merged to measure review effectiveness
+- **Трейс ревью**: Полное выполнение агента, включая анализ диффа, генерацию ревью и публикацию комментариев
+- **Метаданные**: Номер PR, репозиторий, стиль ревью, использованная модель
+- **Обратная связь**: Опциональные реакции thumbs up/down на футере, добавленном к телу сгенерированного PR-ревью
+- **Трейс оценки**: (Опционально) Создаётся при закрытии/мерже PR для измерения эффективности ревью
 
-### Review Evaluation
+### Оценка ревью
 
-The evaluation workflow (`pr-review-evaluation.yml`) runs when PRs are closed and:
-1. Downloads the review trace artifact
-2. Fetches final PR state and comments
-3. Creates an evaluation span in Laminar
-4. Scores the review based on engagement metrics
+Workflow оценки (`pr-review-evaluation.yml`) запускается при закрытии PR и:
+1. Скачивает артефакт трейса ревью
+2. Забирает финальное состояние PR и комментарии
+3. Создаёт evaluation span в Laminar
+4. Оценивает ревью на основе метрик вовлечённости
 
-### Laminar Dashboard
+### Дашборд Laminar
 
-In your Laminar dashboard, you can:
-- Filter traces by `pr-review` or `pr-review-evaluation` tags
-- Compare review effectiveness across models (A/B testing)
-- Analyze engagement metrics (human responses to agent comments)
-- Set up signals for automated quality scoring
+В вашем дашборде Laminar вы можете:
+- Фильтровать трейсы по тегам `pr-review` или `pr-review-evaluation`
+- Сравнивать эффективность ревью между моделями (A/B тестирование)
+- Анализировать метрики вовлечённости (ответы людей на комментарии агента)
+- Настраивать сигналы для автоматизированной оценки качества
 
-## Customizing Review Guidelines
+## Кастомизация гайдлайнов ревью
 
-Instead of forking the scripts, add custom guidelines to your repository:
+Вместо форка скриптов добавьте кастомные гайдлайны в ваш репозиторий:
 
-### Option 1: Custom Code Review Skill
+### Вариант 1: Кастомный навык код-ревью
 
-Create `.agents/skills/custom-codereview-guide.md`:
+Создайте `.agents/skills/custom-codereview-guide.md`:
 
 ```markdown
 ---
 name: custom-codereview-guide
-description: Custom code review guidelines for my project
+description: Кастомные гайдлайны код-ревью для моего проекта
 triggers:
 - /codereview
 ---
 
-# My Project Code Review Guidelines
+# Гайдлайны код-ревью моего проекта
 
-You are a code reviewer for this project. Follow these guidelines:
+Вы — код-ревьюер для этого проекта. Следуйте этим гайдлайнам:
 
-## Review Focus
-- Security vulnerabilities and data handling
-- API contract compatibility
-- Test coverage for new functionality
+## Фокус ревью
+- Уязвимости безопасности и обработка данных
+- Совместимость контрактов API
+- Покрытие тестами новой функциональности
 
-## Communication Style
-- Be direct and constructive
-- Use GitHub suggestion syntax for code fixes
+## Стиль общения
+- Будьте прямыми и конструктивными
+- Используйте синтаксис предложений GitHub для фиксов кода
 ```
 
-Use a unique skill name (for example `custom-codereview-guide`) to **supplement** the default public `code-review` skill,
-rather than overriding it. Keep `/codereview` as the trigger if you want this guidance applied in PR review runs.
+Используйте уникальное имя навыка (например, `custom-codereview-guide`), чтобы **дополнить** дефолтный публичный навык `code-review`, а не переопределять его. Оставьте `/codereview` как триггер, если хотите, чтобы это руководство применялось в прогонах ревью PR.
 
-### Option 2: Repository AGENTS.md
+### Вариант 2: AGENTS.md репозитория
 
-Add project-specific context to `AGENTS.md` at your repository root:
+Добавьте проектно-специфичный контекст в `AGENTS.md` в корне вашего репозитория:
 
 ```markdown
-# Project Context
+# Контекст проекта
 
-This is a Python web application using FastAPI.
+Это Python веб-приложение на FastAPI.
 
-## Code Standards
-- All public functions must have docstrings
-- Use type hints for function signatures
-- Follow PEP 8 style guidelines
+## Стандарты кода
+- Все публичные функции должны иметь docstring
+- Используйте type hints для сигнатур функций
+- Следуйте гайдлайнам стиля PEP 8
 ```
 
-## Migration from software-agent-sdk
+## Миграция из software-agent-sdk
 
-If you were previously using workflows that referenced `OpenHands/software-agent-sdk`, update them to use this extensions repository:
+Если вы ранее использовали workflow, ссылавшиеся на `OpenHands/software-agent-sdk`, обновите их для использования этого репозитория расширений:
 
-**Before:**
+**До:**
 ```yaml
 uses: OpenHands/software-agent-sdk/.github/actions/pr-review@main
 ```
 
-**After:**
+**После:**
 ```yaml
 uses: OpenHands/extensions/plugins/pr-review@main
 ```
 
-Also update any `sdk-repo` and `sdk-version` inputs to `extensions-repo` and `extensions-version`.
+Также обновите любые входы `sdk-repo` и `sdk-version` на `extensions-repo` и `extensions-version`.
 
-## Troubleshooting
+## Устранение неполадок
 
-### Review Not Triggered
+### Ревью не триггерится
 
-1. Check that the workflow file is in `.github/workflows/`
-2. Verify the PR author association (first-time contributors need manual trigger)
-3. Ensure secrets are configured correctly
+1. Проверьте, что файл workflow находится в `.github/workflows/`
+2. Проверьте ассоциацию автора PR (для впервые контрибьютящих нужен ручной триггер)
+3. Убедитесь, что секреты настроены правильно
 
-### Review Comments Not Appearing
+### Комментарии ревью не появляются
 
-1. Check the `GITHUB_TOKEN` has write permissions for pull requests
-2. Review the workflow logs for API errors
-3. Verify the LLM API key is valid
+1. Проверьте, что `GITHUB_TOKEN` имеет права записи для пулл-реквестов
+2. Изучите логи workflow на ошибки API
+3. Проверьте, что API-ключ LLM валиден
 
-### Rate Limiting
+### Ограничение скорости (Rate Limiting)
 
-If you see rate limit errors:
-1. Reviews are automatically paginated to avoid limits
-2. Consider using a dedicated bot token for high-volume repositories
+Если видите ошибки ограничения скорости:
+1. Ревью автоматически пагинируются, чтобы избежать лимитов
+2. Рассмотрите использование выделенного токена бота для репозиториев с большим объёмом
 
-## Security
+## Безопасность
 
-- Uses `pull_request_target` when you need secrets for fork PR reviews; apply strict maintainer-controlled triggers and checkout safeguards
-- Keeps GitHub Actions caching disabled in privileged review workflows to avoid cache-poisoning pivots from prompt injection
-- For lower-trust or comment-only smoke-test setups, prefer `pull_request` to reduce privilege by default
-- Only triggers for trusted contributors or when maintainers add labels/reviewers
-- PR code is checked out explicitly; secrets are not exposed to PR code
-- Credentials are not persisted during checkout
+- Использует `pull_request_target`, когда нужны секреты для ревью PR из форков; применяйте строгие триггеры, контролируемые мейнтейнерами, и меры защиты checkout
+- Держит кэширование GitHub Actions отключённым в привилегированных workflow ревью, чтобы избежать pivot отравления кэша из prompt injection
+- Для менее доверенных или smoke-тестов только с комментариями предпочитайте `pull_request` для снижения привилегий по умолчанию
+- Триггерится только для доверенных контрибьюторов или когда мейнтейнеры добавляют метки/ревьюеров
+- Код PR чекаутится явно; секреты не экспонируются коду PR
+- Учётные данные не сохраняются при checkout
 
-## Contributing
+## Участие
 
-See the main [extensions repository](https://github.com/OpenHands/extensions) for contribution guidelines.
+См. основной [репозиторий расширений](https://github.com/OpenHands/extensions) для гайдлайнов по участию.
 
-## License
+## Лицензия
 
-This plugin is part of the OpenHands extensions repository. See [LICENSE](../../LICENSE) for details.
+Этот плагин — часть репозитория расширений OpenHands. См. [LICENSE](../../LICENSE) для деталей.

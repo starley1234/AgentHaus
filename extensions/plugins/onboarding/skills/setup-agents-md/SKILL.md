@@ -4,147 +4,118 @@ description: Генерация качественного файла AGENTS.md 
 triggers:
 - setup-agents-md
 - agents-md
+- создание agents-md
 ---
 
-# Generate AGENTS.md
+# Генерация AGENTS.md
 
-Create a repo-specific AGENTS.md that gives AI agents the context they need to
-work effectively.  Every section should reference real commands, real paths, and
-real conventions from the repository — not generic advice.
+Создайте AGENTS.md, специфичный для репозитория, который даёт ИИ-агентам контекст, необходимый для эффективной работы. Каждый раздел должен ссылаться на реальные команды, реальные пути и реальные конвенции из репозитория — а не на общие советы.
 
-## Why this matters
+## Почему это важно
 
-An AGENTS.md is the single highest-impact addition for agent readiness.  It
-directly addresses features across multiple pillars:
+AGENTS.md — это единственное дополнение с самым высоким влиянием для готовности к агенту. Оно напрямую затрагивает функции из нескольких столпов:
 
-- **Agent Instructions**: agent instruction file, README with build/run/test,
-  contributing guide, environment variable documentation
-- **Feedback Loops**: test run documentation — agents need exact commands
-- **Policy & Governance**: guardrails the agent must follow
+- **Инструкции для агента**: файл инструкций для агента, README со сборкой/запуском/тестами, гайд по участию, документация переменных окружения
+- **Петли обратной связи**: документация запуска тестов — агентам нужны точные команды
+- **Политики и управление**: ограничения, которым должен следовать агент
 
-Without it, agents guess at build commands, miss project conventions, run the
-wrong test suite, and don't know what's dangerous.  The best AGENTS.md files
-share the same core pattern: real commands, clear structure, explicit boundaries.
+Без него агенты гадают с командами сборки, пропускают конвенции проекта, запускают неправильный набор тестов и не знают, что опасно. Лучшие файлы AGENTS.md имеют один и тот же основной паттерн: реальные команды, чёткая структура, явные границы.
 
-## How to run
+## Как запускать
 
-### Step 0: Check for an existing AGENTS.md
+### Шаг 0: Проверьте существующий AGENTS.md
 
-Look for an existing `AGENTS.md` (or `.agents/AGENTS.md`) in the repo root.
-If one exists, **do not rewrite it from scratch**. Instead, read the repo
-(Step 1), compare what you find against what's already documented, and suggest
-specific additions or changes. Present the suggestions to the user and let them
-decide what to incorporate.
+Ищите существующий `AGENTS.md` (или `.agents/AGENTS.md`) в корне репозитория.
+Если он существует, **не переписывайте его с нуля**. Вместо этого прочитайте репозиторий (Шаг 1), сравните найденное с уже задокументированным и предложите конкретные дополнения или изменения. Представьте предложения пользователю и дайте ему решить, что включить.
 
-If no file exists, proceed to create one.
+Если файла нет, переходите к созданию.
 
-### Step 1: Read the repo
+### Шаг 1: Прочитайте репозиторий
 
-Before writing anything, gather the actual information.  Check these sources:
+Прежде чем что-либо писать, соберите реальную информацию. Проверьте эти источники:
 
-**Commands** (most important — agents need to know how to build, test, lint):
-- `Makefile` / `justfile` / `Taskfile.yml` — look for build/test/lint/format targets
-- `package.json` `scripts` — npm/yarn/pnpm run targets
-- `pyproject.toml` `[tool.prek]` / `[tool.pytest]` — Python tooling config
-- `.github/workflows/*.yml` — CI steps reveal the real commands
-- `Cargo.toml` — Rust build/test commands
-- `build.gradle` / `pom.xml` — Java/Kotlin build commands
-- `Rakefile` — Ruby task definitions
-- `docker-compose.yml` — service orchestration commands
+**Команды** (самое важное — агентам нужно знать, как собирать, тестировать, линтить):
+- `Makefile` / `justfile` / `Taskfile.yml` — ищите цели build/test/lint/format
+- `package.json` `scripts` — цели npm/yarn/pnpm run
+- `pyproject.toml` `[tool.prek]` / `[tool.pytest]` — конфиг инструментов Python
+- `.github/workflows/*.yml` — шаги CI раскрывают реальные команды
+- `Cargo.toml` — команды сборки/тестов Rust
+- `build.gradle` / `pom.xml` — команды сборки Java/Kotlin
+- `Rakefile` — определения задач Ruby
+- `docker-compose.yml` — команды оркестрации сервисов
 
-**Project structure**:
-- Top-level directory listing — what's in each major directory
-- Monorepo indicators: workspace configs, multiple package.json/Cargo.toml/pyproject.toml
-- Source vs test layout (where does code live, where do tests live)
+**Структура проекта**:
+- Листинг каталога верхнего уровня — что в каждом основном каталоге
+- Индикаторы монорепозитория: конфиги workspace, несколько package.json/Cargo.toml/pyproject.toml
+- Разметка исходников vs тестов (где живёт код, где живут тесты)
 
-**Conventions**:
-- Existing linter/formatter configs (.eslintrc, .prettierrc, rustfmt.toml, .rubocop.yml, ruff.toml)
-- CONTRIBUTING.md — often contains coding standards
-- Existing README — architecture descriptions, setup instructions
-- `.editorconfig` — indentation/style basics
+**Конвенции**:
+- Существующие конфиги линтера/форматтера (.eslintrc, .prettierrc, rustfmt.toml, .rubocop.yml, ruff.toml)
+- CONTRIBUTING.md — часто содержит стандарты кодинга
+- Существующий README — описания архитектуры, инструкции по настройке
+- `.editorconfig` — базовый стиль отступов/стиля
 
-**Guardrails**:
-- Database configs — identify destructive commands to warn about
-- CI enforcement — what must pass before merge
-- Secrets/env patterns — `.env.example`, vault configs
-- Branch protection or merge requirements
+**Ограничения**:
+- Конфиги баз данных — определите деструктивные команды, о которых нужно предупредить
+- Enforcement CI — что должно пройти перед мержем
+- Паттерны секретов/env — `.env.example`, конфиги хранилищ
+- Защита веток или требования к мержу
 
-### Step 2: Write the AGENTS.md
+### Шаг 2: Напишите AGENTS.md
 
-Use this structure.  Every section is optional — include only what's relevant to
-this repo.  A 30-line file with real commands beats a 200-line file with generic
-advice.
+Используйте эту структуру. Каждый раздел опционален — включайте только то, что релевантно этому репозиторию. Файл в 30 строк с реальными командами лучше файла в 200 строк с общими советами.
 
 ```markdown
 # AGENTS.md
 
-## Project overview
+## Обзор проекта
 
-One or two sentences: what this project is, what language/framework, and the
-high-level architecture (monorepo? client-server? library?).
+Одно-два предложения: что это за проект, какой язык/фреймворк и высокоуровневая архитектура (монорепозиторий? клиент-сервер? библиотека?).
 
-## Commands
+## Команды
 
-Organized by category.  Use the exact commands from the repo — copy from
-Makefile/CI/package.json, don't invent them.
+Организованы по категориям. Используйте точные команды из репозитория — копируйте из Makefile/CI/package.json, не придумывайте.
 
-### Build
-### Test
-### Lint & format
+### Сборка
+### Тесты
+### Линт и форматирование
 
-## Project structure
+## Структура проекта
 
-What's in each top-level directory.  Focus on what an agent needs to navigate
-the codebase — not an exhaustive tree.
+Что в каждом каталоге верхнего уровня. Фокус на том, что нужно агенту для навигации по кодовой базе — не исчерпывающее дерево.
 
-## Coding standards
+## Стандарты кодинга
 
-Language-specific conventions that aren't captured by linter config.  Things
-like: naming patterns, import ordering preferences, test file location
-conventions, preferred patterns over anti-patterns.
+Языково-специфичные конвенции, не покрытые конфигом линтера. Такие вещи, как: паттерны именования, предпочтения порядка импортов, конвенции расположения тестовых файлов, предпочитаемые паттерны против антипаттернов.
 
-## Testing
+## Тестирование
 
-Where tests live, how they're organized, how to run a single test vs the full
-suite, any test database setup needed.
+Где живут тесты, как они организованы, как запустить одиночный тест vs всю сюиту, нужна ли настройка тестовой базы данных.
 
-## Guardrails
+## Ограничения
 
-Things the agent must NOT do.  Destructive commands, files that shouldn't be
-edited by hand, operations that require human approval.
+Что агент НЕ должен делать. Деструктивные команды, файлы, которые не должны редактироваться вручную, операции, требующие одобрения человека.
 ```
 
-### Key principles
+### Ключевые принципы
 
-**Be specific, not generic.**  Don't write "run the linter before committing" —
-write `uv run ruff check --fix <file>`.  Don't write "follow the project's
-coding standards" — write "use `snake_case` for variables, no `assert` in
-production code."
+**Будьте конкретны, а не общи.** Не пишите «запустите линтер перед коммитом» — пишите `uv run ruff check --fix <file>`. Не пишите «следуйте стандартам кодинга проекта» — пишите «используйте `snake_case` для переменных, никакого `assert` в продакшен-коде».
 
-**Commands are king.**  If the agent only reads one section, it should be
-Commands.  Every command block should be copy-pasteable.
+**Команды — король.** Если агент прочитает только один раздел, это должны быть Команды. Каждый блок команд должен быть копипастным.
 
-**Link, don't repeat.**  If there's a detailed CONTRIBUTING.md or architecture
-doc, link to it rather than duplicating the content.  The AGENTS.md is an index
-and quick reference, not a manual.
+**Ссылайтесь, а не повторяйте.** Если есть детальный CONTRIBUTING.md или док архитектуры, сошлитесь на него, а не дублируйте контент. AGENTS.md — это индекс и краткая справка, а не мануал.
 
-**Include dangerous operations.**  If `make db-reset` destroys the dev database,
-say so.  If `git push -f` to main is forbidden, say so.  Agents are literal —
-they need explicit guardrails.
+**Включайте опасные операции.** Если `make db-reset` уничтожает dev-базу, скажите об этом. Если `git push -f` в main запрещён, скажите об этом. Агенты буквальны — им нужны явные ограничения.
 
-**Keep it maintainable.**  A short, accurate AGENTS.md is better than a long one
-that drifts out of date.  Reference CI configs and Makefiles by path so a human
-(or agent) can update the AGENTS.md when the underlying commands change.
+**Делайте поддерживаемым.** Короткий, точный AGENTS.md лучше длинного, который устареет. Ссылайтесь на CI-конфиги и Makefile по пути, чтобы человек (или агент) мог обновить AGENTS.md, когда базовые команды изменятся.
 
-### What to leave out
+### Что оставить за бортом
 
-- Generic software engineering advice ("write clean code", "use meaningful names")
-- Process documentation that belongs in CONTRIBUTING.md
-- Full API documentation that belongs in doc comments or a docs site
-- Operational runbooks that belong in an ops directory
+- Общие советы по разработке ПО («пишите чистый код», «используйте осмысленные имена»)
+- Документация процесса, которая должна быть в CONTRIBUTING.md
+- Полная документация API, которая должна быть в комментариях к докам или на сайте доков
+- Операционные ранбуки, которые должны быть в каталоге ops
 
-### Monorepo considerations
+### Учёт монорепозитория
 
-If the repo is a monorepo, the root AGENTS.md should cover repo-wide commands
-and conventions.  Consider sub-directory AGENTS.md files only for packages with
-substantially different commands or conventions, and link to them from the root.
+Если репозиторий — монорепозиторий, корневой AGENTS.md должен покрывать команды и конвенции всего репозитория. Рассматривайте AGENTS.md в подкаталогах только для пакетов с существенно разными командами или конвенциями и ссылайтесь на них из корня.

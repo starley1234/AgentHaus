@@ -1,24 +1,24 @@
-# CICS Transformation Examples
+# Примеры трансформации CICS
 
-## UI/Terminal Operations
+## UI/Терминальные операции
 
-### Before (CICS)
+### До (CICS)
 ```cobol
 EXEC CICS SEND MAP('CUSTMAP') MAPSET('CUSTSET') END-EXEC
 ```
 
-### After (Standard COBOL)
+### После (Стандартный COBOL)
 ```cobol
-DISPLAY "Customer Screen Output"
+DISPLAY "Вывод экрана клиента"
 DISPLAY WS-CUSTOMER-NAME
 DISPLAY WS-CUSTOMER-ADDRESS
 ```
 
 ---
 
-## Error Handling
+## Обработка ошибок
 
-### Before (CICS with RESP/RESP2)
+### До (CICS с RESP/RESP2)
 ```cobol
 EXEC CICS READ FILE('CUSTFILE')
     INTO(WS-CUSTOMER-REC)
@@ -31,7 +31,7 @@ IF WS-RESP = DFHRESP(NOTFND)
 END-IF
 ```
 
-### After (Standard COBOL with FILE STATUS)
+### После (Стандартный COBOL с FILE STATUS)
 ```cobol
 READ CUSTFILE INTO WS-CUSTOMER-REC
     KEY IS WS-CUST-KEY

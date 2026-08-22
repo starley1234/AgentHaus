@@ -1,8 +1,8 @@
-# Migration Scoring Plugin
+# Плагин оценки миграции
 
-Quality evaluation for code migration projects using OpenHands agents. This plugin scores completed migrations across multiple dimensions including coverage, correctness, and code style, generating executive reports with actionable recommendations.
+Оценка качества проектов миграции кода с использованием агентов OpenHands. Этот плагин оценивает завершённые миграции по нескольким измерениям, включая покрытие, корректность и стиль кода, генерируя исполнительные отчёты с практическими рекомендациями.
 
-## Quick Start
+## Быстрый старт
 
 ```bash
 export LLM_API_KEY="your-api-key"
@@ -13,52 +13,52 @@ uv run python -m lc_sdk_examples.migration_scoring \
   --rubric-path /path/to/style_rubric.txt
 ```
 
-## Features
+## Возможности
 
-- **Multi-Dimensional Scoring** — Evaluates coverage, correctness, and style separately
-- **Source-to-Target Mapping** — Documents relationships between source and migrated files
-- **Executive Reporting** — Generates summary reports with risk categorization
-- **Custom Style Rubrics** — Supports project-specific style guidelines
-- **Actionable Recommendations** — Prioritized list of improvements
+- **Многомерная оценка** — Оценивает покрытие, корректность и стиль отдельно
+- **Карта соответствий исходного и целевого кода** — Документирует связи между исходными и мигрированными файлами
+- **Исполнительная отчётность** — Генерирует сводные отчёты с категоризацией рисков
+- **Пользовательские рубрики стиля** — Поддержка проектных руководств по стилю
+- **Практические рекомендации** — Приоритизированный список улучшений
 
-## Prerequisites
+## Требования
 
-- Completed migration with both source and target code present
-- Python 3.13 with `uv`
-- LLM API key (Anthropic or OpenAI)
-- Optional: Custom style rubric file
+- Завершённая миграция с наличием исходного и целевого кода
+- Python 3.13 с `uv`
+- API-ключ LLM (Anthropic или OpenAI)
+- Опционально: пользовательский файл рубрики стиля
 
-## Plugin Contents
+## Содержимое плагина
 
 ```
 plugins/migration-scoring/
-├── README.md                              # This file
-└── skills/                                # Workflow phase skills
-    ├── migration-scoring/                 # Plugin overview
+├── README.md                              # Этот файл
+└── skills/                                # Навыки фаз процесса
+    ├── migration-scoring/                 # Обзор плагина
     │   └── SKILL.md
-    ├── migration-mapping/                 # Phase 1: Source-to-target mapping
+    ├── migration-mapping/                 # Фаза 1: Карта соответствий
     │   └── SKILL.md
-    ├── score-quality/                     # Phase 2: Coverage and correctness
+    ├── score-quality/                     # Фаза 2: Покрытие и корректность
     │   ├── SKILL.md
     │   └── references/
     │       └── scoring-criteria.md
-    ├── score-style/                       # Phase 3: Code style evaluation
+    ├── score-style/                       # Фаза 3: Оценка стиля кода
     │   └── SKILL.md
-    └── migration-report/                  # Phase 4: Executive report
+    └── migration-report/                  # Фаза 4: Исполнительный отчёт
         └── SKILL.md
 ```
 
-## Workflow Phases
+## Фазы процесса
 
-### Phase 1: Migration Mapping
+### Фаза 1: Карта миграции
 
-Creates a source→target file mapping:
+Создаёт карту соответствий файлов исходного → целевого языка:
 
-- Identifies which target files implement each source file
-- Supports many-to-many relationships
-- Flags unmigrated source files
+- Определяет, какие целевые файлы реализуют каждый исходный файл
+- Поддерживает связи многие-ко-многим
+- Помечает немигрированные исходные файлы
 
-**Output:** `migration_mapping.json`
+**Вывод:** `migration_mapping.json`
 
 ```json
 {
@@ -67,49 +67,49 @@ Creates a source→target file mapping:
 }
 ```
 
-### Phase 2: Quality Scoring
+### Фаза 2: Оценка качества
 
-Scores each source file on:
+Оценивает каждый исходный файл по:
 
-- **Coverage (1-5)**: How much functionality was migrated
-- **Correctness (1-5)**: How accurately behavior was preserved
+- **Покрытие (1-5)**: Сколько функциональности было мигрировано
+- **Корректность (1-5)**: Насколько точно сохранено поведение
 
-**Output:** `migration_score.json`
+**Вывод:** `migration_score.json`
 
 ```json
 {
   "CALC001.cbl": {
     "coverage": 4,
     "correctness": 5,
-    "justification": "All calculation logic migrated..."
+    "justification": "Вся логика расчётов мигрирована..."
   }
 }
 ```
 
-### Phase 3: Style Scoring
+### Фаза 3: Оценка стиля
 
-Evaluates target code against style guidelines:
+Оценивает целевой код по руководствам стиля:
 
-- Naming conventions
-- Code organization
-- Error handling
-- Documentation
-- Idiomaticity
+- Конвенции именования
+- Организация кода
+- Обработка ошибок
+- Документация
+- Идиоматичность
 
-**Output:** `style_score.json`
+**Вывод:** `style_score.json`
 
-### Phase 4: Executive Report
+### Фаза 4: Исполнительный отчёт
 
-Generates a detailed report:
+Генерирует детальный отчёт:
 
-- Overall health assessment
-- Score statistics and distribution
-- Risk categorization (Green/Yellow/Red)
-- Prioritized recommendations
+- Общая оценка здоровья миграции
+- Статистика и распределение оценок
+- Категоризация рисков (Зелёный/Жёлтый/Красный)
+- Приоритизированные рекомендации
 
-**Output:** `final_report.md`
+**Вывод:** `final_report.md`
 
-## Output Structure
+## Структура вывода
 
 ```
 your-project/
@@ -120,48 +120,48 @@ your-project/
 │   └── final_report.md
 ```
 
-## Usage
+## Использование
 
-### Running the Evaluation
+### Запуск оценки
 
-1. **Ensure migration is complete**: Both source and target code should be present
-2. **Set environment variables**:
+1. **Убедитесь, что миграция завершена**: Должен присутствовать исходный и целевой код
+2. **Задайте переменные окружения**:
    ```bash
    export LLM_API_KEY="your-api-key"
    export LLM_MODEL="anthropic/claude-3-5-sonnet-20241022"
    ```
-3. **Run the scoring**:
+3. **Запустите оценку**:
    ```bash
    uv run python -m lc_sdk_examples.migration_scoring \
      --src-path /path/to/migration/project \
      --rubric-path /path/to/style_rubric.txt
    ```
-4. **Review the report**: Check `final_report.md` for results and recommendations
+4. **Изучите отчёт**: Проверьте `final_report.md` на результаты и рекомендации
 
-### Using a Custom Style Rubric
+### Использование пользовательской рубрики стиля
 
-Create a text file with your style guidelines:
+Создайте текстовый файл с вашими руководствами по стилю:
 
 ```text
-# Style Rubric for Java Migration
+# Рубрика стиля для миграции Java
 
-## Naming Conventions
-- Use camelCase for methods and variables
-- Use PascalCase for classes
-- Avoid Hungarian notation
+## Конвенции именования
+- Используйте camelCase для методов и переменных
+- Используйте PascalCase для классов
+- Избегайте венгерской нотации
 
-## Code Organization
-- One public class per file
-- Group related methods together
-- Maximum 500 lines per class
+## Организация кода
+- Один публичный класс на файл
+- Группируйте связанные методы вместе
+- Максимум 500 строк на класс
 
-## Error Handling
-- Use specific exception types
-- Include meaningful error messages
-- Log exceptions appropriately
+## Обработка ошибок
+- Используйте конкретные типы исключений
+- Включайте понятные сообщения об ошибках
+- Логируйте исключения корректно
 ```
 
-Then pass it using `--rubric-path`:
+Затем передайте его через `--rubric-path`:
 
 ```bash
 uv run python -m lc_sdk_examples.migration_scoring \
@@ -169,76 +169,76 @@ uv run python -m lc_sdk_examples.migration_scoring \
   --rubric-path ./my_style_rubric.txt
 ```
 
-## Scoring Criteria
+## Критерии оценки
 
-### Coverage Score (1-5)
+### Оценка покрытия (1-5)
 
-| Score | Description |
+| Оценка | Описание |
 |-------|-------------|
-| 5 | 100% of source functionality migrated |
-| 4 | 90%+ migrated, minor features missing |
-| 3 | 70-90% migrated, some features missing |
-| 2 | 50-70% migrated, significant gaps |
-| 1 | Less than 50% migrated |
+| 5 | 100% функциональности исходника мигрировано |
+| 4 | 90%+ мигрировано, отсутствуют незначительные фичи |
+| 3 | 70-90% мигрировано, некоторые фичи отсутствуют |
+| 2 | 50-70% мигрировано, значительные пробелы |
+| 1 | Менее 50% мигрировано |
 
-### Correctness Score (1-5)
+### Оценка корректности (1-5)
 
-| Score | Description |
+| Оценка | Описание |
 |-------|-------------|
-| 5 | Behavior exactly matches source |
-| 4 | Minor edge case differences |
-| 3 | Some behavioral differences |
-| 2 | Significant behavioral changes |
-| 1 | Major functionality broken |
+| 5 | Поведение точно совпадает с исходником |
+| 4 | Незначительные различия в граничных случаях |
+| 3 | Некоторые различия в поведении |
+| 2 | Значительные изменения поведения |
+| 1 | Основная функциональность сломана |
 
-### Risk Categories
+### Категории риска
 
-- **Green**: All scores ≥ 4 — Migration is production-ready
-- **Yellow**: Any score 3-4 — Needs review before production
-- **Red**: Any score < 3 — Significant work required
+- **Зелёный**: Все оценки ≥ 4 — Миграция готова к продакшену
+- **Жёлтый**: Любая оценка 3-4 — Требует проверки перед продакшеном
+- **Красный**: Любая оценка < 3 — Требуется значительная доработка
 
-## Troubleshooting
+## Устранение неполадок
 
-### Mapping Not Found
+### Карта не найдена
 
-1. Verify directory structure matches expected layout
-2. Check file extensions are recognized
-3. Ensure source and target directories are accessible
+1. Проверьте, что структура каталогов соответствует ожидаемой
+2. Проверьте, что расширения файлов распознаются
+3. Убедитесь, что каталоги исходника и цели доступны
 
-### Low Coverage Scores
+### Низкие оценки покрытия
 
-1. Review unmigrated files in the mapping
-2. Check for split functionality across multiple target files
-3. Verify all helper/utility functions are included
+1. Проверьте немигрированные файлы в карте
+2. Проверьте разделённую функциональность по нескольким целевым файлам
+3. Убедитесь, что все вспомогательные/утилитные функции включены
 
-### Style Score Issues
+### Проблемы с оценкой стиля
 
-1. Check that rubric file is valid
-2. Verify target code files are readable
-3. Review specific style violations in `style_score.json`
+1. Проверьте, что файл рубрики валиден
+2. Убедитесь, что файлы целевого кода читаемы
+3. Изучите конкретные нарушения стиля в `style_score.json`
 
-### Report Generation Fails
+### Не удаётся сгенерировать отчёт
 
-1. Ensure all previous phases completed successfully
-2. Check that score JSON files are valid
-3. Verify sufficient disk space for output
+1. Убедитесь, что все предыдущие фазы успешно завершены
+2. Проверьте, что JSON-файлы оценок валидны
+3. Проверьте наличие свободного места на диске
 
-## Integration with COBOL Modernization
+## Интеграция с модернизацией COBOL
 
-This plugin works seamlessly with the [COBOL Modernization Plugin](../cobol-modernization/README.md):
+Этот плагин бесшовно работает с [плагином модернизации COBOL](../cobol-modernization/README.md):
 
 ```bash
-# First, run the migration
+# Сначала запустите миграцию
 uv run python -m lc_sdk_examples.cobol_modernization --src-path /path/to/cobol
 
-# Then, score the results
+# Затем оцените результаты
 uv run python -m lc_sdk_examples.migration_scoring --src-path /path/to/cobol
 ```
 
-## Contributing
+## Участие
 
-See the main [extensions repository](https://github.com/OpenHands/extensions) for contribution guidelines.
+См. рекомендации по участию в основном [репозитории расширений](https://github.com/OpenHands/extensions).
 
-## License
+## Лицензия
 
-This plugin is part of the OpenHands extensions repository. See [LICENSE](../../LICENSE) for details.
+Этот плагин — часть репозитория расширений OpenHands. См. [LICENSE](../../LICENSE) для деталей.

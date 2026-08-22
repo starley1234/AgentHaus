@@ -7,112 +7,114 @@ triggers:
   - migration report
   - migration summary
   - quality report
+  - отчёт о миграции
+  - отчёт качества
 ---
 
-Generate a comprehensive migration report that summarizes scores and provides actionable insights.
+Сгенерируйте исчерпывающий отчёт о миграции, который суммирует оценки и даёт практические выводы.
 
-**Prerequisites**: Migration quality scores and style scores must exist (see `migration-score-quality` and `migration-score-style` skills).
+**Предварительные условия**: Должны существовать оценки качества миграции и оценки стиля (см. навыки `migration-score-quality` и `migration-score-style`).
 
-## Report Structure
+## Структура отчёта
 
-### 1. Executive Summary
+### 1. Исполнительное резюме
 
-- Overall migration health (High/Medium/Low confidence)
-- Key statistics: total files, average scores, score distribution
-- One-paragraph assessment for stakeholders
+- Общее здоровье миграции (Высокая/Средняя/Низкая уверенность)
+- Ключевая статистика: всего файлов, средние оценки, распределение оценок
+- Один абзац оценки для стейкхолдеров
 
-### 2. Score Overview
+### 2. Обзор оценок
 
-#### Coverage Statistics
-- Average coverage score
-- Files with coverage < 3 (needs attention)
-- Files with coverage = 5 (complete)
+#### Статистика покрытия
+- Средняя оценка покрытия
+- Файлы с покрытием < 3 (требуют внимания)
+- Файлы с покрытием = 5 (полные)
 
-#### Correctness Statistics
-- Average correctness score
-- Files with correctness < 3 (needs attention)
-- Files with correctness = 5 (verified)
+#### Статистика корректности
+- Средняя оценка корректности
+- Файлы с корректностью < 3 (требуют внимания)
+- Файлы с корректностью = 5 (верифицированные)
 
-#### Style Statistics
-- Average style score per attribute
-- Common style issues identified
+#### Статистика стиля
+- Средняя оценка стиля по каждому атрибуту
+- Частые проблемы стиля
 
-### 3. Risk Assessment
+### 3. Оценка рисков
 
-Categorize files into:
-- **Green**: Coverage ≥ 4, Correctness ≥ 4, Style ≥ 4
-- **Yellow**: Any score between 3-4
-- **Red**: Any score < 3
+Категоризируйте файлы на:
+- **Зелёный**: Покрытие ≥ 4, Корректность ≥ 4, Стиль ≥ 4
+- **Жёлтый**: Любая оценка между 3-4
+- **Красный**: Любая оценка < 3
 
-### 4. Notable Findings
+### 4. Заметные находки
 
-#### Strengths
-- What was migrated well
-- Good patterns to replicate
+#### Сильные стороны
+- Что было мигрировано хорошо
+- Хорошие паттерны для повторения
 
-#### Weaknesses
-- Common issues across files
-- Patterns to avoid
+#### Слабые стороны
+- Частые проблемы по файлам
+- Паттерны, которых следует избегать
 
-### 5. Recommendations
+### 5. Рекомендации
 
-Prioritized action items:
-1. **Critical** — Files with scores < 3
-2. **Important** — Files with scores 3-4
-3. **Nice to have** — Style improvements for green files
+Приоритизированные действия:
+1. **Критично** — Файлы с оценками < 3
+2. **Важно** — Файлы с оценками 3-4
+3. **Желательно** — Улучшения стиля для зелёных файлов
 
-### 6. Detailed Scores
+### 6. Детальные оценки
 
-Include the raw scores for reference (or link to score files).
+Включите сырые оценки для справки (или ссылку на файлы оценок).
 
-## Output Format
+## Формат вывода
 
-Generate the report as a Markdown file:
+Сгенерируйте отчёт как Markdown-файл:
 
 ```markdown
-# Migration Quality Report
+# Отчёт о качестве миграции
 
-**Generated**: 2024-01-15
-**Project**: Customer Management System
-**Source**: COBOL (45 files)
-**Target**: Java (62 files)
+**Сгенерирован**: 2024-01-15
+**Проект**: Система управления клиентами
+**Источник**: COBOL (45 файлов)
+**Цель**: Java (62 файла)
 
-## Executive Summary
+## Исполнительное резюме
 
-Migration is at **MEDIUM confidence** with average coverage of 4.2/5 and 
-correctness of 4.0/5. Three files require immediate attention due to 
-incomplete business logic migration.
+Миграция на уровне **СРЕДНЕЙ уверенности** со средним покрытием 4.2/5 и
+корректностью 4.0/5. Три файла требуют немедленного внимания из-за
+неполной миграции бизнес-логики.
 
-## Score Overview
+## Обзор оценок
 
-### Coverage
-- Average: 4.2/5
-- Complete (5): 28 files (62%)
-- Needs attention (<3): 3 files (7%)
+### Покрытие
+- Среднее: 4.2/5
+- Полные (5): 28 файлов (62%)
+- Требуют внимания (<3): 3 файла (7%)
 
 ...
 ```
 
-## Tone and Audience
+## Тон и аудитория
 
-- Write for technical stakeholders (architects, tech leads)
-- Be specific about issues (cite file names, line numbers if relevant)
-- Provide actionable recommendations, not vague suggestions
-- Acknowledge good work, not just problems
+- Пишите для технических стейкхолдеров (архитекторы, техлиды)
+- Будьте конкретны в проблемах (указывайте имена файлов, номера строк, если уместно)
+- Давайте практические рекомендации, а не расплывчатые советы
+- Отмечайте хорошую работу, а не только проблемы
 
-## Data Sources
+## Источники данных
 
-Read scores from:
-- `migration_score.json` — Coverage and correctness scores
-- `style_score.json` — Style evaluation scores
-- `migration_mapping.json` — File mapping (for counts)
+Читайте оценки из:
+- `migration_score.json` — Оценки покрытия и корректности
+- `style_score.json` — Оценки стиля
+- `migration_mapping.json` — Карта файлов (для подсчётов)
 
-## Example Recommendations
+## Примеры рекомендаций
 
-**Good:**
-> "CALC001.java has coverage 2/5 because batch processing logic in 
-> CALC001.cbl lines 150-200 was not migrated. Implement the 
-> `processBatch()` method to match COBOL paragraph PROCESS-BATCH."
+**Хорошо:**
+> "CALC001.java имеет покрытие 2/5, потому что логика пакетной обработки в
+> CALC001.cbl строки 150-200 не была мигрирована. Реализуйте метод
+> `processBatch()` для соответствия параграфу COBOL PROCESS-BATCH."
 
-**Bad:**
-> "Some files need more work."
+**Плохо:**
+> "Некоторым файлам нужно больше работы."

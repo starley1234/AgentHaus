@@ -8,27 +8,29 @@ triggers:
   - migration quality
   - migration evaluation
   - score migration
+  - оценка миграции
+  - качество миграции
 ---
 
-Comprehensive quality evaluation for code migration projects.
+Комплексная оценка качества для проектов миграции кода.
 
-## Overview
+## Обзор
 
-This plugin evaluates completed migrations through multiple lenses:
+Этот плагин оценивает завершённые миграции через несколько призм:
 
-1. **Mapping** — Document source-to-target file relationships
-2. **Quality Scoring** — Measure coverage and correctness
-3. **Style Scoring** — Evaluate code quality and conventions
-4. **Reporting** — Generate executive summary with recommendations
+1. **Карта соответствий** — Документирование связей файлов исходного → целевого языка
+2. **Оценка качества** — Измерение покрытия и корректности
+3. **Оценка стиля** — Оценка качества кода и конвенций
+4. **Отчётность** — Генерация исполнительного резюме с рекомендациями
 
-## Prerequisites
+## Требования
 
-- Completed migration with both source and target code present
-- Python 3.13 with `uv`
-- LLM API key (Anthropic or OpenAI)
-- Optional: Custom style rubric file
+- Завершённая миграция с наличием исходного и целевого кода
+- Python 3.13 с `uv`
+- API-ключ LLM (Anthropic или OpenAI)
+- Опционально: Пользовательский файл рубрики стиля
 
-## Quick Start
+## Быстрый старт
 
 ```bash
 export LLM_API_KEY="your-api-key"
@@ -39,7 +41,7 @@ uv run python -m lc_sdk_examples.migration_scoring \
   --rubric-path /path/to/style_rubric.txt
 ```
 
-PowerShell equivalent for the environment setup:
+Эквивалент для PowerShell:
 
 ```powershell
 $env:LLM_API_KEY = "your-api-key"
@@ -50,18 +52,18 @@ uv run python -m lc_sdk_examples.migration_scoring `
   --rubric-path C:\path\to\style_rubric.txt
 ```
 
-## Workflow Phases
+## Фазы процесса
 
-### Phase 1: Migration Mapping
+### Фаза 1: Карта миграции
 
-See [../migration-mapping/SKILL.md](../migration-mapping/SKILL.md)
+См. [../migration-mapping/SKILL.md](../migration-mapping/SKILL.md)
 
-Creates a source→target file mapping:
-- Identifies which target files implement each source file
-- Supports many-to-many relationships
-- Flags unmigrated source files
+Создаёт карту файлов исходный → целевой:
+- Определяет, какие целевые файлы реализуют каждый исходный файл
+- Поддерживает связи многие-ко-многим
+- Помечает немигрированные исходные файлы
 
-**Output:** `migration_mapping.json`
+**Вывод:** `migration_mapping.json`
 
 ```json
 {
@@ -70,52 +72,52 @@ Creates a source→target file mapping:
 }
 ```
 
-### Phase 2: Quality Scoring
+### Фаза 2: Оценка качества
 
-See [../score-quality/SKILL.md](../score-quality/SKILL.md)
+См. [../score-quality/SKILL.md](../score-quality/SKILL.md)
 
-Scores each source file on:
-- **Coverage (1-5)**: How much functionality was migrated
-- **Correctness (1-5)**: How accurately behavior was preserved
+Оценивает каждый исходный файл по:
+- **Покрытие (1-5)**: Сколько функциональности было мигрировано
+- **Корректность (1-5)**: Насколько точно сохранено поведение
 
-**Output:** `migration_score.json`
+**Вывод:** `migration_score.json`
 
 ```json
 {
   "CALC001.cbl": {
     "coverage": 4,
     "correctness": 5,
-    "justification": "All calculation logic migrated..."
+    "justification": "Вся логика расчётов мигрирована..."
   }
 }
 ```
 
-### Phase 3: Style Scoring
+### Фаза 3: Оценка стиля
 
-See [../score-style/SKILL.md](../score-style/SKILL.md)
+См. [../score-style/SKILL.md](../score-style/SKILL.md)
 
-Evaluates target code against style guidelines:
-- Naming conventions
-- Code organization
-- Error handling
-- Documentation
-- Idiomaticity
+Оценивает целевой код по руководствам стиля:
+- Конвенции именования
+- Организация кода
+- Обработка ошибок
+- Документация
+- Идиоматичность
 
-**Output:** `style_score.json`
+**Вывод:** `style_score.json`
 
-### Phase 4: Executive Report
+### Фаза 4: Исполнительный отчёт
 
-See [../migration-report/SKILL.md](../migration-report/SKILL.md)
+См. [../migration-report/SKILL.md](../migration-report/SKILL.md)
 
-Generates a comprehensive report:
-- Overall health assessment
-- Score statistics and distribution
-- Risk categorization (Green/Yellow/Red)
-- Prioritized recommendations
+Генерирует исчерпывающий отчёт:
+- Общая оценка здоровья
+- Статистика и распределение оценок
+- Категоризация рисков (Зелёный/Жёлтый/Красный)
+- Приоритизированные рекомендации
 
-**Output:** `final_report.md`
+**Вывод:** `final_report.md`
 
-## Output Structure
+## Структура вывода
 
 ```
 your-project/
@@ -126,12 +128,12 @@ your-project/
 │   └── final_report.md
 ```
 
-## Scoring Criteria
+## Критерии оценки
 
-See [../score-quality/references/scoring-criteria.md](../score-quality/references/scoring-criteria.md) for the 1-5 scoring scales.
+См. [../score-quality/references/scoring-criteria.md](../score-quality/references/scoring-criteria.md) для шкал 1-5.
 
-### Risk Categories
+### Категории риска
 
-- **Green**: All scores ≥ 4
-- **Yellow**: Any score 3-4
-- **Red**: Any score < 3
+- **Зелёный**: Все оценки ≥ 4
+- **Жёлтый**: Любая оценка 3-4
+- **Красный**: Любая оценка < 3

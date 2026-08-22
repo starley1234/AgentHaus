@@ -8,27 +8,30 @@ triggers:
   - cobol to java
   - cobol migration
   - mainframe migration
+  - модернизация cobol
+  - миграция cobol
+  - cobol в java
 ---
 
-End-to-end workflow for migrating COBOL codebases to Java.
+Сквозной процесс миграции кодовой базы COBOL в Java.
 
-## Overview
+## Обзор
 
-This plugin orchestrates a multi-phase COBOL modernization project:
+Этот плагин оркеструет многофазный проект модернизации COBOL:
 
-1. **Build Setup** — Configure compilation for both COBOL and Java, create test fixtures
-2. **Mainframe Planning** — Document transformations needed to remove mainframe dependencies
-3. **Mainframe Removal** — Convert CICS/VSAM code to standard COBOL
-4. **Java Migration** — Translate standardized COBOL to idiomatic Java
+1. **Настройка сборки** — Конфигурация компиляции для COBOL и Java, создание тестовых фикстур
+2. **Планирование удаления мейнфрейма** — Документирование трансформаций для удаления зависимостей от мейнфрейма
+3. **Удаление мейнфрейма** — Конвертация кода CICS/VSAM в стандартный COBOL
+4. **Миграция в Java** — Трансляция стандартизированного COBOL в идиоматичный Java
 
-## Prerequisites
+## Требования
 
-- GnuCOBOL compiler (`cobc`)
-- Java 11+ with Maven or Gradle
-- Python 3.13 with `uv`
-- LLM API key (Anthropic or OpenAI)
+- Компилятор GnuCOBOL (`cobc`)
+- Java 11+ с Maven или Gradle
+- Python 3.13 с `uv`
+- API-ключ LLM (Anthropic или OpenAI)
 
-## Quick Start
+## Быстрый старт
 
 ```bash
 export LLM_API_KEY="your-api-key"
@@ -37,7 +40,7 @@ export LLM_MODEL="anthropic/claude-3-5-sonnet-20241022"
 uv run python -m lc_sdk_examples.cobol_modernization --src-path /path/to/cobol/project
 ```
 
-PowerShell equivalent for the environment setup:
+Эквивалент для PowerShell:
 
 ```powershell
 $env:LLM_API_KEY = "your-api-key"
@@ -46,62 +49,62 @@ $env:LLM_MODEL = "anthropic/claude-3-5-sonnet-20241022"
 uv run python -m lc_sdk_examples.cobol_modernization --src-path C:\path\to\cobol\project
 ```
 
-## Workflow Phases
+## Фазы процесса
 
-### Phase 1: Build Setup
+### Фаза 1: Настройка сборки
 
-See [../build-setup/SKILL.md](../build-setup/SKILL.md)
+См. [../build-setup/SKILL.md](../build-setup/SKILL.md)
 
-Creates the foundation for the migration:
-- COBOL compilation environment (GnuCOBOL)
-- Java project structure (Maven/Gradle + JUnit 5)
-- Test fixtures with golden outputs from COBOL execution
+Создаёт основу для миграции:
+- Окружение компиляции COBOL (GnuCOBOL)
+- Структура Java-проекта (Maven/Gradle + JUnit 5)
+- Тестовые фикстуры с эталонными выводами из выполнения COBOL
 
-**Outputs:**
-- `build_notes.md` — Build instructions
-- `test-fixtures/` — Input/output test data
-- `test_manifest.json` — Test case mapping
+**Результаты:**
+- `build_notes.md` — Инструкции по сборке
+- `test-fixtures/` — Тестовые данные ввода/вывода
+- `test_manifest.json` — Карта тестовых случаев
 
-### Phase 2: Mainframe Planning
+### Фаза 2: Планирование удаления мейнфрейма
 
-See [../mainframe-planning/SKILL.md](../mainframe-planning/SKILL.md)
+См. [../mainframe-planning/SKILL.md](../mainframe-planning/SKILL.md)
 
-Creates a transformation guide without modifying code:
-- Maps CICS/VSAM constructs to standard COBOL equivalents
-- Documents error handling replacements
-- Identifies UI operations to stub
+Создаёт руководство по трансформации без изменения кода:
+- Сопоставляет конструкции CICS/VSAM со стандартными эквивалентами COBOL
+- Документирует замены обработки ошибок
+- Определяет UI-операции для заглушек
 
-**Output:**
+**Результат:**
 - `mainframe_dependency_removal_plan.md`
 
-### Phase 3: Mainframe Removal
+### Фаза 3: Удаление мейнфрейма
 
-See [../mainframe-removal/SKILL.md](../mainframe-removal/SKILL.md)
+См. [../mainframe-removal/SKILL.md](../mainframe-removal/SKILL.md)
 
-Applies the transformation guide:
-- Replaces EXEC CICS commands with file I/O
-- Adds FILE STATUS checking
-- Stubs BMS/screen operations
+Применяет руководство по трансформации:
+- Заменяет команды EXEC CICS на файловый ввод/вывод
+- Добавляет проверку FILE STATUS
+- Заглушает операции BMS/экрана
 
-**Verification:**
-- Code compiles with GnuCOBOL
-- Runs with test fixtures
+**Проверка:**
+- Код компилируется с GnuCOBOL
+- Запускается с тестовыми фикстурами
 
-### Phase 4: Java Migration
+### Фаза 4: Миграция в Java
 
-See [../to-java-migration/SKILL.md](../to-java-migration/SKILL.md)
+См. [../to-java-migration/SKILL.md](../to-java-migration/SKILL.md)
 
-Translates to idiomatic Java:
-- Proper Java conventions (not literal translations)
-- JUnit tests using golden outputs
-- COBOL references in comments
+Транслирует в идиоматичный Java:
+- Правильные конвенции Java (не дословные переводы)
+- JUnit-тесты с использованием эталонных выводов
+- Ссылки на COBOL в комментариях
 
-**Done when:**
-- All code compiles
-- All JUnit tests pass
-- No TODOs or stubs remain
+**Готово когда:**
+- Весь код компилируется
+- Все JUnit-тесты проходят
+- Не осталось TODO и заглушек
 
-## Output Structure
+## Структура вывода
 
 ```
 your-project/
@@ -117,6 +120,6 @@ your-project/
 └── src/test/java/
 ```
 
-## Troubleshooting
+## Устранение неполадок
 
-See [../../references/troubleshooting.md](../../references/troubleshooting.md) for common issues and solutions.
+См. [../../references/troubleshooting.md](../../references/troubleshooting.md) для частых проблем и решений.

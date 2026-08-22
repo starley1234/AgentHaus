@@ -1,23 +1,23 @@
-# Set Up PR Review
+# Настройка ревью PR
 
-Add automated AI code review to a GitHub repository.
+Добавьте автоматизированное AI-ревью кода в репозиторий GitHub.
 
-## Triggers
+## Триггеры
 
-This skill is activated by the following keywords:
+Этот навык активируется по ключевым словам:
 
 - `setup-pr-review`
 - `set up pr review`
 - `add code review workflow`
 - `openhands pr review`
 
-## What This Does
+## Что делает
 
-Creates a `.github/workflows/pr-review.yml` file that triggers an OpenHands agent to review pull requests and post inline comments. Walks you through configuration options:
+Создаёт файл `.github/workflows/pr-review.yml`, который триггерит агента OpenHands для ревью пулл-реквестов и публикации inline-комментариев. Проводит вас через опции конфигурации:
 
-- **Review style** — `roasted` (blunt, Torvalds-style) or `standard` (balanced)
-- **When to trigger** — on-demand (label or reviewer request) or automatic (every PR)
-- **Which model** — any litellm-supported model, with optional A/B testing
-- **Evidence requirement** — optionally require proof-of-work in PR descriptions
+- **Стиль ревью** — `roasted` (прямолинейный, в стиле Торвальдса) или `standard` (сбалансированный)
+- **Когда триггерить** — по требованию (метка или запрос ревьюера) или автоматически (каждый PR)
+- **Какая модель** — любая модель, поддерживаемая litellm, с опциональным A/B тестированием
+- **Требование доказательств** — опционально требовать proof-of-work в описаниях PR
 
-You'll need to add an `LLM_API_KEY` secret to your repository settings — the skill tells you exactly where.
+Вам нужно будет добавить секрет `LLM_API_KEY` в настройки репозитория — навык точно подскажет, куда.

@@ -1,63 +1,63 @@
-"""Prompt template for the release notes agent."""
+"""Шаблон промпта для агента release notes."""
 
-PROMPT = """Write official release notes for `{repo_name}` tag `{tag}`.
+PROMPT = """Напиши официальные заметки о релизе для `{repo_name}` тега `{tag}`.
 
-Use the structured release data below as your primary source of truth. You may inspect the checked-out repository if it helps you judge significance or match release-note style, but do not ask follow-up questions.
+Используй структурированные данные релиза ниже как основной источник истины. Можешь инспектировать чекаутнутый репозиторий, если это помогает оценить значимость или соответствие стилю заметок о релизе, но не задавай уточняющих вопросов.
 
-Your job is editorial, not mechanical:
-- decide which PRs are important enough to mention
-- group related PRs into a single bullet when they form one coherent feature or fix
-- for larger releases, aggressively compress the notes into a shorter set of higher-signal bullets instead of listing one bullet per PR
-- if a section would have more than 5 bullets, merge same-theme items until the section is scannable
-- omit trivial, repetitive, or low-signal changes from the final notes
-- prefer end-user impact over implementation detail
-- prioritize public APIs, user-visible capabilities, security fixes, supported integrations/models, and operational changes users directly invoke
-- treat toolkit-maintainer or contributor-facing changes as secondary unless they materially change how end users or client developers adopt, run, or integrate the project
-- changes that mostly affect CI, internal prompts, benchmarks, workflow inputs, refactors, contributor ergonomics, or toolkit implementation details should stay in the small/internal appendix unless they are unusually significant
-- use `### 📚 Documentation` only for notable docs/reference/policy updates that matter to users or client developers; public API additions still belong in `### ✨ New Features`
-- omit prompt wording, benchmark plumbing, workflow maintenance, and similar maintainer-only changes unless they materially alter observable user behavior
-- start with a short, conversational 1-2 sentence overview of the release before the categorized sections
-- if you add top-level highlight bullets, keep them to at most 3 and reserve them for the biggest user-facing changes
-- treat the suggested category as a hint, not a rule
-- when `include_internal` is false, omit internal-only work unless it is important for users
-- use imperative mood
-- keep each bullet to one line
-- every change bullet must end with explicit references for each included item
-- format PR references as `(#123) @username`; if you group multiple PRs, include each reference explicitly, for example `(#123) @alice, (#124) @bob`
-- if you mention a standalone commit instead of a PR, format it as `(abc1234) @username`
-- include every new contributor listed below in the `### 👥 New Contributors` section
-- for breaking changes, briefly note the migration path when the provided context makes it clear
+Твоя работа редакционная, а не механическая:
+- реши, какие PR достаточно важны для упоминания
+- сгруппируй связанные PR в один пункт, когда они образуют одну связную фичу или фикс
+- для больших релизов агрессивно сжимай заметки в более короткий набор высокосигнальных пунктов вместо перечисления одного пункта на PR
+- если в разделе было бы более 5 пунктов, объединяй однотемные элементы, пока раздел не станет сканируемым
+- опускай тривиальные, повторяющиеся или низкосигнальные изменения из финальных заметок
+- предпочитай влияние на конечного пользователя над деталями реализации
+- приоритизируй публичные API, видимые пользователю возможности, фиксы безопасности, поддерживаемые интеграции/модели и операционные изменения, которые пользователи напрямую вызывают
+- рассматривай изменения для мейнтейнеров тулкита или контрибьюторов как вторичные, если они существенно не меняют то, как конечные пользователи или клиентские разработчики принимают, запускают или интегрируют проект
+- изменения, которые в основном затрагивают CI, внутренние промпты, бенчмарки, входы workflow, рефакторы, эргономику контрибьюторов или детали реализации тулкита, должны оставаться в маленьком/внутреннем аппендиксе, если они не необычно значимы
+- используй `### 📚 Документация` только для заметных обновлений доков/референсов/политик, важных для пользователей или клиентских разработчиков; добавления публичного API всё равно принадлежат в `### ✨ Новые возможности`
+- опускай формулировки промптов, plumbing бенчмарков, обслуживание workflow и подобные изменения только для мейнтейнеров, если они существенно не меняют наблюдаемое поведение пользователя
+- начни с короткого разговорного обзора релиза в 1-2 предложения перед категоризированными разделами
+- если добавляешь топ-уровневые highlight-пункты, держи их максимум 3 и резервируй для самых больших видимых пользователю изменений
+- рассматривай предложенную категорию как подсказку, а не правило
+- когда `include_internal` false, опускай внутреннюю работу, если она не важна для пользователей
+- используй повелительное наклонение
+- держи каждый пункт в одну строку
+- каждый пункт изменений должен заканчиваться явными ссылками для каждого включённого элемента
+- форматируй ссылки на PR как `(#123) @username`; если группируешь несколько PR, включай каждую ссылку явно, например `(#123) @alice, (#124) @bob`
+- если упоминаешь отдельный коммит вместо PR, форматируй как `(abc1234) @username`
+- включи каждого нового контрибьютора, перечисленного ниже, в раздел `### 👥 Новые контрибьюторы`
+- для критических изменений кратко укажи путь миграции, когда предоставленный контекст делает его ясным
 
-Return markdown only. Do not wrap the result in a code fence.
+Возвращай только markdown. Не оборачивай результат в ограждение кода.
 
-Required structure:
+Требуемая структура:
 - `## [{tag}] - {date}`
-- a short conversational overview paragraph immediately after the title
-- optional top-level highlight bullets (maximum 3) before the categorized sections
-- `### ⚠️ Breaking Changes` when applicable
-- `### ✨ New Features` when applicable
-- `### 🐛 Bug Fixes` when applicable
-- `### 📚 Documentation` only when notable
-- `### 🏗️ Internal/Infrastructure` only when `include_internal` is true and the changes are worth mentioning
-- `### 👥 New Contributors` when there are any
-- `**Full Changelog**: {full_changelog_url}` at the end
+- короткий разговорный абзац обзора сразу после заголовка
+- опциональные топ-уровневые highlight-пункты (максимум 3) перед категоризированными разделами
+- `### ⚠️ Критические изменения` когда применимо
+- `### ✨ Новые возможности` когда применимо
+- `### 🐛 Исправления ошибок` когда применимо
+- `### 📚 Документация` только когда заметно
+- `### 🏗️ Внутреннее/Инфраструктура` только когда `include_internal` true и изменения стоят упоминания
+- `### 👥 Новые контрибьюторы` когда есть таковые
+- `**Полный список изменений**: {full_changelog_url}` в конце
 
-Release metadata:
-- Repository: {repo_name}
-- Current tag: {tag}
-- Previous tag: {previous_tag}
-- Release date: {date}
-- Commits in range: {commit_count}
-- Include internal section: {include_internal}
-- Output format: {output_format}
+Метаданные релиза:
+- Репозиторий: {repo_name}
+- Текущий тег: {tag}
+- Предыдущий тег: {previous_tag}
+- Дата релиза: {date}
+- Коммитов в диапазоне: {commit_count}
+- Включать внутренний раздел: {include_internal}
+- Формат вывода: {output_format}
 
-Candidate changes:
+Кандидаты изменений:
 {change_candidates}
 
-New contributors:
+Новые контрибьюторы:
 {new_contributors}
 
-Full changelog URL:
+URL полного changelog:
 {full_changelog_url}
 """
 
@@ -75,7 +75,7 @@ def format_prompt(
     change_candidates: str,
     new_contributors: str,
 ) -> str:
-    """Format the release-notes prompt."""
+    """Форматирует промпт release notes."""
     return PROMPT.format(
         repo_name=repo_name,
         tag=tag,
