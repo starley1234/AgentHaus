@@ -1,0 +1,21 @@
+{
+  "name": "ru-code-cleanup",
+  "version": "1.0.0",
+  "description": "Очистка и форматирование кода: запуск линтеров, форматтеров, удаление неиспользуемых импортов, проверка типов.",
+  "author": {
+    "name": "AgentHaus",
+    "email": "contact@agenthaus.local"
+  },
+  "homepage": "https://github.com/starley1234/AgentHaus",
+  "repository": "https://github.com/starley1234/AgentHaus",
+  "license": "MIT",
+  "keywords": [
+    "lint",
+    "format",
+    "cleanup",
+    "prettier",
+    "eslint",
+    "ruff",
+    "russian"
+  ]
+}

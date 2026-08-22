@@ -318,11 +318,24 @@ def _fetch_plugin_catalog_entries(
     with ``installed=False`` (the caller stamps the fresh value), enriched with
     local contents (``path``/``skills``/``files``) when an entry resolves to a
     directory inside the local clone. Returns an empty list on error.
+
+    When ``EXTENSIONS_REPO`` points at an existing local directory (a vendored
+    copy, e.g. this project's ``extensions/`` baked into the image), the catalog
+    is read straight from that directory with no network. Otherwise it falls
+    back to the git clone/fetch path.
     """
-    cache_dir = get_skills_cache_dir()
-    repo_path = update_skills_repository(
-        PUBLIC_SKILLS_REPO, PUBLIC_SKILLS_REF, cache_dir
-    )
+    repo_path: Path | None = None
+    local_repo = Path(PUBLIC_SKILLS_REPO)
+    if local_repo.is_dir():
+        repo_path = local_repo
+        logger.info(
+            f"Using local public extensions repository for plugins catalog: {repo_path}"
+        )
+    else:
+        cache_dir = get_skills_cache_dir()
+        repo_path = update_skills_repository(
+            PUBLIC_SKILLS_REPO, PUBLIC_SKILLS_REF, cache_dir
+        )
 
     if repo_path is None:
         logger.warning("Failed to access public extensions repository")

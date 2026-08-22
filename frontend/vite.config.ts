@@ -252,6 +252,14 @@ export default defineConfig(({ mode }) => {
                 "index.js",
               ),
             },
+            {
+              find: /^@openhands\/extensions\/plugins\/(.*)/,
+              replacement: join(VENDORED_EXTENSIONS_DIR, "plugins", "$1"),
+            },
+            {
+              find: /^@openhands\/extensions$/,
+              replacement: join(VENDORED_EXTENSIONS_DIR, "index.js"),
+            },
           ]
         : [],
     },

@@ -1,0 +1,19 @@
+{
+  "name": "ru-env-checker",
+  "version": "1.0.0",
+  "description": "Проверка окружения и .env файлов: поиск отсутствующих переменных, сравнение с .env.example, безопасность секретов.",
+  "author": {
+    "name": "AgentHaus",
+    "email": "contact@agenthaus.local"
+  },
+  "homepage": "https://github.com/starley1234/AgentHaus",
+  "repository": "https://github.com/starley1234/AgentHaus",
+  "license": "MIT",
+  "keywords": [
+    "env",
+    "environment",
+    "dotenv",
+    "security",
+    "russian"
+  ]
+}

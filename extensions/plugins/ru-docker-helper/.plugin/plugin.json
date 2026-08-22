@@ -1,0 +1,19 @@
+{
+  "name": "ru-docker-helper",
+  "version": "1.0.0",
+  "description": "Русскоязычный помощник по Docker и Docker Compose: сборка, логи, проверка контейнеров, очистка.",
+  "author": {
+    "name": "AgentHaus",
+    "email": "contact@agenthaus.local"
+  },
+  "homepage": "https://github.com/starley1234/AgentHaus",
+  "repository": "https://github.com/starley1234/AgentHaus",
+  "license": "MIT",
+  "keywords": [
+    "docker",
+    "compose",
+    "container",
+    "logs",
+    "russian"
+  ]
+}

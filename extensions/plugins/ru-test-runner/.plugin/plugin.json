@@ -1,0 +1,20 @@
+{
+  "name": "ru-test-runner",
+  "version": "1.0.0",
+  "description": "Запуск тестов с русским отчётом: npm test, pytest, cargo test, go test — с анализом падений и рекомендациями.",
+  "author": {
+    "name": "AgentHaus",
+    "email": "contact@agenthaus.local"
+  },
+  "homepage": "https://github.com/starley1234/AgentHaus",
+  "repository": "https://github.com/starley1234/AgentHaus",
+  "license": "MIT",
+  "keywords": [
+    "test",
+    "testing",
+    "pytest",
+    "jest",
+    "vitest",
+    "russian"
+  ]
+}

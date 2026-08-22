@@ -1,0 +1,20 @@
+{
+  "name": "ru-git-helper",
+  "version": "1.0.0",
+  "description": "Русскоязычный помощник по Git: создание веток, коммиты, пуш, создание PR, работа с историей.",
+  "author": {
+    "name": "AgentHaus",
+    "email": "contact@agenthaus.local"
+  },
+  "homepage": "https://github.com/starley1234/AgentHaus",
+  "repository": "https://github.com/starley1234/AgentHaus",
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "github",
+    "branch",
+    "commit",
+    "pr",
+    "russian"
+  ]
+}
