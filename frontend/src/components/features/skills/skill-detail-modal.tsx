@@ -18,12 +18,30 @@ import { isCopyableSkillSource } from "./is-copyable-skill-source";
 import { SkillCardPillRow } from "./skill-card-pill-row";
 import { getSkillChatLaunchMessage } from "./get-skill-chat-launch-message";
 import { useLaunchSkillInChat } from "#/hooks/use-launch-skill-in-chat";
+import { useUninstallSkill } from "#/hooks/mutation/use-uninstall-skill";
 
 interface SkillDetailModalProps {
   skill: SkillInfo;
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
   onClose: () => void;
+  onDelete?: (skillName: string) => void;
+}
+
+function isDeletableSkill(skill: SkillInfo): boolean {
+  // Public навыки (source === "public") нельзя удалить, только отключить
+  // Удаляемые — те, что установлены в ~/.openhands/skills/installed или .agents/skills
+  if (!skill.source) return false;
+  if (skill.source === "public") return false;
+  // Если source содержит путь к installed или .agents/.openhands — считаем удаляемым
+  const src = skill.source.toLowerCase();
+  return (
+    src.includes("installed") ||
+    src.includes(".agents/skills") ||
+    src.includes(".openhands/skills") ||
+    src.startsWith("/") ||
+    src.startsWith("~")
+  );
 }
 
 function ReadonlyTextArea({
@@ -57,14 +75,29 @@ export function SkillDetailModal({
   enabled,
   onToggle,
   onClose,
+  onDelete,
 }: SkillDetailModalProps) {
   const { t } = useTranslation("openhands");
   const launchSkillInChat = useLaunchSkillInChat();
+  const uninstallSkill = useUninstallSkill();
   const [sourceCopied, setSourceCopied] = React.useState(false);
   const chatLaunchMessage = React.useMemo(
     () => getSkillChatLaunchMessage(skill),
     [skill],
   );
+
+  const deletable = isDeletableSkill(skill);
+
+  const handleDelete = () => {
+    const confirmMessage = t(I18nKey.SETTINGS$SKILLS_DELETE_CONFIRM);
+    if (!window.confirm(confirmMessage)) return;
+    uninstallSkill.mutate(skill.name, {
+      onSuccess: () => {
+        onDelete?.(skill.name);
+        onClose();
+      },
+    });
+  };
 
   const description = getSkillCardDescription(skill);
   const pills = React.useMemo(
@@ -188,27 +221,45 @@ export function SkillDetailModal({
           />
         ) : null}
 
-        <div className="mt-2 flex justify-end gap-2">
-          <BrandButton
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            testId="skill-detail-close"
-          >
-            {t(I18nKey.BUTTON$CLOSE)}
-          </BrandButton>
-          <BrandButton
-            type="button"
-            variant="primary"
-            isDisabled={!enabled}
-            onClick={() => launchSkillInChat(chatLaunchMessage, onClose)}
-            testId={`skill-detail-use-skill-${skill.name}`}
-            startContent={
-              <MessageSquareShareIcon className="size-4" aria-hidden />
-            }
-          >
-            {t(I18nKey.SETTINGS$SKILLS_USE_SKILL_BUTTON)}
-          </BrandButton>
+        <div className="mt-2 flex justify-between gap-2">
+          <div>
+            {deletable ? (
+              <BrandButton
+                type="button"
+                variant="secondary"
+                onClick={handleDelete}
+                testId={`skill-detail-uninstall-${skill.name}`}
+                isDisabled={uninstallSkill.isPending}
+                className="text-red-400 hover:text-red-300 border-red-500/30"
+              >
+                {uninstallSkill.isPending
+                  ? t(I18nKey.SETTINGS$SKILLS_UNINSTALL) + "..."
+                  : t(I18nKey.SETTINGS$SKILLS_UNINSTALL)}
+              </BrandButton>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <BrandButton
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              testId="skill-detail-close"
+            >
+              {t(I18nKey.BUTTON$CLOSE)}
+            </BrandButton>
+            <BrandButton
+              type="button"
+              variant="primary"
+              isDisabled={!enabled}
+              onClick={() => launchSkillInChat(chatLaunchMessage, onClose)}
+              testId={`skill-detail-use-skill-${skill.name}`}
+              startContent={
+                <MessageSquareShareIcon className="size-4" aria-hidden />
+              }
+            >
+              {t(I18nKey.SETTINGS$SKILLS_USE_SKILL_BUTTON)}
+            </BrandButton>
+          </div>
         </div>
       </div>
     </ModalBackdrop>

@@ -50,6 +50,11 @@ export const PLUGINS_QUERY_KEYS = {
   local: ["plugins-local"] as const,
 } as const;
 
+export const SKILLS_QUERY_KEYS = {
+  all: ["skills"] as const,
+  installed: ["skills-installed"] as const,
+} as const;
+
 export const SETUP_QUERY_KEYS = {
   /** What the deployment supports. The same answer for every setup entry. */
   capabilities: () => ["setup-capabilities"] as const,

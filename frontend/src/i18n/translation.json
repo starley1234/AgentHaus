@@ -34412,7 +34412,7 @@
     "ru": "Ищите плагины по имени, описанию или источнику"
   },
   "SETTINGS$PLUGINS_NO_PLUGINS": {
-    "en": "No plugins found.",
+    "en": "No plugins found. Try rebuilding the image: docker compose up -d --build",
     "ja": "プラグインが見つかりません。",
     "zh-CN": "未找到插件。",
     "zh-TW": "找不到外掛程式。",
@@ -34427,7 +34427,7 @@
     "ca": "No s'ha trobat cap connector.",
     "tr": "Eklenti bulunamadı.",
     "uk": "Плагінів не знайдено.",
-    "ru": "Плагины не найдены."
+    "ru": "Плагины не найдены. Попробуйте пересобрать образ: docker compose up -d --build"
   },
   "SETTINGS$PLUGINS_NO_MATCH": {
     "en": "No plugins match your search.",
@@ -34466,7 +34466,7 @@
     "ru": "Установить"
   },
   "SETTINGS$PLUGINS_INSTALLING": {
-    "en": "Installing…",
+    "en": "Installing...",
     "ja": "インストール中…",
     "zh-CN": "正在安装…",
     "zh-TW": "正在安裝…",
@@ -34481,7 +34481,7 @@
     "ca": "S'està instal·lant…",
     "tr": "Kuruluyor…",
     "uk": "Встановлення…",
-    "ru": "Установка…"
+    "ru": "Установка..."
   },
   "SETTINGS$PLUGINS_UNINSTALL": {
     "en": "Uninstall",
@@ -34502,7 +34502,7 @@
     "ru": "Удалить"
   },
   "SETTINGS$PLUGINS_REFRESH": {
-    "en": "Update",
+    "en": "Refresh",
     "ja": "更新",
     "zh-CN": "更新",
     "zh-TW": "更新",
@@ -34700,7 +34700,7 @@
     "ru": "github:owner/repo, Git URL или локальный путь"
   },
   "SETTINGS$PLUGINS_INSTALL_SUCCESS": {
-    "en": "Plugin installed.",
+    "en": "Plugin installed successfully",
     "ja": "プラグインをインストールしました。",
     "zh-CN": "插件已安装。",
     "zh-TW": "外掛程式已安裝。",
@@ -34715,10 +34715,10 @@
     "ca": "Connector instal·lat.",
     "tr": "Eklenti kuruldu.",
     "uk": "Плагін встановлено.",
-    "ru": "Плагин установлен."
+    "ru": "Плагин успешно установлен"
   },
   "SETTINGS$PLUGINS_UNINSTALL_SUCCESS": {
-    "en": "Plugin uninstalled.",
+    "en": "Plugin uninstalled successfully",
     "ja": "プラグインをアンインストールしました。",
     "zh-CN": "插件已卸载。",
     "zh-TW": "外掛程式已解除安裝。",
@@ -34733,10 +34733,10 @@
     "ca": "Connector desinstal·lat.",
     "tr": "Eklenti kaldırıldı.",
     "uk": "Плагін видалено.",
-    "ru": "Плагин удалён."
+    "ru": "Плагин успешно удалён"
   },
   "SETTINGS$PLUGINS_REFRESH_SUCCESS": {
-    "en": "Plugin updated.",
+    "en": "Plugin refreshed successfully",
     "ja": "プラグインを更新しました。",
     "zh-CN": "插件已更新。",
     "zh-TW": "外掛程式已更新。",
@@ -34751,7 +34751,7 @@
     "ca": "Connector actualitzat.",
     "tr": "Eklenti güncellendi.",
     "uk": "Плагін оновлено.",
-    "ru": "Плагин обновлён."
+    "ru": "Плагин успешно обновлён"
   },
   "SETTINGS$PLUGINS_SKILLS_IN_BUNDLE": {
     "en": "Skills in this plugin bundle",
@@ -39809,5 +39809,41 @@
     "tr": "Завис",
     "uk": "Завис",
     "ru": "Завис"
+  },
+  "SETTINGS$SKILLS_ENABLE_ALL": {
+    "en": "Enable all",
+    "ru": "Включить все"
+  },
+  "SETTINGS$SKILLS_DISABLE_ALL": {
+    "en": "Disable all",
+    "ru": "Отключить все"
+  },
+  "SETTINGS$SKILLS_UNINSTALL": {
+    "en": "Uninstall",
+    "ru": "Удалить"
+  },
+  "SETTINGS$SKILLS_UNINSTALL_SUCCESS": {
+    "en": "Skill uninstalled successfully",
+    "ru": "Навык успешно удалён"
+  },
+  "SETTINGS$SKILLS_DELETE_CONFIRM": {
+    "en": "Are you sure you want to delete this skill?",
+    "ru": "Вы уверены, что хотите удалить этот навык?"
+  },
+  "SETTINGS$SKILLS_BULK_ACTIONS": {
+    "en": "Bulk actions",
+    "ru": "Массовые действия"
+  },
+  "SETTINGS$PLUGINS_ENABLE_ALL": {
+    "en": "Enable all",
+    "ru": "Включить все"
+  },
+  "SETTINGS$PLUGINS_DISABLE_ALL": {
+    "en": "Disable all",
+    "ru": "Отключить все"
+  },
+  "SETTINGS$PLUGINS_BULK_ACTIONS": {
+    "en": "Bulk actions",
+    "ru": "Массовые действия"
   }
 }
