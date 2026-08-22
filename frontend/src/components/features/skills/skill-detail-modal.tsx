@@ -30,18 +30,37 @@ interface SkillDetailModalProps {
 
 function isDeletableSkill(skill: SkillInfo): boolean {
   // Public навыки (source === "public") нельзя удалить, только отключить
-  // Удаляемые — те, что установлены в ~/.openhands/skills/installed или .agents/skills
+  // Удаляемые — те, что установлены в ~/.openhands/skills/installed
+  // Навыки вида "agents:..." или "agents:frontend" — это path-правила из AGENTS.md,
+  // они генерируются автоматически и не удаляются через API uninstall.
   if (!skill.source) return false;
   if (skill.source === "public") return false;
-  // Если source содержит путь к installed или .agents/.openhands — считаем удаляемым
+
+  // Проверка паттерна имени для uninstall API: ^[a-z0-9]+(-[a-z0-9]+)*$
+  // Если имя не соответствует (содержит :, /, и т.д.) — это не installed skill
+  const validNamePattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+  if (!validNamePattern.test(skill.name)) return false;
+
+  // Если source содержит путь к installed — считаем удаляемым
   const src = skill.source.toLowerCase();
   return (
     src.includes("installed") ||
     src.includes(".agents/skills") ||
-    src.includes(".openhands/skills") ||
-    src.startsWith("/") ||
-    src.startsWith("~")
+    src.includes(".openhands/skills")
   );
+}
+
+function isPathRuleSkill(skill: SkillInfo): boolean {
+  // Path-правила вида "agents:..." генерируются из AGENTS.md / CLAUDE.md
+  return skill.name.includes(":") || skill.name.startsWith("agents");
+}
+
+function getSkillTypeLabel(skill: SkillInfo): string {
+  if (skill.source === "public") return "Публичный (из @openhands/extensions)";
+  if (isPathRuleSkill(skill)) return "Авто-правило из AGENTS.md / CLAUDE.md";
+  if (skill.source.toLowerCase().includes("installed")) return "Установленный";
+  if (skill.source.toLowerCase().includes(".agents/skills")) return "Пользовательский (.agents/skills)";
+  return "Проектый";
 }
 
 function ReadonlyTextArea({
@@ -87,6 +106,8 @@ export function SkillDetailModal({
   );
 
   const deletable = isDeletableSkill(skill);
+  const pathRule = isPathRuleSkill(skill);
+  const typeLabel = getSkillTypeLabel(skill);
 
   const handleDelete = () => {
     const confirmMessage = t(I18nKey.SETTINGS$SKILLS_DELETE_CONFIRM);
@@ -145,6 +166,7 @@ export function SkillDetailModal({
             >
               {skill.name}
             </h2>
+            <p className="text-xs text-tertiary-light mt-1">{typeLabel}</p>
             {skill.source ? (
               <div className="mt-0.5 flex min-w-0 items-center gap-1">
                 <p
@@ -178,6 +200,18 @@ export function SkillDetailModal({
             ) : null}
           </div>
         </div>
+
+        {pathRule ? (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+            <p className="font-medium">⚠️ Авто-правило из AGENTS.md</p>
+            <p className="mt-1 text-tertiary-light">
+              Этот навык сгенерирован автоматически из файла <code>AGENTS.md</code> или <code>CLAUDE.md</code> в проекте. 
+              Его нельзя удалить через API, только отключив переключателем выше или удалив/отредактировав исходный файл.
+              <br />
+              Имя <code>{skill.name}</code> не соответствует паттерну для установленных навыков, поэтому API возвращает 422.
+            </p>
+          </div>
+        ) : null}
 
         <div
           data-testid={`skill-modal-enable-row-${skill.name}`}
