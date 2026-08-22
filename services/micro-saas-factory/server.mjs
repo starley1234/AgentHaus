@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Фабрика микро-SaaS — автономный завод маленьких платных инструментов
- * Каждый запуск = новый микро-SaaS с лендингом
+ * Фабрика микро-SaaS — с Robokassa биллингом
  */
 
 import { readFile, mkdir, writeFile } from "node:fs/promises";
@@ -11,6 +10,7 @@ import { JobManager, readMarkdownFiles } from "../lib/job-manager.mjs";
 import { buildDocSite, serveStatic } from "../lib/web.mjs";
 import { bootStandalone } from "../lib/host.mjs";
 import { ensureApiKey, checkApiKey, serveServiceWeb } from "../lib/api-key.mjs";
+import { Billing } from "../lib/billing.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const configPath = path.join(__dirname, "config.json");
@@ -21,6 +21,12 @@ config = JSON.parse(await readFile(configPath, "utf-8"));
 const HOST_WORK_ROOT = (
   process.env.HOST_WORK_ROOT || path.resolve(__dirname, "..", "..", "projects")
 ).replace(/\/+$/, "");
+
+const billing = new Billing({
+  serviceName: "micro-saas-factory",
+  pricePerUnit: Number(config.price_per_tool || 5),
+  creditsFile: path.join(__dirname, "credits.json"),
+});
 
 export function createApp() {
   const manager = new JobManager({
@@ -50,7 +56,6 @@ export function createApp() {
 
       const dir = data.dir || job.hostWorkDir;
       
-      // Копируем все созданные файлы в _site
       try {
         const files = ["index.html", "app.js", "README.md", "product.json", "landing.md"];
         for (const f of files) {
@@ -61,16 +66,16 @@ export function createApp() {
         }
       } catch {}
 
-      // Если index.html не создан агентом, создаём базовый
       let html;
       try {
         html = await readFile(path.join(outDir, "index.html"), "utf-8");
+        if (!html) throw new Error("no html");
       } catch {
         html = buildDocSite({
           title: data.title,
           subtitle: data.subtitle,
           sections: data.sections,
-          footer: `${config.title} · Фабрика микро-SaaS · $${config.price_per_tool}`,
+          footer: `${config.title} · Фабрика микро-SaaS · $${config.price_per_tool} · Robokassa`,
         });
         await writeFile(path.join(outDir, "index.html"), html, "utf-8");
       }
@@ -85,30 +90,65 @@ export function createApp() {
       title: job.title,
       error: job.error,
       createdAt: job.createdAt,
-      ...(job.status === "finished"
-        ? { site_url: siteUrl(job.id), site_path: manager.sitePath(job.id) }
-        : {}),
+      ...(job.status === "finished" ? { site_url: siteUrl(job.id), site_path: manager.sitePath(job.id) } : {}),
     };
   }
 
   return async function handler(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
+    const method = req.method;
     try {
       if (p === "/health") return res.writeHead(200).end("ok");
+
+      if (p === "/api/robokassa/result") {
+        let body = "";
+        if (method === "POST") body = await readBody(req);
+        const params = new URLSearchParams(body || url.search);
+        const data = {};
+        for (const [k, v] of params.entries()) data[k] = v;
+        try { Object.assign(data, JSON.parse(body)); } catch {}
+        const result = await billing.handleRobokassaResult(data);
+        if (!result.valid) {
+          res.writeHead(400, { "Content-Type": "text/plain" });
+          return res.end("Invalid signature");
+        }
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        return res.end(billing.getSuccessAnswer(result.invId));
+      }
+
+      if (p === "/api/create-payment" && method === "POST") {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        const payment = billing.createRobokassaPayment({
+          amount: body.amount || config.price_per_tool || 500,
+          description: body.description || "Микро-SaaS инструмент",
+          userId: body.userId || "default",
+          email: body.email || null,
+        });
+        return json(res, 200, { ok: true, ...payment });
+      }
+
+      if (p === "/api/credits") {
+        const credits = await billing.getAllCredits();
+        return json(res, 200, { ok: true, credits, price: config.price_per_tool });
+      }
+
       if (p.startsWith("/api/") && !checkApiKey(req, API_KEY)) {
         return json(res, 401, { ok: false, error: "invalid API key" });
       }
-      if (p === "/api/run" && req.method === "POST") {
+      if (p === "/api/run" && method === "POST") {
         const body = JSON.parse((await readBody(req)) || "{}");
+        const credits = await billing.getUserCredits(body.userId || "default");
+        if (credits <= 0) {
+          return json(res, 402, { ok: false, error: "Недостаточно кредитов, пополните через Robokassa", credits });
+        }
         const r = await manager.start(body);
-        return json(res, 200, { ok: true, jobId: r.jobId });
+        const newBalance = await billing.deductCredits(body.userId || "default", 1);
+        return json(res, 200, { ok: true, jobId: r.jobId, credits_left: newBalance });
       }
       if (p === "/api/status" || p === "/api/jobs") {
         const id = url.searchParams.get("id");
-        const toTick = id
-          ? [id]
-          : manager.list().filter((j) => j.status === "running").map((j) => j.id);
+        const toTick = id ? [id] : manager.list().filter((j) => j.status === "running").map((j) => j.id);
         for (const jid of toTick) await manager.tick(jid);
         if (id) return json(res, 200, manager.get(id) ? toPublic(manager.get(id)) : { status: "unknown" });
         return json(res, 200, { jobs: manager.list().map(toPublic) });
@@ -119,13 +159,7 @@ export function createApp() {
         if (!job) return json(res, 404, { ok: false, error: "job not found" });
         await manager.tick(id);
         if (job.status !== "finished") return json(res, 200, { ok: true, status: job.status });
-        return json(res, 200, {
-          ok: true,
-          status: "finished",
-          title: job.title,
-          site_url: siteUrl(job.id),
-          site_path: manager.sitePath(job.id),
-        });
+        return json(res, 200, { ok: true, status: "finished", title: job.title, site_url: siteUrl(job.id) });
       }
       if (p.startsWith("/site/")) {
         const rest = p.slice("/site/".length);
