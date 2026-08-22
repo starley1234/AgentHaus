@@ -349,10 +349,37 @@ def _fetch_plugin_catalog_entries(
     # return there would blank the catalog even though the manifest is present.
     # The explicit ``marketplace_path`` file is only a fallback for layouts that
     # ship it instead of a ``.plugin/`` manifest.
+    #
+    # Авто-резолв маркетплейса: в вендоренной копии может быть только
+    # openhands-extensions.json, а не default.json. Пытаемся найти существующий.
+    try:
+        from openhands.sdk.skills.skill import resolve_marketplace_path
+
+        if not (repo_path / marketplace_path).exists():
+            resolved = resolve_marketplace_path(repo_path)
+            if resolved != marketplace_path:
+                logger.info(
+                    f"Marketplace '{marketplace_path}' not found; using '{resolved}'"
+                )
+                marketplace_path = resolved
+    except Exception:
+        pass
+
     try:
         marketplace = Marketplace.load(repo_path)
-    except (FileNotFoundError, ValueError) as e:
+    except Exception as e:
+        # Fallback: попробовать загрузить напрямую файл маркетплейса
         marketplace_file = repo_path / marketplace_path
+        if not marketplace_file.exists():
+            # Пробуем альтернативные имена
+            for alt in [
+                "marketplaces/openhands-extensions.json",
+                "marketplaces/default.json",
+            ]:
+                alt_path = repo_path / alt
+                if alt_path.exists():
+                    marketplace_file = alt_path
+                    break
         if not marketplace_file.exists():
             logger.warning(
                 f"Failed to load marketplace via manifest discovery ({e}); "
@@ -362,10 +389,23 @@ def _fetch_plugin_catalog_entries(
         try:
             with open(marketplace_file, encoding="utf-8") as f:
                 data = json.load(f)
+            # Если файл содержит строку-указатель (как .plugin/marketplace.json), резолвим
+            if isinstance(data, str):
+                pointed = (marketplace_file.parent / data).resolve()
+                if not pointed.exists():
+                    pointed = (repo_path / data).resolve()
+                if pointed.exists():
+                    with open(pointed, encoding="utf-8") as pf:
+                        data = json.load(pf)
+            if not isinstance(data, dict):
+                logger.warning(
+                    f"Marketplace file {marketplace_file} contains {type(data).__name__}, expected dict"
+                )
+                return []
             marketplace = Marketplace.model_validate(
                 {**data, "path": to_posix_path(repo_path)}
             )
-        except (json.JSONDecodeError, ValidationError, OSError) as e2:
+        except (json.JSONDecodeError, ValidationError, OSError, TypeError) as e2:
             logger.warning(f"Failed to load marketplace: {e}, {e2}")
             return []
 

@@ -257,6 +257,10 @@ export default defineConfig(({ mode }) => {
               replacement: join(VENDORED_EXTENSIONS_DIR, "plugins", "$1"),
             },
             {
+              find: /^@openhands\/extensions\/marketplaces\/(.*)/,
+              replacement: join(VENDORED_EXTENSIONS_DIR, "marketplaces", "$1"),
+            },
+            {
               find: /^@openhands\/extensions$/,
               replacement: join(VENDORED_EXTENSIONS_DIR, "index.js"),
             },

@@ -258,6 +258,32 @@ class Marketplace(BaseModel):
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in {manifest_path}: {e}") from e
 
+        # Поддержка указателя: если marketplace.json содержит строку вроде
+        # "../marketplaces/openhands-extensions.json", то загружаем файл по этому пути
+        # (используется в вендоренной копии AgentHaus: .plugin/marketplace.json -> ../marketplaces/openhands-extensions.json)
+        if isinstance(data, str):
+            # data — относительный путь к реальному marketplace JSON
+            pointed_path = (manifest_path.parent / data).resolve()
+            # Также пробуем относительно marketplace_dir
+            if not pointed_path.exists():
+                pointed_path = (marketplace_dir / data).resolve()
+            if not pointed_path.exists():
+                raise FileNotFoundError(
+                    f"Marketplace manifest points to {data}, but file not found: {pointed_path}"
+                )
+            try:
+                with open(pointed_path, encoding="utf-8") as f:
+                    data = json.load(f)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in pointed marketplace file {pointed_path}: {e}"
+                ) from e
+
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Invalid marketplace manifest in {manifest_path}: expected object, got {type(data).__name__}"
+            )
+
         return cls.model_validate({**data, "path": str(marketplace_dir)})
 
     def get_plugin(self, name: str) -> MarketplacePluginEntry | None:

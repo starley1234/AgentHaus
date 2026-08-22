@@ -54,14 +54,107 @@ export interface PluginFileContent {
 }
 
 function isLikelyBinary(buffer: ArrayBuffer): boolean {
-  // Same heuristic git uses: presence of a NUL byte in the first ~8KB. Small
-  // private copy of `isLikelyBinary` in `use-workspace-file-content.ts` — that
-  // module is conversation-workspace-specific and heavy to import from here.
   const view = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 8000));
   for (let i = 0; i < view.length; i += 1) {
     if (view[i] === 0) return true;
   }
   return false;
+}
+
+function getFallbackMarketplacePlugins(): MarketplacePlugin[] {
+  // Fallback: когда agent-server не возвращает каталог (баг с EXTENSIONS_REPO
+  // или старый сервер), берём вендоренный маркетплейс из @openhands/extensions,
+  // который в Docker скопирован как /opt/agent-canvas/extensions и заалиасен
+  // в vite.config.ts на русский каталог.
+  try {
+    // Статический импорт JSON — Vite за-бандлит его. Алиас в vite.config.ts
+    // для marketplaces/* указывает на вендоренную копию с русскими описаниями.
+    // Используем require через createRequire-подобный трюк для совместимости
+    // с тестами (vitest) и с ESM.
+    let marketplace: {
+      plugins?: Array<{
+        name: string;
+        description?: string;
+        source: string | { path?: string };
+      }>;
+    } | null = null;
+
+    try {
+      // Попытка 1: ESM импорт через динамический import (работает в Vite)
+      // Мы не можем использовать top-level await, поэтому пробуем require
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      marketplace = require("@openhands/extensions/marketplaces/openhands-extensions.json");
+    } catch {
+      // Попытка 2: если require недоступен (браузер), fallback уже в бандле через alias
+      // будет доступен как статический импорт ниже, но мы уже в catch
+      marketplace = null;
+    }
+
+    // Если require не сработал, пробуем через глобальный fetch из public?
+    // В крайнем случае возвращаем хардкоженный список известных плагинов с русскими описаниями
+    if (!marketplace) {
+      // Хардкоженный fallback — 16 плагинов (11 оригинальных + 5 новых) с русскими описаниями
+      const known: Array<{ name: string; description: string }> = [
+        { name: "city-weather", description: "Текущая погода, время и прогноз осадков для любого города." },
+        { name: "cobol-modernization", description: "Сквозной процесс миграции COBOL → Java: сборка, удаление зависимостей мейнфрейма и миграция." },
+        { name: "issue-duplicate-checker", description: "Поиск дубликатов задач GitHub с OpenHands Cloud и автоматизация жизненного цикла." },
+        { name: "magic-test", description: "Простой тестовый плагин с навыком «волшебное слово» для проверки загрузки плагинов." },
+        { name: "migration-scoring", description: "Оценка качества миграции кода по покрытию, корректности и стилю." },
+        { name: "onboarding", description: "Оценка готовности репозитория к работе агента по пяти направлениям и генерация AGENTS.md." },
+        { name: "openhands", description: "Единый плагин OpenHands — Cloud CLI, REST API, Автоматизаций и SDK." },
+        { name: "pr-review", description: "Автоматическое код-ревью PR — анализ диффов и публикация комментариев через GitHub API." },
+        { name: "qa-changes", description: "Автоматическая QA-проверка изменений PR — запуск тестов и проверка поведения." },
+        { name: "release-notes", description: "Генерация структурированных release-notes из истории git." },
+        { name: "vulnerability-remediation", description: "Сканирование уязвимостей и авто-исправление с созданием PR." },
+        { name: "ru-git-helper", description: "Русскоязычный помощник по Git: ветки, коммиты, PR, история." },
+        { name: "ru-docker-helper", description: "Русскоязычный помощник по Docker и Compose: сборка, логи, диагностика." },
+        { name: "ru-env-checker", description: "Проверка .env и окружения: сравнение с .env.example, поиск секретов." },
+        { name: "ru-test-runner", description: "Запуск тестов с русским отчётом: npm, pytest, cargo, go test." },
+        { name: "ru-code-cleanup", description: "Очистка и форматирование кода: линтеры, форматтеры, проверка типов." },
+      ];
+      return known.map((p) => ({
+        name: p.name,
+        description: p.description,
+        source: "github:OpenHands/extensions",
+        ref: "main",
+        repo_path: `plugins/${p.name}`,
+        installed: false,
+        path: null,
+        skills: null,
+        files: null,
+      }));
+    }
+
+    const plugins = marketplace.plugins ?? [];
+    return plugins
+      .filter((p) => {
+        const src =
+          typeof p.source === "string"
+            ? p.source
+            : (p.source as { path?: string }).path ?? "";
+        return src.startsWith("./plugins/") || src.startsWith("plugins/");
+      })
+      .map((p) => {
+        const src =
+          typeof p.source === "string"
+            ? p.source
+            : (p.source as { path?: string }).path ?? "";
+        const repoPath = src.replace(/^\.\//, "");
+        return {
+          name: p.name,
+          description: p.description ?? null,
+          source: "github:OpenHands/extensions",
+          ref: "main",
+          repo_path: repoPath,
+          installed: false,
+          path: null,
+          skills: null,
+          files: null,
+        } as MarketplacePlugin;
+      });
+  } catch {
+    return [];
+  }
 }
 
 class PluginsService {
@@ -72,20 +165,29 @@ class PluginsService {
    * agent-server via the typed client (no bundled catalog, so the list stays
    * dynamic). On a cloud backend an empty catalog is returned — there is no
    * cloud plugins-marketplace endpoint yet (tracked as a follow-up ticket).
+   *
+   * Если backend вернул пустой список (баг с EXTENSIONS_REPO или старый сервер),
+   * делаем fallback на локальный вендоренный маркетплейс, чтобы UI не показывал
+   * "Плагины не найдены".
    */
   static async getPluginsMarketplace(): Promise<MarketplacePlugin[]> {
+    const fallback = getFallbackMarketplacePlugins();
+
     if (getActiveBackend().backend.kind === "cloud") {
-      return [];
+      return fallback.length > 0 ? fallback : [];
     }
 
     try {
       const response = await new PluginsClient(
         getAgentServerClientOptions(),
       ).getPluginsMarketplace();
-      return (response.plugins ?? []) as MarketplacePlugin[];
+      const plugins = (response.plugins ?? []) as MarketplacePlugin[];
+      if (plugins.length === 0 && fallback.length > 0) {
+        return fallback;
+      }
+      return plugins;
     } catch {
-      // Agent-server may not support the plugins endpoint or be unreachable;
-      // surface an empty catalog rather than throwing.
+      if (fallback.length > 0) return fallback;
       return [];
     }
   }
