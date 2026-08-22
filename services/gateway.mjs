@@ -357,6 +357,63 @@ const server = createServer(async (req, res) => {
     }
     if (p === "/health") return res.writeHead(200).end("ok");
 
+    // Прокси для agent-server API — чтобы simple-ui и другие сервисы могли
+    // работать через gateway :8290 без хардкода порта 8000/8300
+    // Это исправляет ERR_CONNECTION_REFUSED когда simple-ui пытается
+    // fetch http://localhost:8000/api/... а бэкенд на :8300
+    const apiPrefixes = ["/api/", "/api", "/server_info", "/alive", "/ready", "/health", "/docs", "/redoc", "/openapi.json", "/sockets"];
+    const isApi = apiPrefixes.some((prefix) => p === prefix || p.startsWith(prefix + "/") || p.startsWith(prefix + "?") || (prefix === "/api" && p.startsWith("/api/")));
+    if (isApi) {
+      const backendUrl = process.env.AGENT_SERVER_URL || "http://localhost:8300";
+      const targetUrl = `${backendUrl}${p}${url.search}`;
+      try {
+        const proxyRes = await fetch(targetUrl, {
+          method: req.method,
+          headers: {
+            "Content-Type": req.headers["content-type"] || "application/json",
+            "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
+            "Authorization": req.headers["authorization"] || "",
+          },
+          body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
+        });
+        // Копировать заголовки
+        const headers = {};
+        for (const [k, v] of proxyRes.headers.entries()) {
+          if (k.toLowerCase() === "content-encoding" || k.toLowerCase() === "content-length") continue;
+          headers[k] = v;
+        }
+        res.writeHead(proxyRes.status, headers);
+        const buf = Buffer.from(await proxyRes.arrayBuffer());
+        return res.end(buf);
+      } catch (e) {
+        // Пробуем альтернативный порт 8000 если 8300 не отвечает
+        const altUrl = targetUrl.replace(":8300", ":8000");
+        if (altUrl !== targetUrl) {
+          try {
+            const proxyRes = await fetch(altUrl, {
+              method: req.method,
+              headers: {
+                "Content-Type": req.headers["content-type"] || "application/json",
+                "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
+              },
+              body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
+            });
+            const headers = {};
+            for (const [k, v] of proxyRes.headers.entries()) {
+              if (k.toLowerCase() === "content-encoding" || k.toLowerCase() === "content-length") continue;
+              headers[k] = v;
+            }
+            res.writeHead(proxyRes.status, headers);
+            const buf = Buffer.from(await proxyRes.arrayBuffer());
+            return res.end(buf);
+          } catch {}
+        }
+        // Если оба не отвечают — возвращаем 502, а не 404, чтобы фронтенд показал понятную ошибку
+        res.writeHead(502, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: `Backend not reachable at ${backendUrl}: ${e.message}` }));
+      }
+    }
+
     // Админка
     if (p === "/admin" || p.startsWith("/admin/")) {
       return await handleAdmin(req, res, url, p);

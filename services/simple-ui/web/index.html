@@ -40,7 +40,7 @@ a:hover{text-decoration:underline}
 <header>
 <div>
 <h1><span>AgentHaus</span> · Простой UI</h1>
-<p class="sub">Минималистичный интерфейс: чат, файлы, навыки. Без сложностей. Для новичков и прода. Работает поверх того же бэкенда :8000.</p>
+<p class="sub">Минималистичный интерфейс: чат, файлы, навыки. Без сложностей. Для новичков и прода. Работает поверх того же бэкенда.</p>
 </div>
 <div>
 <span class="badge">RU</span><span class="badge">Простой</span><span class="badge">Быстрый</span>
@@ -147,16 +147,50 @@ a:hover{text-decoration:underline}
 <li><strong>Файлы:</strong> список файлов из рабочей директории диалога, клик — просмотр содержимого</li>
 <li><strong>Навыки:</strong> включить/отключить все — массовые действия, сохраняются в настройках</li>
 <li><strong>Сервисы-деньги:</strong> слева ссылки на коммерческие сервисы (BOM, микро-SaaS, SEO) с биллингом Robokassa</li>
-<li><strong>Прода:</strong> этот UI работает на том же бэкенде :8000, но проще и быстрее основного React (меньше JS, меньше чанков)</li>
+<li><strong>Прода:</strong> этот UI работает на том же бэкенде, но проще и быстрее основного React (меньше JS, меньше чанков)</li>
 </ul>
+<p style="font-size:.8rem;color:var(--mut)">Бэкенд определяется автоматически: если открыт через gateway :8290 — используется прокси /api/proxy, если через основной порт :8300 — используется /api (проксируется в контейнере). Ошибка ERR_CONNECTION_REFUSED исправлена.</p>
 </div>
 
 </div>
 
 <script>
-// Конфиг
-const AGENT_SERVER_URL = "http://localhost:8000";
-const API_KEY = localStorage.getItem("agenthaus_api_key") || "";
+// Конфиг — теперь динамический, без хардкода порта
+const API_KEY = localStorage.getItem("agenthaus_api_key") || document.querySelector('meta[name="api-key"]')?.content || "";
+
+// Определить базовый URL для API — работает на любом порту (8000, 8300, 8290)
+function getApiBase() {
+  const origin = window.location.origin;
+  const pathname = window.location.pathname;
+  
+  // Если мы внутри /simple-ui/ — используем прокси этого сервиса
+  // /simple-ui/api/proxy/* → проксируется в AGENT_SERVER_URL (8300 или 8000)
+  if (pathname.startsWith("/simple-ui/")) {
+    return `${origin}/simple-ui/api/proxy`;
+  }
+  
+  // Если мы на gateway :8290 в корне — пробуем прокси через simple-ui
+  if (origin.includes(":8290")) {
+    return `${origin}/simple-ui/api/proxy`;
+  }
+  
+  // Если мы на основном порту :8300 или :8000 — используем /api напрямую
+  // (в Docker entrypoint.sh /api проксируется в agent-server :18000)
+  // Также работает для :3001 (Vite dev) где /api проксируется в vite.config.ts
+  return `${origin}/api`;
+}
+
+function apiUrl(path) {
+  // path должен начинаться с /api/...
+  // Если base уже содержит /api/proxy, то path /api/... станет /api/proxy/api/...
+  const base = getApiBase();
+  // Если base заканчивается на /api/proxy и path начинается с /api — ок
+  // Если base заканчивается на /api и path начинается с /api — убираем дубль
+  if (base.endsWith("/api") && path.startsWith("/api")) {
+    return base + path.slice(4);
+  }
+  return base + path;
+}
 
 function headers() {
   return {
@@ -165,7 +199,7 @@ function headers() {
   };
 }
 
-function esc(s){return String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
 let currentConvId = null;
 let currentWorkingDir = null;
@@ -173,7 +207,8 @@ let currentWorkingDir = null;
 // Загрузка диалогов
 async function loadConversations(){
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/conversations/search`, { headers: headers() });
+    const r=await fetch(apiUrl("/api/conversations/search"), { headers: headers() });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const data=await r.json();
     const convs=data.conversations||data.items||[];
     const list=document.getElementById("convList");
@@ -185,16 +220,16 @@ async function loadConversations(){
       </div>
     `).join("");
   } catch(e){
-    document.getElementById("convList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}<br><small>Проверьте что бэкенд запущен на ${AGENT_SERVER_URL}</small></div>`;
+    document.getElementById("convList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}<br><small>API: ${esc(apiUrl("/api/conversations/search"))}<br>Бэкенд: ${esc(window.location.origin)}<br>Проверьте что контейнер agenthaus запущен и gateway на :8290 видит бэкенд на :8300</small></div>`;
   }
 }
 
 async function selectConv(id){
   currentConvId=id;
   document.querySelectorAll(".conv").forEach(el=>el.classList.toggle("active", el.dataset.id===id));
-  // Загрузить сообщения
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/conversations/${id}`, { headers: headers() });
+    const r=await fetch(apiUrl(`/api/conversations/${id}`), { headers: headers() });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const data=await r.json();
     currentWorkingDir=data.working_dir||null;
     const events=data.events||[];
@@ -217,7 +252,7 @@ async function selectConv(id){
 
 async function createConversation(prompt){
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/conversations`, {
+    const r=await fetch(apiUrl("/api/conversations"), {
       method:"POST",
       headers: headers(),
       body: JSON.stringify({
@@ -226,6 +261,7 @@ async function createConversation(prompt){
         run: true
       })
     });
+    if(!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
     const data=await r.json();
     currentConvId=data.id;
     await loadConversations();
@@ -249,9 +285,8 @@ async function sendQuick(){
   if(!currentConvId){
     await createConversation(val);
   } else {
-    // отправить сообщение в существующий диалог
     try {
-      await fetch(`${AGENT_SERVER_URL}/api/conversations/${currentConvId}/events`, {
+      await fetch(apiUrl(`/api/conversations/${currentConvId}/events`), {
         method:"POST",
         headers: headers(),
         body: JSON.stringify({ role: "user", content: val })
@@ -269,7 +304,7 @@ async function sendChat(){
     document.getElementById("chatInput").value="";
   } else {
     try {
-      await fetch(`${AGENT_SERVER_URL}/api/conversations/${currentConvId}/events`, {
+      await fetch(apiUrl(`/api/conversations/${currentConvId}/events`), {
         method:"POST",
         headers: headers(),
         body: JSON.stringify({ role: "user", content: val })
@@ -287,8 +322,7 @@ async function loadFiles(){
   const list=document.getElementById("fileList");
   list.innerHTML=`<div class="empty">Загрузка файлов...</div>`;
   try {
-    // Пробуем через file API
-    const r=await fetch(`${AGENT_SERVER_URL}/api/workspaces/${currentConvId}/files`, { headers: headers() }).catch(()=>null);
+    const r=await fetch(apiUrl(`/api/workspaces/${currentConvId}/files`), { headers: headers() }).catch(()=>null);
     if(r && r.ok){
       const data=await r.json();
       const files=data.files||[];
@@ -305,7 +339,7 @@ async function viewFile(filePath){
   const contentDiv=document.getElementById("fileContent");
   contentDiv.innerHTML=`<div class="empty">Загрузка ${esc(filePath)}...</div>`;
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/workspaces/${currentConvId}/files/content?path=${encodeURIComponent(filePath)}`, { headers: headers() });
+    const r=await fetch(apiUrl(`/api/workspaces/${currentConvId}/files/content?path=${encodeURIComponent(filePath)}`), { headers: headers() });
     const data=await r.json();
     contentDiv.innerHTML=`<pre>${esc(data.content||data.text||JSON.stringify(data).slice(0,1000))}</pre>`;
   } catch(e){
@@ -316,17 +350,17 @@ async function viewFile(filePath){
 // Навыки
 async function loadSkills(){
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/skills`, {
+    const r=await fetch(apiUrl("/api/skills"), {
       method:"POST",
       headers: headers(),
       body: JSON.stringify({ load_public: true, load_user: true, load_project: true })
     });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const data=await r.json();
     const skills=data.skills||[];
     const list=document.getElementById("skillsList");
     if(skills.length===0){list.innerHTML=`<div class="empty">Навыков нет</div>`;return}
-    // Получить disabled
-    const settingsRes=await fetch(`${AGENT_SERVER_URL}/api/settings`, { headers: headers() });
+    const settingsRes=await fetch(apiUrl("/api/settings"), { headers: headers() });
     const settings=await settingsRes.json();
     const disabled=new Set(settings.disabled_skills||[]);
     list.innerHTML=skills.slice(0,30).map(s=>`
@@ -336,13 +370,14 @@ async function loadSkills(){
       </div>
     `).join("") + (skills.length>30?`<div style="font-size:.7rem;color:#6b7280">... и ещё ${skills.length-30}</div>`:"");
   } catch(e){
-    document.getElementById("skillsList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}</div>`;
+    document.getElementById("skillsList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}<br><small>API: ${esc(apiUrl("/api/skills"))}</small></div>`;
   }
 }
 
 async function loadPlugins(){
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/plugins/marketplace`, { headers: headers() });
+    const r=await fetch(apiUrl("/api/plugins/marketplace"), { headers: headers() });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const data=await r.json();
     const plugins=data.plugins||[];
     const list=document.getElementById("pluginsList");
@@ -354,35 +389,28 @@ async function loadPlugins(){
       </div>
     `).join("");
   } catch(e){
-    document.getElementById("pluginsList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}</div>`;
+    document.getElementById("pluginsList").innerHTML=`<div class="err">Ошибка: ${esc(e.message)}<br><small>API: ${esc(apiUrl("/api/plugins/marketplace"))}</small></div>`;
   }
 }
 
 // Bulk навыки
 async function enableAllSkills(){
   try {
-    const r=await fetch(`${AGENT_SERVER_URL}/api/settings`, { headers: headers() });
-    const settings=await r.json();
-    const allSkillsRes=await fetch(`${AGENT_SERVER_URL}/api/skills`, { method:"POST", headers: headers(), body: JSON.stringify({ load_public: true, load_user: true, load_project: true }) });
-    const allData=await allSkillsRes.json();
-    const allNames=(allData.skills||[]).map(s=>s.name);
-
-    // Очистить disabled
-    await fetch(`${AGENT_SERVER_URL}/api/settings`, {
+    await fetch(apiUrl("/api/settings"), {
       method:"POST",
       headers: headers(),
       body: JSON.stringify({ disabled_skills: [] })
     });
-    alert(`Включено все ${allNames.length} навыков`);
+    alert(`Включено все навыки`);
     loadSkills();
   } catch(e){alert(e.message)}
 }
 async function disableAllSkills(){
   try {
-    const allSkillsRes=await fetch(`${AGENT_SERVER_URL}/api/skills`, { method:"POST", headers: headers(), body: JSON.stringify({ load_public: true, load_user: true, load_project: true }) });
+    const allSkillsRes=await fetch(apiUrl("/api/skills"), { method:"POST", headers: headers(), body: JSON.stringify({ load_public: true, load_user: true, load_project: true }) });
     const allData=await allSkillsRes.json();
     const allNames=(allData.skills||[]).map(s=>s.name);
-    await fetch(`${AGENT_SERVER_URL}/api/settings`, {
+    await fetch(apiUrl("/api/settings"), {
       method:"POST",
       headers: headers(),
       body: JSON.stringify({ disabled_skills: allNames })
@@ -421,6 +449,7 @@ function useTemplate(name){
 document.getElementById("newConv").onclick=()=>{const promptText=prompt("Задача для нового диалога:"); if(promptText) createConversation(promptText);};
 document.getElementById("sendChat").onclick=sendChat;
 document.getElementById("chatInput").addEventListener("keydown", e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}});
+
 document.getElementById("enableAllSkills").onclick=enableAllSkills;
 document.getElementById("disableAllSkills").onclick=disableAllSkills;
 

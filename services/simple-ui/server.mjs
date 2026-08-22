@@ -43,21 +43,40 @@ export function createApp() {
         return json(res, 401, { ok: false, error: "invalid API key" });
       }
       // Прокси для agent-server API — чтобы простой UI мог напрямую говорить с бэкендом
+      // Поддерживает несколько возможных адресов бэкенда (8000, 8300) чтобы не было ERR_CONNECTION_REFUSED
       if (p.startsWith("/api/proxy/")) {
         const targetPath = p.slice("/api/proxy".length);
-        const targetUrl = `${process.env.AGENT_SERVER_URL || "http://localhost:8000"}${targetPath}${url.search}`;
-        const proxyRes = await fetch(targetUrl, {
-          method: req.method,
-          headers: {
-            "Content-Type": req.headers["content-type"] || "application/json",
-            "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
-            "Authorization": req.headers["authorization"] || "",
-          },
-          body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
-        });
-        const data = await proxyRes.text();
-        res.writeHead(proxyRes.status, { "Content-Type": proxyRes.headers.get("content-type") || "application/json" });
-        return res.end(data);
+        const candidateUrls = [
+          process.env.AGENT_SERVER_URL,
+          "http://localhost:8300",
+          "http://localhost:8000",
+          "http://127.0.0.1:8300",
+          "http://127.0.0.1:8000",
+        ].filter(Boolean);
+
+        let lastError = null;
+        for (const base of candidateUrls) {
+          const targetUrl = `${base}${targetPath}${url.search}`;
+          try {
+            const proxyRes = await fetch(targetUrl, {
+              method: req.method,
+              headers: {
+                "Content-Type": req.headers["content-type"] || "application/json",
+                "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
+                "Authorization": req.headers["authorization"] || "",
+              },
+              body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
+            });
+            const data = await proxyRes.text();
+            res.writeHead(proxyRes.status, { "Content-Type": proxyRes.headers.get("content-type") || "application/json" });
+            return res.end(data);
+          } catch (e) {
+            lastError = e;
+            continue;
+          }
+        }
+        res.writeHead(502, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: `All backend candidates failed: ${lastError?.message || "unknown"}`, tried: candidateUrls }));
       }
       return serveServiceWeb(res, path.join(__dirname, "web"), p, API_KEY);
     } catch (err) {
