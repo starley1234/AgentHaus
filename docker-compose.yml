@@ -77,6 +77,11 @@ services:
       # Маркетплейс-манифест внутри каталога (по умолчанию выбирается сам:
       # openhands-extensions.json, иначе default.json).
       # EXTENSIONS_MARKETPLACE: "marketplaces/openhands-extensions.json"
+      # ── Производительность: ограничить параллельные агентские шаги ──
+      # Каждый активный запуск может занимать LLM, браузер и отдельный поток.
+      # Значение 4 — безопасный дефолт для одного self-hosted инстанса; подними
+      # его только если CPU/RAM и лимиты LLM-провайдера это позволяют.
+      OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
       # ── Безопасность: свой ключ вместо автогенерации ──
       LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY:-}"
       # ── При необходимости — внешний URL (если публикуешь наружу) ──

@@ -67,6 +67,57 @@ class AgentServerRuntimeService {
     };
   }
 
+  /**
+   * Create and download a full tar.gz snapshot of the active workspace.
+   * The server streams the archive to disk while it is built, so neither the
+   * browser nor the agent process needs to hold the workspace in memory.
+   */
+  static async downloadWorkspaceArchive(
+    conversationUrl: string | null | undefined,
+    sessionApiKey: string | null | undefined,
+    path: string,
+  ): Promise<{ blob: Blob; filename: string }> {
+    const active = getActiveBackend().backend;
+    // Explicitly disable server-side convenience excludes: this control promises
+    // a complete workspace export, including generated or dependency folders.
+    const archivePath = `/api/file/archive?path=${encodeURIComponent(path)}&format=tar.gz&use_default_excludes=false`;
+
+    if (active.kind === "cloud" && conversationUrl) {
+      const blob = await callCloudProxy<Blob>({
+        backend: active,
+        method: "GET",
+        hostOverride: buildHttpBaseUrl(conversationUrl),
+        path: archivePath,
+        authMode: "session-api-key",
+        sessionApiKey,
+        responseType: "blob",
+        // Archive creation can take longer than ordinary API requests on a
+        // sizeable workspace; the server itself streams it without buffering.
+        timeoutSeconds: 300,
+      });
+      return { blob, filename: "workspace.tar.gz" };
+    }
+
+    const { host, apiKey } = getAgentServerClientOptions({
+      conversationUrl,
+      sessionApiKey,
+    });
+    const response = await fetch(`${host}${archivePath}`, {
+      headers: apiKey ? { "X-Session-API-Key": apiKey } : undefined,
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error(`Workspace archive request failed (${response.status})`);
+    }
+
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1];
+    return {
+      blob: await response.blob(),
+      filename: filename || "workspace.tar.gz",
+    };
+  }
+
   static async downloadFile(
     conversationUrl: string | null | undefined,
     sessionApiKey: string | null | undefined,

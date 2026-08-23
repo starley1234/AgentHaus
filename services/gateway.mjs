@@ -19,7 +19,7 @@
  * без перезапуска шлюза (hot mount).
  */
 import { createServer } from "node:http";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveUserFromRequest, authorize } from "./lib/auth.mjs";
@@ -56,9 +56,14 @@ async function loadConfig(name) {
 
 /** (Пере)импортировать createApp-хендлер сервиса. */
 async function importHandler(name) {
-  const mod = await import(
-    `${pathToFileURL(path.join(SERVICES_DIR, name, "server.mjs")).href}?t=${Date.now()}`
-  );
+  const modulePath = path.join(SERVICES_DIR, name, "server.mjs");
+  // ESM caches every distinct import URL forever. Date.now() made each admin
+  // refresh create a new module graph, slowly leaking memory in a long-lived
+  // gateway. Version the URL by file metadata instead: edits still hot-reload,
+  // while repeated refreshes of unchanged services reuse the cached module.
+  const metadata = await stat(modulePath);
+  const version = `${metadata.mtimeMs}-${metadata.size}`;
+  const mod = await import(`${pathToFileURL(modulePath).href}?v=${version}`);
   return mod.createApp({ basePath: `/${name}` });
 }
 

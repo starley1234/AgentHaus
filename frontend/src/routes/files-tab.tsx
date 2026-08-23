@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 
 import { NoFileSelectedMessage } from "#/components/features/files-tab/no-file-selected-message";
 import { I18nKey } from "#/i18n/declaration";
 import { useFilesTabStore } from "#/stores/files-tab-store";
 import { useWorkspaceFiles } from "#/hooks/query/use-workspace-files";
+import { useActiveConversation } from "#/hooks/query/use-active-conversation";
+import AgentServerRuntimeService from "#/api/runtime-service/agent-server-runtime-service";
+import { downloadBlob } from "#/utils/utils";
 import { useWorkspaceFileContent } from "#/hooks/query/use-workspace-file-content";
 import { useHasAttachedSource } from "#/hooks/use-has-attached-source";
 import { useHasGitCommits } from "#/hooks/query/use-has-git-commits";
@@ -25,6 +29,7 @@ import { SegmentedToggle } from "#/components/features/files-tab/segmented-toggl
 import type { ViewMode } from "#/components/features/files-tab/view-mode";
 import RefreshIcon from "#/icons/u-refresh.svg?react";
 import LinkExternalIcon from "#/icons/link-external.svg?react";
+import DownloadIcon from "#/icons/u-download.svg?react";
 import { useUnifiedGitCommits } from "#/hooks/query/use-unified-git-commits";
 import GitChanges from "./changes-tab";
 import GitCommits from "./commits-tab";
@@ -54,6 +59,8 @@ function FilesTab() {
   // once `hasAttachedSource` *or* `hasCommits` definitively resolves
   // false. The user's persisted choice always wins.
   const { conversationId } = useOptionalConversationId();
+  const { data: conversation } = useActiveConversation();
+  const [isDownloadingArchive, setIsDownloadingArchive] = useState(false);
   const {
     state: persistedState,
     setFilesTabDiffView,
@@ -142,6 +149,30 @@ function FilesTab() {
     queryClient.invalidateQueries({ queryKey: ["git_commits"] });
   };
 
+  const downloadWorkspaceArchive = async () => {
+    const workingDir = conversation?.workspace?.working_dir?.trim();
+    if (!conversation || !workingDir || isDownloadingArchive) return;
+
+    setIsDownloadingArchive(true);
+    try {
+      const archive = await AgentServerRuntimeService.downloadWorkspaceArchive(
+        conversation.conversation_url,
+        conversation.session_api_key,
+        workingDir,
+      );
+      downloadBlob(archive.blob, archive.filename);
+    } catch {
+      // The archive is intentionally best-effort: files can change while the
+      // agent works. Keep the failure local to the download control rather
+      // than interrupting the running conversation.
+      toast.error(t(I18nKey.CONVERSATION$DOWNLOAD_ERROR));
+    } finally {
+      setIsDownloadingArchive(false);
+    }
+  };
+
+  const canDownloadWorkspace = !!conversation?.workspace?.working_dir?.trim();
+
   return (
     <main
       className="h-full w-full flex flex-col items-stretch"
@@ -206,6 +237,25 @@ function FilesTab() {
               <LinkExternalIcon width={14} height={14} />
             </a>
           )}
+          <button
+            type="button"
+            onClick={downloadWorkspaceArchive}
+            disabled={!canDownloadWorkspace || isDownloadingArchive}
+            aria-label={t(
+              I18nKey.PROJECT_MENU_CARD_CONTEXT_MENU$DOWNLOAD_FILES_LABEL,
+            )}
+            title={t(
+              I18nKey.PROJECT_MENU_CARD_CONTEXT_MENU$DOWNLOAD_FILES_LABEL,
+            )}
+            data-testid="files-tab-download-archive"
+            className="flex items-center justify-center w-[26px] py-1 rounded-[7px] hover:enabled:bg-[var(--oh-interactive-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <DownloadIcon
+              width={14}
+              height={14}
+              className={isDownloadingArchive ? "animate-pulse" : ""}
+            />
+          </button>
           <button
             type="button"
             onClick={refreshFiles}
