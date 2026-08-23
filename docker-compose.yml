@@ -82,6 +82,13 @@ services:
       # Значение 4 — безопасный дефолт для одного self-hosted инстанса; подними
       # его только если CPU/RAM и лимиты LLM-провайдера это позволяют.
       OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
+      # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
+      GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
+      GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID:-}"
+      # Лучше указывать файл, смонтированный как Docker secret; переменная
+      # оставлена для совместимости с простым self-hosted запуском.
+      GITHUB_APP_PRIVATE_KEY: "${GITHUB_APP_PRIVATE_KEY:-}"
+      GITHUB_APP_PRIVATE_KEY_FILE: "${GITHUB_APP_PRIVATE_KEY_FILE:-}"
       # ── Безопасность: свой ключ вместо автогенерации ──
       LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY:-}"
       # ── При необходимости — внешний URL (если публикуешь наружу) ──
