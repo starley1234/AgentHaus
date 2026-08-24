@@ -337,9 +337,17 @@ export function ChatInterface() {
 
     const timestamp = new Date().toISOString();
 
+    // Images are both embedded for immediate vision context and uploaded as
+    // regular workspace files.  The latter is essential for skills such as
+    // OpenSCAD that must compare the original image with rendered artifacts
+    // using file tools in later agent turns.
+    const filesToUpload = [...files, ...images];
     const { skipped_files: skippedFiles, uploaded_files: uploadedFiles } =
-      files.length > 0
-        ? await uploadFiles({ conversationId: conversationId!, files })
+      filesToUpload.length > 0
+        ? await uploadFiles({
+            conversationId: conversationId!,
+            files: filesToUpload,
+          })
         : { skipped_files: [], uploaded_files: [] };
 
     skippedFiles.forEach((f) => displayErrorToast(f.reason));
