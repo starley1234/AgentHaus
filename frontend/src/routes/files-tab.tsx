@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,9 +31,87 @@ import type { ViewMode } from "#/components/features/files-tab/view-mode";
 import RefreshIcon from "#/icons/u-refresh.svg?react";
 import LinkExternalIcon from "#/icons/link-external.svg?react";
 import DownloadIcon from "#/icons/u-download.svg?react";
+import PrIcon from "#/icons/u-pr.svg?react";
+import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
+import { ModalBody } from "#/components/shared/modals/modal-body";
 import { useUnifiedGitCommits } from "#/hooks/query/use-unified-git-commits";
 import GitChanges from "./changes-tab";
 import GitCommits from "./commits-tab";
+
+function GitHubAppPrModal({
+  onClose,
+  onCreate,
+  isCreating,
+}: {
+  onClose: () => void;
+  onCreate: (title: string, body: string, branch: string) => void;
+  isCreating: boolean;
+}) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [branch, setBranch] = useState("");
+  return (
+    <ModalBackdrop
+      onClose={isCreating ? undefined : onClose}
+      aria-label="Создать Pull Request через GitHub App"
+    >
+      <ModalBody width="md" className="items-stretch gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Создать PR через GitHub App</h2>
+          <p className="mt-1 text-sm text-[var(--oh-muted)]">
+            Будут опубликованы все текущие изменения рабочей области в новой
+            feature-ветке. Основная ветка не изменяется.
+          </p>
+        </div>
+        <label className="text-sm">
+          Заголовок PR
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            className="mt-1 w-full rounded border border-[var(--oh-border)] bg-base p-2"
+            placeholder="Кратко опишите изменения"
+          />
+        </label>
+        <label className="text-sm">
+          Описание
+          <input
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            className="mt-1 w-full rounded border border-[var(--oh-border)] bg-base p-2"
+            placeholder="Необязательно"
+          />
+        </label>
+        <label className="text-sm">
+          Имя ветки
+          <input
+            value={branch}
+            onChange={(event) => setBranch(event.target.value)}
+            className="mt-1 w-full rounded border border-[var(--oh-border)] bg-base p-2"
+            placeholder="agenthaus/… (генерируется автоматически)"
+          />
+        </label>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isCreating}
+            className="rounded px-3 py-2 hover:bg-[var(--oh-interactive-hover)]"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            disabled={!title.trim() || isCreating}
+            onClick={() => onCreate(title.trim(), body, branch.trim())}
+            className="rounded bg-primary px-3 py-2 text-white disabled:opacity-50"
+          >
+            {isCreating ? "Создаём PR…" : "Создать PR"}
+          </button>
+        </div>
+      </ModalBody>
+    </ModalBackdrop>
+  );
+}
 
 function FilesTab() {
   const { t } = useTranslation("openhands");
@@ -61,6 +140,9 @@ function FilesTab() {
   const { conversationId } = useOptionalConversationId();
   const { data: conversation } = useActiveConversation();
   const [isDownloadingArchive, setIsDownloadingArchive] = useState(false);
+  const [isGitHubAppAvailable, setIsGitHubAppAvailable] = useState(false);
+  const [isGitHubAppModalOpen, setIsGitHubAppModalOpen] = useState(false);
+  const [isCreatingGitHubPr, setIsCreatingGitHubPr] = useState(false);
   const {
     state: persistedState,
     setFilesTabDiffView,
@@ -173,6 +255,47 @@ function FilesTab() {
 
   const canDownloadWorkspace = !!conversation?.workspace?.working_dir?.trim();
 
+  useEffect(() => {
+    if (!conversation?.workspace?.working_dir) {
+      setIsGitHubAppAvailable(false);
+      return;
+    }
+    void AgentServerRuntimeService.getGitHubAppStatus(
+      conversation.conversation_url,
+      conversation.session_api_key,
+    )
+      .then((status) => setIsGitHubAppAvailable(status.enabled))
+      .catch(() => setIsGitHubAppAvailable(false));
+  }, [
+    conversation?.conversation_url,
+    conversation?.session_api_key,
+    conversation?.workspace?.working_dir,
+  ]);
+
+  const createGitHubAppPr = async (
+    title: string,
+    body: string,
+    branch: string,
+  ) => {
+    const workingDir = conversation?.workspace?.working_dir?.trim();
+    if (!conversation || !workingDir || isCreatingGitHubPr) return;
+    setIsCreatingGitHubPr(true);
+    try {
+      const result = await AgentServerRuntimeService.createGitHubAppPullRequest(
+        conversation.conversation_url,
+        conversation.session_api_key,
+        { path: workingDir, title, body, ...(branch ? { branch } : {}) },
+      );
+      setIsGitHubAppModalOpen(false);
+      toast.success(`PR #${result.number} создан`);
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Не удалось создать Pull Request через GitHub App");
+    } finally {
+      setIsCreatingGitHubPr(false);
+    }
+  };
+
   return (
     <main
       className="h-full w-full flex flex-col items-stretch"
@@ -236,6 +359,19 @@ function FilesTab() {
             >
               <LinkExternalIcon width={14} height={14} />
             </a>
+          )}
+          {isGitHubAppAvailable && (
+            <button
+              type="button"
+              onClick={() => setIsGitHubAppModalOpen(true)}
+              disabled={!canDownloadWorkspace || isCreatingGitHubPr}
+              aria-label="Создать PR через GitHub App"
+              title="Создать PR через GitHub App"
+              data-testid="files-tab-github-app-pr"
+              className="flex items-center justify-center w-[26px] py-1 rounded-[7px] hover:enabled:bg-[var(--oh-interactive-hover)] disabled:opacity-50"
+            >
+              <PrIcon width={14} height={14} />
+            </button>
           )}
           <button
             type="button"
@@ -330,6 +466,13 @@ function FilesTab() {
             </>
           )}
         </div>
+      )}
+      {isGitHubAppModalOpen && (
+        <GitHubAppPrModal
+          onClose={() => setIsGitHubAppModalOpen(false)}
+          onCreate={createGitHubAppPr}
+          isCreating={isCreatingGitHubPr}
+        />
       )}
     </main>
   );

@@ -11,6 +11,20 @@ export interface CommandResult {
   stderr: string;
 }
 
+export interface GitHubAppStatus {
+  enabled: boolean;
+  mode: "pr-only";
+  reason: string | null;
+}
+
+export interface GitHubAppPullRequest {
+  url: string;
+  number: number;
+  branch: string;
+  commit_sha: string;
+  changed_files: number;
+}
+
 /**
  * Cloud-aware runtime operations for agent-server conversations.
  *
@@ -116,6 +130,45 @@ class AgentServerRuntimeService {
       blob: await response.blob(),
       filename: filename || "workspace.tar.gz",
     };
+  }
+
+  static async getGitHubAppStatus(
+    conversationUrl: string | null | undefined,
+    sessionApiKey: string | null | undefined,
+  ): Promise<GitHubAppStatus> {
+    const { host, apiKey } = getAgentServerClientOptions({
+      conversationUrl,
+      sessionApiKey,
+    });
+    const response = await fetch(`${host}/api/github-app/status`, {
+      headers: apiKey ? { "X-Session-API-Key": apiKey } : undefined,
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("GitHub App status request failed");
+    return response.json() as Promise<GitHubAppStatus>;
+  }
+
+  static async createGitHubAppPullRequest(
+    conversationUrl: string | null | undefined,
+    sessionApiKey: string | null | undefined,
+    input: { path: string; title: string; body: string; branch?: string },
+  ): Promise<GitHubAppPullRequest> {
+    const { host, apiKey } = getAgentServerClientOptions({
+      conversationUrl,
+      sessionApiKey,
+    });
+    const response = await fetch(`${host}/api/github-app/pull-requests`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { "X-Session-API-Key": apiKey } : {}),
+      },
+      credentials: "include",
+      body: JSON.stringify(input),
+    });
+    if (!response.ok)
+      throw new Error("GitHub App pull request creation failed");
+    return response.json() as Promise<GitHubAppPullRequest>;
   }
 
   static async downloadFile(
