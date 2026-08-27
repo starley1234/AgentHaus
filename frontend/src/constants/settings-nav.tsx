@@ -1,4 +1,4 @@
-import { AppWindow, Brain, Shield } from "lucide-react";
+import { AppWindow, Brain, Shield, Trash2 } from "lucide-react";
 import KeyIcon from "#/icons/key.svg?react";
 import MemoryIcon from "#/icons/memory_icon.svg?react";
 import CircuitIcon from "#/icons/u-circuit.svg?react";
@@ -58,6 +58,12 @@ export const OSS_NAV_ITEMS: SettingsNavItem[] = [
     to: "/settings/app",
     text: "SETTINGS$NAV_APPLICATION",
     subtitle: "SETTINGS$PAGE_APPLICATION_SUBLINE",
+  },
+  {
+    icon: <Trash2 className="size-4" strokeWidth={2} aria-hidden />,
+    to: "/settings/conversations",
+    text: "Управление диалогами",
+    subtitle: "Поиск, метрики и массовая очистка истории.",
   },
   {
     icon: <KeyIcon width={16} height={16} />,

@@ -20,6 +20,7 @@ export default [
     route("plugins", "routes/skills-plugins.tsx"),
     route("mcp", "routes/mcp.tsx"),
     route("settings", "routes/settings.tsx", [
+      route("conversations", "routes/conversation-management.tsx"),
       index("routes/settings-index.tsx"),
       route("llm", "routes/llm-settings.tsx"),
       route("agent", "routes/agent-settings.tsx"),
