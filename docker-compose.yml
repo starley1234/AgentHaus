@@ -82,6 +82,19 @@ services:
       # Значение 4 — безопасный дефолт для одного self-hosted инстанса; подними
       # его только если CPU/RAM и лимиты LLM-провайдера это позволяют.
       OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
+      # ── Уведомления (навык notify): email / Telegram / webhook ──
+      # Контакты владельца задаются в .env один раз; агент внутри контейнера
+      # наследует эти переменные и шлёт отчёты без уточняющих вопросов.
+      # Подробности: docs/NOTIFICATIONS_RU.md
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      NOTIFY_EMAIL_TO: "${NOTIFY_EMAIL_TO:-}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
       # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
       GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
       GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID:-}"

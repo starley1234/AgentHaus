@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""notify.py — отправка сообщений во внешний мир (email / Telegram / webhook).
+
+Zero-dependency (только стандартная библиотека Python 3.8+).
+Вся конфигурация — через переменные окружения (задаются в `.env` проекта
+или в Settings → Secrets):
+
+  Email (SMTP):
+    SMTP_HOST        — SMTP-сервер (напр. smtp.yandex.ru, smtp.gmail.com)
+    SMTP_PORT        — порт (465 = SSL, 587 = STARTTLS; по умолчанию 465)
+    SMTP_USER        — логин (обычно полный email)
+    SMTP_PASSWORD    — пароль (для Gmail/Yandex/Mail.ru — «пароль приложения»)
+    SMTP_FROM        — адрес отправителя (по умолчанию = SMTP_USER)
+    SMTP_SECURITY    — ssl | starttls | none (по умолчанию определяется по порту)
+    NOTIFY_EMAIL_TO  — получатель ПО УМОЛЧАНИЮ (email владельца) — сюда агент
+                       шлёт отчёты, когда пользователь говорит «отправь мне»
+
+  Telegram:
+    TELEGRAM_BOT_TOKEN — токен бота от @BotFather
+    TELEGRAM_CHAT_ID   — chat_id получателя по умолчанию
+
+  Webhook (Slack / Discord / Mattermost / свой):
+    NOTIFY_WEBHOOK_URL — URL входящего вебхука
+
+Примеры:
+  python3 notify.py status
+  python3 notify.py email --subject "Отчёт" --body-file report.md --attach report.md
+  python3 notify.py telegram --text "Сборка прошла успешно ✅"
+  python3 notify.py webhook --text "Деплой завершён"
+  python3 notify.py send --subject "Отчёт" --body-file report.md   # во все настроенные каналы
+
+Коды выхода: 0 — успех; 2 — канал не настроен; 1 — ошибка отправки.
+"""
+
+import argparse
+import json
+import mimetypes
+import os
+import re
+import smtplib
+import ssl
+import sys
+import urllib.error
+import urllib.request
+import uuid
+from email.message import EmailMessage
+
+TELEGRAM_CHUNK = 4000  # лимит Telegram — 4096 символов на сообщение
+
+
+# ── Утилиты ───────────────────────────────────────────────────────────────────
+
+def env(name, default=""):
+    return os.environ.get(name, default).strip()
+
+
+def mask(value):
+    """Маскирует секрет для вывода в логи."""
+    if not value:
+        return "<не задано>"
+    if len(value) <= 6:
+        return "***"
+    return value[:3] + "…" + value[-2:]
+
+
+def sanitize(text):
+    """Убирает известные секреты из сообщений об ошибках."""
+    for var in ("SMTP_PASSWORD", "TELEGRAM_BOT_TOKEN", "NOTIFY_WEBHOOK_URL"):
+        secret = env(var)
+        if secret and secret in text:
+            text = text.replace(secret, mask(secret))
+    return text
+
+
+def die(msg, code=1):
+    print("ОШИБКА: " + sanitize(msg), file=sys.stderr)
+    sys.exit(code)
+
+
+def read_body(args):
+    if getattr(args, "body_file", None):
+        try:
+            with open(args.body_file, "r", encoding="utf-8", errors="replace") as f:
+                return f.read()
+        except OSError as e:
+            die(f"не удалось прочитать файл {args.body_file}: {e}")
+    body = getattr(args, "body", None) or getattr(args, "text", None)
+    if not body:
+        die("укажи текст (--body/--text) или файл (--body-file)", 2)
+    return body
+
+
+# ── Email (SMTP) ──────────────────────────────────────────────────────────────
+
+def email_configured():
+    return bool(env("SMTP_HOST") and env("SMTP_USER") and env("SMTP_PASSWORD"))
+
+
+def send_email(to, subject, body, attachments=()):
+    host = env("SMTP_HOST")
+    user = env("SMTP_USER")
+    password = env("SMTP_PASSWORD")
+    if not (host and user and password):
+        die(
+            "email не настроен: заполни SMTP_HOST, SMTP_USER, SMTP_PASSWORD "
+            "в .env (см. docs/NOTIFICATIONS_RU.md)",
+            2,
+        )
+    if not to:
+        die(
+            "получатель не указан: задай NOTIFY_EMAIL_TO в .env "
+            "или передай --to адрес@домен",
+            2,
+        )
+
+    port = int(env("SMTP_PORT") or "465")
+    security = env("SMTP_SECURITY").lower() or ("ssl" if port == 465 else "starttls")
+    sender = env("SMTP_FROM") or user
+
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to
+    msg["Subject"] = subject or "Отчёт агента AgentHaus"
+    msg["Message-ID"] = f"<{uuid.uuid4()}@agenthaus>"
+    msg.set_content(body)
+
+    for path in attachments:
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            die(f"не удалось прочитать вложение {path}: {e}")
+        ctype, _ = mimetypes.guess_type(path)
+        maintype, subtype = (ctype or "application/octet-stream").split("/", 1)
+        msg.add_attachment(
+            data, maintype=maintype, subtype=subtype,
+            filename=os.path.basename(path),
+        )
+
+    context = ssl.create_default_context()
+    try:
+        if security == "ssl":
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=60) as smtp:
+                smtp.login(user, password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=60) as smtp:
+                if security == "starttls":
+                    smtp.starttls(context=context)
+                smtp.login(user, password)
+                smtp.send_message(msg)
+    except smtplib.SMTPAuthenticationError as e:
+        die(
+            f"SMTP-аутентификация не прошла ({e.smtp_code}): проверь SMTP_USER/"
+            f"SMTP_PASSWORD. Для Gmail/Yandex/Mail.ru нужен «пароль приложения», "
+            f"а не обычный пароль."
+        )
+    except (smtplib.SMTPException, OSError) as e:
+        die(f"не удалось отправить письмо через {host}:{port}: {e}")
+
+    print(f"✅ Письмо отправлено: {to} (тема: {msg['Subject']})")
+
+
+# ── Telegram ──────────────────────────────────────────────────────────────────
+
+def telegram_configured():
+    return bool(env("TELEGRAM_BOT_TOKEN") and env("TELEGRAM_CHAT_ID"))
+
+
+def _tg_api(method, payload, token):
+    url = f"https://api.telegram.org/bot{token}/{method}"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:400]
+        die(f"Telegram API {method} → HTTP {e.code}: {detail}")
+    except (urllib.error.URLError, OSError) as e:
+        die(f"Telegram API недоступен: {e}")
+
+
+def _tg_send_document(chat_id, path, token):
+    """multipart/form-data загрузка файла в Telegram (stdlib-only)."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except OSError as e:
+        die(f"не удалось прочитать вложение {path}: {e}")
+
+    boundary = uuid.uuid4().hex
+    filename = os.path.basename(path)
+    ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+    parts = []
+    parts.append(
+        (f"--{boundary}\r\nContent-Disposition: form-data; "
+         f'name="chat_id"\r\n\r\n{chat_id}\r\n').encode()
+    )
+    parts.append(
+        (f"--{boundary}\r\nContent-Disposition: form-data; name=\"document\"; "
+         f'filename="{filename}"\r\nContent-Type: {ctype}\r\n\r\n').encode()
+    )
+    parts.append(data)
+    parts.append(f"\r\n--{boundary}--\r\n".encode())
+    body = b"".join(parts)
+
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendDocument",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:400]
+        die(f"Telegram sendDocument → HTTP {e.code}: {detail}")
+    except (urllib.error.URLError, OSError) as e:
+        die(f"Telegram API недоступен: {e}")
+
+
+def send_telegram(chat_id, text, attachments=()):
+    token = env("TELEGRAM_BOT_TOKEN")
+    if not token:
+        die(
+            "Telegram не настроен: задай TELEGRAM_BOT_TOKEN в .env "
+            "(бота создают через @BotFather, см. docs/NOTIFICATIONS_RU.md)",
+            2,
+        )
+    if not chat_id:
+        die("chat_id не указан: задай TELEGRAM_CHAT_ID в .env или передай --chat-id", 2)
+
+    # Режем длинный текст на куски по границам строк.
+    chunks = []
+    remaining = text
+    while remaining:
+        if len(remaining) <= TELEGRAM_CHUNK:
+            chunks.append(remaining)
+            break
+        cut = remaining.rfind("\n", 0, TELEGRAM_CHUNK)
+        if cut <= 0:
+            cut = TELEGRAM_CHUNK
+        chunks.append(remaining[:cut])
+        remaining = remaining[cut:].lstrip("\n")
+
+    for chunk in chunks:
+        _tg_api(
+            "sendMessage",
+            {"chat_id": chat_id, "text": chunk, "disable_web_page_preview": True},
+            token,
+        )
+    for path in attachments:
+        _tg_send_document(chat_id, path, token)
+
+    extra = f", файлов: {len(attachments)}" if attachments else ""
+    print(f"✅ Telegram: отправлено сообщений: {len(chunks)}{extra} (chat_id: {chat_id})")
+
+
+# ── Webhook (Slack / Discord / …) ─────────────────────────────────────────────
+
+def webhook_configured():
+    return bool(env("NOTIFY_WEBHOOK_URL"))
+
+
+def send_webhook(text):
+    url = env("NOTIFY_WEBHOOK_URL")
+    if not url:
+        die("webhook не настроен: задай NOTIFY_WEBHOOK_URL в .env", 2)
+
+    # Slack/Mattermost ждут {"text": ...}, Discord — {"content": ...}.
+    if re.search(r"discord(app)?\.com", url):
+        payload = {"content": text[:2000], "allowed_mentions": {"parse": []}}
+    else:
+        payload = {"text": text}
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:400]
+        die(f"webhook → HTTP {e.code}: {detail}")
+    except (urllib.error.URLError, OSError) as e:
+        die(f"webhook недоступен: {e}")
+
+    print("✅ Webhook: сообщение доставлено")
+
+
+# ── Команды ───────────────────────────────────────────────────────────────────
+
+def cmd_status(_args):
+    rows = [
+        ("email", email_configured(),
+         f"SMTP_HOST={env('SMTP_HOST') or '<не задано>'}, "
+         f"SMTP_USER={env('SMTP_USER') or '<не задано>'}, "
+         f"SMTP_PASSWORD={mask(env('SMTP_PASSWORD'))}, "
+         f"NOTIFY_EMAIL_TO={env('NOTIFY_EMAIL_TO') or '<не задано>'}"),
+        ("telegram", telegram_configured(),
+         f"TELEGRAM_BOT_TOKEN={mask(env('TELEGRAM_BOT_TOKEN'))}, "
+         f"TELEGRAM_CHAT_ID={env('TELEGRAM_CHAT_ID') or '<не задано>'}"),
+        ("webhook", webhook_configured(),
+         f"NOTIFY_WEBHOOK_URL={mask(env('NOTIFY_WEBHOOK_URL'))}"),
+    ]
+    any_ok = False
+    for name, ok, detail in rows:
+        flag = "✅ настроен" if ok else "⚪ не настроен"
+        print(f"{name:9} {flag}  ({detail})")
+        any_ok = any_ok or ok
+    if not any_ok:
+        print(
+            "\nНи один канал не настроен. Заполни блок «Уведомления» в .env "
+            "(см. .env.example и docs/NOTIFICATIONS_RU.md) и перезапусти контейнер.",
+        )
+        sys.exit(2)
+
+
+def cmd_email(args):
+    body = read_body(args)
+    to = args.to or env("NOTIFY_EMAIL_TO")
+    send_email(to, args.subject, body, args.attach or [])
+
+
+def cmd_telegram(args):
+    body = read_body(args)
+    chat_id = args.chat_id or env("TELEGRAM_CHAT_ID")
+    send_telegram(chat_id, body, args.attach or [])
+
+
+def cmd_webhook(args):
+    send_webhook(read_body(args))
+
+
+def cmd_send(args):
+    """Отправить во все настроенные каналы (что настроено — туда и шлём)."""
+    body = read_body(args)
+    sent = 0
+    if email_configured() and (args.to or env("NOTIFY_EMAIL_TO")):
+        send_email(args.to or env("NOTIFY_EMAIL_TO"), args.subject, body, args.attach or [])
+        sent += 1
+    if telegram_configured():
+        send_telegram(env("TELEGRAM_CHAT_ID"), body, args.attach or [])
+        sent += 1
+    if webhook_configured():
+        send_webhook(body)
+        sent += 1
+    if sent == 0:
+        die(
+            "ни один канал не настроен — заполни блок «Уведомления» в .env "
+            "(см. docs/NOTIFICATIONS_RU.md)",
+            2,
+        )
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Отправка уведомлений: email / Telegram / webhook",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("status", help="какие каналы настроены").set_defaults(func=cmd_status)
+
+    p = sub.add_parser("email", help="отправить письмо по SMTP")
+    p.add_argument("--to", help="получатель (по умолчанию NOTIFY_EMAIL_TO)")
+    p.add_argument("--subject", help="тема письма")
+    p.add_argument("--body", help="текст письма")
+    p.add_argument("--body-file", help="файл с текстом (например report.md)")
+    p.add_argument("--attach", action="append", help="вложение (можно несколько раз)")
+    p.set_defaults(func=cmd_email)
+
+    p = sub.add_parser("telegram", help="отправить сообщение в Telegram")
+    p.add_argument("--chat-id", help="chat_id (по умолчанию TELEGRAM_CHAT_ID)")
+    p.add_argument("--text", help="текст сообщения")
+    p.add_argument("--body-file", help="файл с текстом")
+    p.add_argument("--attach", action="append", help="файл-документ (можно несколько раз)")
+    p.set_defaults(func=cmd_telegram)
+
+    p = sub.add_parser("webhook", help="отправить в Slack/Discord/Mattermost webhook")
+    p.add_argument("--text", help="текст сообщения")
+    p.add_argument("--body-file", help="файл с текстом")
+    p.set_defaults(func=cmd_webhook)
+
+    p = sub.add_parser("send", help="отправить во ВСЕ настроенные каналы")
+    p.add_argument("--to", help="email-получатель (по умолчанию NOTIFY_EMAIL_TO)")
+    p.add_argument("--subject", help="тема письма (для email)")
+    p.add_argument("--body", help="текст")
+    p.add_argument("--body-file", help="файл с текстом")
+    p.add_argument("--attach", action="append", help="вложение (email/telegram)")
+    p.set_defaults(func=cmd_send)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

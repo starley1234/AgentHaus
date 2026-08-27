@@ -461,6 +461,22 @@
       ]
     },
     {
+      "name": "notify",
+      "source": "./skills/notify",
+      "description": "Отправка отчётов и уведомлений во внешний мир: email (SMTP), Telegram, вебхуки Slack/Discord. Получатель по умолчанию задаётся один раз в .env — агент шлёт отчёты без уточняющих вопросов.",
+      "category": "integrations",
+      "keywords": [
+        "email",
+        "smtp",
+        "telegram",
+        "webhook",
+        "notifications",
+        "уведомления",
+        "почта",
+        "отчёт"
+      ]
+    },
+    {
       "name": "notion",
       "source": "./skills/notion",
       "description": "Создание, поиск и обновление страниц/баз Notion через Notion API. Используй для документации.",
