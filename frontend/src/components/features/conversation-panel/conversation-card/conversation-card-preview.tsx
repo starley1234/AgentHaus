@@ -133,7 +133,7 @@ export function ConversationCardPreview({
           <PreviewRow label={t(I18nKey.CONVERSATION$CREATED)}>{createdLabel}</PreviewRow>
         ) : null}
         <PreviewRow label="Токены">
-          <span title="Входные / выходные токены">↑ {promptTokens.toLocaleString("ru-RU")} · ↓ {completionTokens.toLocaleString("ru-RU")}{cost != null ? ` · $${cost.toFixed(4)}` : ""}</span>
+          <span title="Входные / выходные токены">↑ {promptTokens.toLocaleString("ru-RU")} · ↓ {completionTokens.toLocaleString("ru-RU")}{cost != null && cost > 0 ? ` · $${cost.toFixed(4)}` : ""}</span>
         </PreviewRow>
       </dl>
     </div>
