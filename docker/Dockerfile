@@ -157,11 +157,17 @@ USER root
 # (asyncpg needs libpq, which the agent-server base image may not include).
 # curl is added so the OpenSCAD vision loop (and similar workflows) can
 # download a rendered image URL into the workspace and view it via file_editor.
+# VNC stack: TigerVNC + XFCE4 + noVNC for interactive browser access.
 RUN if command -v apt-get >/dev/null 2>&1; then \
       apt-get update && \
-      apt-get install -y --no-install-recommends libpq-dev curl poppler-utils && \
+      apt-get install -y --no-install-recommends \
+        libpq-dev curl poppler-utils \
+        tigervnc-standalone-server xfce4 dbus-x11 novnc websockify && \
       rm -rf /var/lib/apt/lists/*; \
     fi
+
+# Ensure noVNC web files are findable by DesktopService
+ENV NOVNC_WEB=/usr/share/novnc
 
 # Install automation server via pip.
 # Shared deps (openhands-sdk, fastapi, uvicorn, pydantic, httpx, …) are
