@@ -39,6 +39,7 @@ npm run dev
 - Уведомления (почта/Telegram, отчёты «отправь мне»): [`docs/NOTIFICATIONS_RU.md`](docs/NOTIFICATIONS_RU.md)
 - Двусторонний Telegram (notify ask + проект bridge): [`docs/TELEGRAM_TWO_WAY_RU.md`](docs/TELEGRAM_TWO_WAY_RU.md)
 - Офисные файлы Word/Excel/PowerPoint: [`docs/OFFICE_FILES_RU.md`](docs/OFFICE_FILES_RU.md)
+- «Разведчик статей» (RSS→дайджест на почту): [`extensions/skills/news-scout/README.md`](extensions/skills/news-scout/README.md)
 - Автономный режим: [`frontend/docs/AUTONOMOUS_MODE_RU.md`](frontend/docs/AUTONOMOUS_MODE_RU.md)
 - Навыки и их русификация: [`frontend/docs/SKILLS_RU.md`](frontend/docs/SKILLS_RU.md)
 - Среда разработки: [`frontend/docs/DEVELOPMENT.md`](frontend/docs/DEVELOPMENT.md)

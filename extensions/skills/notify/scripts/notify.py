@@ -179,6 +179,80 @@ def send_email(to, subject, body, attachments=(), extra_headers=None):
         die(f"не удалось отправить письмо через {host}:{port}: {e}")
 
     print(f"✅ Письмо отправлено: {to} (тема: {msg['Subject']})")
+    _save_to_sent(msg)
+
+
+SENT_FOLDER_CANDIDATES = (
+    "Sent", "INBOX.Sent", "Sent Items", "Sent Messages", "Отправленные",
+)
+
+
+def _detect_sent_folder(conn):
+    """Найти папку «Отправленные»: сперва по IMAP-атрибуту \\Sent, затем по имени."""
+    forced = env("IMAP_SENT_FOLDER")
+    if forced:
+        return [forced]
+    candidates = []
+    try:
+        status_, listing = conn.list()
+        if status_ == "OK":
+            for raw in listing or []:
+                if not raw:
+                    continue
+                line = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
+                if "\\Sent" in line:
+                    m = re.search(r'(?:"([^"]+)"|(\S+))\s*$', line)
+                    name = (m.group(1) or m.group(2)) if m else None
+                    if name:
+                        candidates.append(name)
+    except imaplib.IMAP4.error:
+        pass
+    candidates.extend(SENT_FOLDER_CANDIDATES)
+    return candidates
+
+
+def _save_to_sent(msg):
+    """Положить копию письма в «Отправленные» по IMAP (best-effort).
+
+    Управляется NOTIFY_SAVE_SENT: 1/пусто = сохранять, если настроен IMAP;
+    0 = не сохранять. Ошибка сохранения не считается ошибкой отправки.
+    """
+    if env("NOTIFY_SAVE_SENT") == "0":
+        return
+    if not imap_configured():
+        return
+    host = imap_host()
+    user = env("IMAP_USER") or env("SMTP_USER")
+    password = env("IMAP_PASSWORD") or env("SMTP_PASSWORD")
+    port = int(env("IMAP_PORT") or "993")
+    try:
+        conn = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
+        conn.login(user, password)
+        stamp = imaplib.Time2Internaldate(time.time())
+        saved = None
+        for folder in _detect_sent_folder(conn):
+            quoted = '"%s"' % folder.replace('"', '\\"')
+            try:
+                status_, _ = conn.append(quoted, "\\Seen", stamp, msg.as_bytes())
+            except imaplib.IMAP4.error:
+                continue
+            if status_ == "OK":
+                saved = folder
+                break
+        conn.logout()
+        if saved:
+            print(f"💾 Копия сохранена в «{saved}» на сервере")
+        else:
+            print(
+                "⚠️ Не нашёл папку «Отправленные» — задай её имя в IMAP_SENT_FOLDER",
+                file=sys.stderr,
+            )
+    except (imaplib.IMAP4.error, OSError) as e:
+        print(
+            f"⚠️ Письмо отправлено, но копию в «Отправленные» сохранить не удалось: "
+            f"{sanitize(str(e))}",
+            file=sys.stderr,
+        )
 
 
 # ── Приём почты (IMAP) ────────────────────────────────────────────────────────

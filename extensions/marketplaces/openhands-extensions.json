@@ -461,6 +461,23 @@
       ]
     },
     {
+      "name": "news-scout",
+      "source": "./skills/news-scout",
+      "description": "Автоматизация «разведчик статей»: весь день по cron собирает новые статьи из RSS, отбирает интересные короткими LLM-запросами (контекст ограничен, подходит локальным моделям) и присылает дайджест на почту/в Telegram.",
+      "category": "automations",
+      "keywords": [
+        "rss",
+        "news",
+        "digest",
+        "automation",
+        "cron",
+        "дайджест",
+        "статьи",
+        "новости",
+        "email"
+      ]
+    },
+    {
       "name": "notify",
       "source": "./skills/notify",
       "description": "Связь агента с внешним миром: отправка и приём email (SMTP/IMAP), Telegram, вебхуки Slack/Discord. Контакты задаются один раз в .env — агент шлёт отчёты и ведёт переписку без уточняющих вопросов.",
