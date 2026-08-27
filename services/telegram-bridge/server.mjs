@@ -33,6 +33,7 @@ import {
   sendMessage as sendToConversation,
   getConversationStatus,
   getAgentFinalResponse,
+  listLlmProfiles,
   api,
 } from "../lib/agent-server.mjs";
 import { serveStatic } from "../lib/web.mjs";
@@ -297,16 +298,21 @@ async function startNewDialog(chatId, text) {
     return;
   }
   const workingDir = `${AGENT_WORK_ROOT}/telegram/tg-${Date.now().toString(36)}`;
-  const ackId = await tgSend(chatId, "👀 Принял, работаю…");
+  const profile = state.chats[chatId]?.profile;
+  const ackId = await tgSend(
+    chatId,
+    "👀 Принял, работаю…" + (profile ? ` (профиль: ${profile})` : ""),
+  );
   try {
     const { id } = await startConversation({
       workingDir,
       prompt: buildPrompt(text),
       maxIterations: config.max_iterations ?? 100,
       confirmationPolicy: "NeverConfirm",
+      ...(profile ? { llmProfileName: profile } : {}),
     });
     state.starts.push(Date.now());
-    state.chats[chatId] = { activeConv: id, running: true };
+    state.chats[chatId] = { ...state.chats[chatId], activeConv: id, running: true };
     if (ackId) state.bindings[String(ackId)] = id;
     saveState();
     log(`chat ${chatId}: новый диалог ${id}`);
@@ -321,7 +327,7 @@ async function continueDialog(chatId, conversationId, text) {
   try {
     const status = await getConversationStatus(conversationId);
     await sendToConversation(conversationId, text);
-    state.chats[chatId] = { activeConv: conversationId, running: true };
+    state.chats[chatId] = { ...state.chats[chatId], activeConv: conversationId, running: true };
     saveState();
     await tgSend(chatId, `👀 Продолжаю диалог (был: ${status.execution_status})…`);
     watchConversation(conversationId, chatId);
@@ -379,16 +385,80 @@ async function watchConversation(conversationId, chatId) {
 }
 
 // ── Обработка входящих ───────────────────────────────────────────────────────
-const HELP = [
+const HELP_BASE = [
   "Я — мост к твоему агенту AgentHaus.",
   "",
   "• Просто напиши задачу — я создам диалог и пришлю результат.",
   "• Reply (ответ) на моё сообщение — продолжает тот диалог.",
   "• /new — следующее сообщение начнёт новый диалог.",
+  "• /new <профиль> — новый диалог на выбранном LLM-профиле.",
+  "• /profile <имя> — выбрать профиль для новых диалогов; /profile — показать.",
+  "• /profiles — список доступных LLM-профилей.",
   "• /status — статус текущего диалога.",
   "• /stop — остановить (pause) текущий диалог.",
   "• /help — эта справка.",
-].join("\n");
+];
+
+// Кэш профилей LLM (60 с), чтобы /help не дёргал бэкенд на каждое сообщение.
+let profilesCache = { ts: 0, list: [] };
+async function getProfiles() {
+  if (Date.now() - profilesCache.ts < 60_000) return profilesCache.list;
+  try {
+    profilesCache = { ts: Date.now(), list: (await listLlmProfiles()) || [] };
+  } catch (e) {
+    log("профили LLM недоступны:", e.message);
+  }
+  return profilesCache.list;
+}
+
+async function profilesText(chatId) {
+  const profiles = await getProfiles();
+  if (!profiles.length) {
+    return "Профили LLM: не настроены (используется активная модель по умолчанию).";
+  }
+  const current = state.chats[chatId]?.profile;
+  const lines = ["Профили LLM (▶ = выбран для этого чата):"];
+  for (const p of profiles) {
+    const mark = p.name === current ? "▶" : "•";
+    lines.push(`  ${mark} ${p.name}${p.model ? ` — ${p.model}` : ""}`);
+  }
+  lines.push(
+    current
+      ? `Сброс на дефолтный: /profile default`
+      : "Сейчас: дефолтный (активная модель Canvas).",
+  );
+  return lines.join("\n");
+}
+
+async function helpText(chatId) {
+  return HELP_BASE.join("\n") + "\n\n" + (await profilesText(chatId));
+}
+
+/** Найти профиль по имени (без учёта регистра). null = не найден. */
+async function resolveProfile(name) {
+  const profiles = await getProfiles();
+  return (
+    profiles.find((p) => p.name.toLowerCase() === name.toLowerCase())?.name ??
+    null
+  );
+}
+
+/** Установить/сбросить профиль чата. Возвращает текст ответа пользователю. */
+async function setChatProfile(chatId, rawName) {
+  const prev = state.chats[chatId] || {};
+  if (!rawName || /^(default|дефолт|сброс|reset)$/i.test(rawName)) {
+    state.chats[chatId] = { ...prev, profile: undefined };
+    saveState();
+    return "Ок, новые диалоги — на дефолтной модели.";
+  }
+  const resolved = await resolveProfile(rawName);
+  if (!resolved) {
+    return `Профиль «${rawName}» не найден.\n\n${await profilesText(chatId)}`;
+  }
+  state.chats[chatId] = { ...prev, profile: resolved };
+  saveState();
+  return `Ок, новые диалоги — на профиле «${resolved}».`;
+}
 
 async function handleMessage(msg) {
   const chatId = String(msg.chat?.id ?? "");
@@ -427,11 +497,29 @@ async function handleMessage(msg) {
   const chatState = state.chats[chatId] || {};
 
   // Команды
-  if (/^\/(start|help)\b/.test(text)) return void (await tgSend(chatId, HELP));
+  if (/^\/(start|help)\b/.test(text)) return void (await tgSend(chatId, await helpText(chatId)));
+  if (/^\/profiles\b/.test(text)) return void (await tgSend(chatId, await profilesText(chatId)));
+  if (/^\/profile\b/.test(text)) {
+    const name = text.replace(/^\/profile\s*/, "").trim();
+    if (!name) {
+      const cur = chatState.profile;
+      return void (await tgSend(
+        chatId,
+        (cur ? `Текущий профиль: «${cur}».` : "Текущий профиль: дефолтный.") +
+          "\n\n" + (await profilesText(chatId)),
+      ));
+    }
+    return void (await tgSend(chatId, await setChatProfile(chatId, name)));
+  }
   if (/^\/new\b/.test(text)) {
-    delete state.chats[chatId];
+    const name = text.replace(/^\/new\s*/, "").trim();
+    let extra = "";
+    if (name) extra = "\n" + (await setChatProfile(chatId, name));
+    // Сбрасываем привязку к диалогу, но сохраняем выбранный профиль.
+    const profile = state.chats[chatId]?.profile;
+    state.chats[chatId] = { profile };
     saveState();
-    return void (await tgSend(chatId, "Ок, следующее сообщение начнёт новый диалог."));
+    return void (await tgSend(chatId, "Ок, следующее сообщение начнёт новый диалог." + extra));
   }
   if (/^\/status\b/.test(text)) {
     if (!chatState.activeConv) return void (await tgSend(chatId, "Активного диалога нет. Напиши задачу — начну новый."));

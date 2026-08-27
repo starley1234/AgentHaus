@@ -338,43 +338,144 @@ def _message_text(msg):
     return text.strip()
 
 
+_IMAP_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _imap_date(value):
+    """'27.08.2026' | '2026-08-27' → '27-Aug-2026' (формат IMAP SEARCH)."""
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$", value) \
+        or re.match(r"^(?P<r>)(\d{4})-(\d{1,2})-(\d{1,2})$", value)
+    if not m:
+        die(f"дата {value!r} не распознана — используй ДД.ММ.ГГГГ")
+    parts = [g for g in m.groups() if g not in (None, "")]
+    if len(parts[0]) == 4:  # ISO: год первым
+        year, month, day = parts
+    else:
+        day, month, year = parts
+    month = int(month)
+    if not 1 <= month <= 12:
+        die(f"дата {value!r}: месяц вне диапазона")
+    return f"{int(day):02d}-{_IMAP_MONTHS[month - 1]}-{year}"
+
+
+def _build_search(args):
+    """Собрать критерии IMAP SEARCH.
+
+    Возвращает (server_criteria, client_from, client_subject):
+    ASCII-фильтры уходят на сервер (экономия трафика); не-ASCII (кириллица)
+    применяются на клиенте к заголовкам — работает с любым сервером.
+    """
+    server, client_from, client_subject = [], None, None
+    if args.unseen:
+        server.append("UNSEEN")
+    if getattr(args, "days", None):
+        since = time.time() - args.days * 86400
+        server += ["SINCE", time.strftime("%d-", time.localtime(since))
+                   + _IMAP_MONTHS[time.localtime(since).tm_mon - 1]
+                   + time.strftime("-%Y", time.localtime(since))]
+    if getattr(args, "since", None):
+        server += ["SINCE", _imap_date(args.since)]
+    if getattr(args, "before", None):
+        server += ["BEFORE", _imap_date(args.before)]
+    frm = getattr(args, "from_", None)
+    if frm:
+        if frm.isascii():
+            server += ["FROM", '"%s"' % frm.replace('"', "")]
+        else:
+            client_from = frm.lower()
+    subj = getattr(args, "subject", None)
+    if subj:
+        if subj.isascii():
+            server += ["SUBJECT", '"%s"' % subj.replace('"', "")]
+        else:
+            client_subject = subj.lower()
+    if not server:
+        server = ["ALL"]
+    return server, client_from, client_subject
+
+
+def _fetch_header_fields(conn, uid):
+    """(seen, sender, subject, date_str) по UID; None при ошибке."""
+    status_, data = conn.uid(
+        "fetch", uid,
+        "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
+    )
+    if status_ != "OK" or not data or data[0] is None:
+        return None
+    flags = b" ".join(d for d in data if isinstance(d, bytes))
+    hdr = email_lib.message_from_bytes(data[0][1], policy=email.policy.default)
+    try:
+        date = parsedate_to_datetime(hdr.get("Date")).strftime("%d.%m %H:%M")
+    except Exception:
+        date = (hdr.get("Date") or "?")[:16]
+    return (
+        b"\\Seen" in flags,
+        _decode_header(hdr.get("From")),
+        _decode_header(hdr.get("Subject")) or "(без темы)",
+        date,
+    )
+
+
 def cmd_inbox(args):
     conn = imap_connect(args.folder, readonly=True)
-    criterion = "UNSEEN" if args.unseen else "ALL"
-    status_, data = conn.uid("search", None, criterion)
+    server_crit, client_from, client_subject = _build_search(args)
+    status_, data = conn.uid("search", None, *server_crit)
     if status_ != "OK":
         die("IMAP: поиск писем не удался")
     uids = data[0].split()
     total = len(uids)
-    uids = uids[-args.limit:]
 
-    if not uids:
-        print("Писем нет" + (" (непрочитанных)" if args.unseen else "") + ".")
-        conn.logout()
+    # Клиентские фильтры (кириллица в --from/--subject): просматриваем
+    # заголовки последних --scan писем, пока не наберём --limit подходящих.
+    rows = []
+    scan_cap = args.scan if (client_from or client_subject) else args.limit
+    for uid in reversed(uids[-max(scan_cap, args.limit):]):
+        fields = _fetch_header_fields(conn, uid)
+        if fields is None:
+            continue
+        seen, sender, subject, date = fields
+        if client_from and client_from not in sender.lower():
+            continue
+        if client_subject and client_subject not in subject.lower():
+            continue
+        rows.append((uid, seen, sender, subject, date))
+        if len(rows) >= args.limit:
+            break
+    conn.logout()
+
+    filters_desc = []
+    if args.unseen:
+        filters_desc.append("непрочитанные")
+    if getattr(args, "from_", None):
+        filters_desc.append(f"от: {args.from_}")
+    if args.subject:
+        filters_desc.append(f"тема: {args.subject}")
+    if getattr(args, "days", None):
+        filters_desc.append(f"за {args.days} дн.")
+    if args.since:
+        filters_desc.append(f"с {args.since}")
+    if args.before:
+        filters_desc.append(f"до {args.before}")
+    suffix = f" [{', '.join(filters_desc)}]" if filters_desc else ""
+
+    if not rows:
+        print(f"Писем нет{suffix} (папка {args.folder}).")
         return
 
-    print(f"Показано {len(uids)} из {total} "
-          + ("непрочитанных" if args.unseen else "писем")
-          + f" (папка {args.folder}), новые сверху:\n")
-    for uid in reversed(uids):
-        status_, data = conn.uid(
-            "fetch", uid,
-            "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
-        )
-        if status_ != "OK" or not data or data[0] is None:
-            continue
-        flags = b" ".join(d for d in data if isinstance(d, bytes))
-        seen = "  " if b"\\Seen" in flags else "🆕"
-        hdr = email_lib.message_from_bytes(data[0][1], policy=email.policy.default)
-        try:
-            date = parsedate_to_datetime(hdr.get("Date")).strftime("%d.%m %H:%M")
-        except Exception:
-            date = (hdr.get("Date") or "?")[:16]
-        sender = _decode_header(hdr.get("From"))
-        subject = _decode_header(hdr.get("Subject")) or "(без темы)"
-        print(f"{seen} UID {uid.decode():>6} | {date} | {sender[:40]:40} | {subject[:60]}")
-    conn.logout()
+    print(f"Показано {len(rows)} из {total} по фильтру{suffix} "
+          f"(папка {args.folder}), новые сверху:\n")
+    for uid, seen, sender, subject, date in rows:
+        mark = "  " if seen else "🆕"
+        print(f"{mark} UID {uid.decode():>6} | {date} | {sender[:40]:40} | {subject[:60]}")
     print("\nЧитать: notify read --uid <UID>; ответить: notify reply --uid <UID> --body \"…\"")
+
+
+def _truncate_body(text, max_chars):
+    if max_chars and len(text) > max_chars:
+        return text[:max_chars] + f"\n…(обрезано, всего {len(text)} символов; " \
+                                  f"полностью: без --max-chars)"
+    return text
 
 
 def cmd_read(args):
@@ -399,7 +500,7 @@ def cmd_read(args):
                     f.write(att.get_payload(decode=True) or b"")
                 print(f"  сохранено: {path}")
 
-    print("\n" + (_message_text(msg) or "(пустое тело письма)"))
+    print("\n" + (_truncate_body(_message_text(msg), args.max_chars) or "(пустое тело письма)"))
     conn.logout()
 
 
@@ -870,16 +971,26 @@ def main():
     p.add_argument("--attach", action="append", help="вложение (можно несколько раз)")
     p.set_defaults(func=cmd_email)
 
-    p = sub.add_parser("inbox", help="список входящих писем (IMAP)")
+    p = sub.add_parser("inbox", help="список входящих писем (IMAP), с умными фильтрами")
     p.add_argument("--limit", type=int, default=10, help="сколько писем показать (по умолчанию 10)")
     p.add_argument("--unseen", action="store_true", help="только непрочитанные")
     p.add_argument("--folder", default="INBOX", help="папка (по умолчанию INBOX)")
+    p.add_argument("--from", dest="from_", metavar="КТО",
+                   help="фильтр по отправителю (адрес или часть имени)")
+    p.add_argument("--subject", metavar="ТЕКСТ", help="фильтр по теме")
+    p.add_argument("--days", type=int, metavar="N", help="только за последние N дней")
+    p.add_argument("--since", metavar="ДД.ММ.ГГГГ", help="письма начиная с даты")
+    p.add_argument("--before", metavar="ДД.ММ.ГГГГ", help="письма до даты")
+    p.add_argument("--scan", type=int, default=200,
+                   help="глубина просмотра для кириллических фильтров (по умолчанию 200)")
     p.set_defaults(func=cmd_inbox)
 
     p = sub.add_parser("read", help="прочитать письмо по UID")
     p.add_argument("--uid", required=True, help="UID письма (из notify inbox)")
     p.add_argument("--folder", default="INBOX")
     p.add_argument("--save-attachments", metavar="DIR", help="сохранить вложения в папку")
+    p.add_argument("--max-chars", type=int, default=0,
+                   help="обрезать текст письма до N символов (0 = целиком); экономит токены")
     p.add_argument("--no-mark-seen", dest="mark_seen", action="store_false",
                    help="не помечать письмо прочитанным")
     p.set_defaults(func=cmd_read, mark_seen=True)
