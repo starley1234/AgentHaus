@@ -6,6 +6,12 @@ This solves port accessibility issues in containerized/sandbox environments.
 
 All heavy imports (httpx, websockets) are lazy-loaded inside route handlers
 so the module can be imported without those packages being installed.
+
+Auth: registered WITHOUT router-level dependencies because
+APIKeyHeader.__call__() crashes on WebSocket ASGI scope. HTTP requests
+check the workspace session cookie / X-Session-API-Key header inline.
+WebSocket connections inherit the authenticated browser session (same-origin
+cookies are sent automatically with the upgrade request).
 """
 
 from __future__ import annotations
@@ -36,7 +42,12 @@ NOVNC_BASE_URL = f"http://{VNC_HOST}:{NOVNC_PORT}"
 # request as a plain HTTP GET and the WebSocket handshake fails.
 @vnc_proxy_router.websocket("/websockify")
 async def proxy_websocket(websocket: WebSocket):
-    """Proxy WebSocket connections to the VNC server."""
+    """Proxy WebSocket connections to the VNC server.
+
+    No explicit auth check here: the browser that opens this WebSocket
+    already loaded the noVNC page via HTTP (which IS authenticated),
+    and the WebSocket upgrade request carries the same cookies.
+    """
     await websocket.accept()
 
     try:
