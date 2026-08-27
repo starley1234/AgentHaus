@@ -584,13 +584,19 @@ def _bridge_alive():
 
 
 def _ask_wait_via_relay(chat_id, deadline):
-    """Ждать ответ через relay-файл моста (мост владеет getUpdates)."""
+    """Ждать ответ через relay-файл моста.
+
+    Возвращает (reply|None, bridge_died): если мост умер посреди ожидания,
+    bridge_died=True — вызывающий переключается на прямой опрос getUpdates.
+    """
     try:
         start_size = os.path.getsize(BRIDGE_RELAY)
     except OSError:
         start_size = 0
     started = time.time()
     while time.time() < deadline:
+        if not _bridge_alive():
+            return None, True  # мост умер — забираем getUpdates себе
         # Обновляем mtime lock-файла — мост по нему понимает, что ask ещё ждёт.
         try:
             os.utime(ASK_LOCK)
@@ -607,11 +613,11 @@ def _ask_wait_via_relay(chat_id, deadline):
                     if (str(rec.get("chat_id")) == str(chat_id)
                             and rec.get("ts", 0) / 1000.0 >= started - 1
                             and rec.get("text")):
-                        return rec["text"].strip()
+                        return rec["text"].strip(), False
         except OSError:
             pass
         time.sleep(1)
-    return None
+    return None, False
 
 
 def _ask_acquire_lock():
@@ -652,29 +658,36 @@ def cmd_ask(args):
     _ask_acquire_lock()
     try:
         # Если работает telegram-bridge — getUpdates принадлежит ему; шлём
-        # вопрос и ждём ответ через relay-файл моста.
-        if _bridge_alive():
+        # вопрос и ждём ответ через relay-файл моста. Если мост умрёт посреди
+        # ожидания — переключаемся на прямой опрос ниже.
+        bridge_mode = _bridge_alive()
+        deadline = time.time() + args.timeout
+        if bridge_mode:
             send_telegram(chat_id, args.text)
-            deadline = time.time() + args.timeout
-            reply = _ask_wait_via_relay(chat_id, deadline)
+            reply, bridge_died = _ask_wait_via_relay(chat_id, deadline)
             if reply is not None:
                 print(f"ОТВЕТ ВЛАДЕЛЬЦА: {reply}")
                 return
-            print(
-                f"Ответ не получен за {args.timeout} с — действуй по умолчанию "
-                "или переспроси позже.",
-                file=sys.stderr,
-            )
-            sys.exit(3)
+            if not bridge_died:
+                print(
+                    f"Ответ не получен за {args.timeout} с — действуй по умолчанию "
+                    "или переспроси позже.",
+                    file=sys.stderr,
+                )
+                sys.exit(3)
+            # мост умер — продолжаем прямым getUpdates до исходного дедлайна
 
         # Базовый offset: всё, что уже лежит в очереди, — не ответ на наш вопрос.
-        data = _tg_api("getUpdates", {"timeout": 0, "offset": -1}, token)
-        baseline = data.get("result", [])
-        offset = (baseline[-1]["update_id"] + 1) if baseline else None
+        # В fallback-режиме (мост умер после отправки вопроса) baseline НЕ
+        # берём: ответ мог прийти до этого момента; отсечём старьё по дате.
+        ask_started = time.time()
+        offset = None
+        if not bridge_mode:
+            data = _tg_api("getUpdates", {"timeout": 0, "offset": -1}, token)
+            baseline = data.get("result", [])
+            offset = (baseline[-1]["update_id"] + 1) if baseline else None
+            send_telegram(chat_id, args.text)
 
-        send_telegram(chat_id, args.text)
-
-        deadline = time.time() + args.timeout
         while time.time() < deadline:
             poll = {"timeout": min(25, max(1, int(deadline - time.time())))}
             if offset is not None:
@@ -689,6 +702,10 @@ def cmd_ask(args):
                     continue
                 reply = (msg.get("text") or msg.get("caption") or "").strip()
                 if not reply:
+                    continue
+                # В fallback-режиме отсекаем сообщения, отправленные задолго
+                # до нашего вопроса (bridge-режим стартовал с ask_started).
+                if bridge_mode and msg.get("date") and msg["date"] < ask_started - args.timeout - 60:
                     continue
                 # Подтверждаем прочитанное, чтобы ответ не всплыл повторно.
                 _tg_api("getUpdates", {"timeout": 0, "offset": offset}, token)

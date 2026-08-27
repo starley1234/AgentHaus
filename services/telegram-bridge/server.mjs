@@ -100,8 +100,20 @@ function saveState() {
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
+    pruneBindings();
     writeFile(STATE_PATH, JSON.stringify(state, null, 2)).catch(() => {});
   }, 250);
+}
+
+const BINDINGS_CAP = 300;
+/** message_id монотонно растут — выбрасываем самые старые привязки. */
+function pruneBindings() {
+  const keys = Object.keys(state.bindings);
+  if (keys.length <= BINDINGS_CAP) return;
+  keys
+    .sort((a, b) => Number(a) - Number(b))
+    .slice(0, keys.length - BINDINGS_CAP)
+    .forEach((k) => delete state.bindings[k]);
 }
 
 function maskToken(text) {
@@ -462,6 +474,15 @@ async function pollLoop() {
   loopStarted = true;
   await loadState();
   log(`старт: allowlist=[${[...ALLOWED_CHATS].join(", ") || "ПУСТО"}], API=${TG_BASE}`);
+  // Аудит-фикс: после рестарта моста возобновляем наблюдение за диалогами,
+  // которые были запущены до рестарта, — иначе их финальные ответы
+  // никогда не ушли бы в Telegram.
+  for (const [chatId, cs] of Object.entries(state.chats)) {
+    if (cs?.running && cs.activeConv) {
+      log(`возобновляю наблюдение: chat ${chatId} → диалог ${cs.activeConv}`);
+      watchConversation(cs.activeConv, chatId);
+    }
+  }
   for (;;) {
     if (!TG_TOKEN || ALLOWED_CHATS.size === 0) {
       runtime.polling = false;

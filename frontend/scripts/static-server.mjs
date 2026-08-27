@@ -557,7 +557,42 @@ export function startStaticServer(config) {
 
   const uninstallDiagnostics = proxy.installDiagnostics();
 
+  // ── Рубильник создания автоматизаций (cron-задач) ─────────────────────────
+  // AUTOMATION_ALLOW_CREATE=0 запрещает СОЗДАВАТЬ новые автоматизации через
+  // API (POST create/preset/uploads), при этом управление существующими
+  // (пауза/включение/удаление/ручной запуск) остаётся доступным — чтобы
+  // остановить старую задачу и не жечь токены. UI читает состояние рубильника
+  // с GET /api/automation-guard и показывает баннер.
+  const allowAutomationCreate = !/^(0|false|no|off)$/i.test(
+    (process.env.AUTOMATION_ALLOW_CREATE ?? "1").trim(),
+  );
+  const isAutomationCreateRequest = (req) => {
+    if (req.method !== "POST" && req.method !== "PUT") return false;
+    const rawPath = (req.url ?? "/").split("?")[0];
+    return (
+      /^\/api\/automation\/v1\/?$/.test(rawPath) ||
+      /^\/api\/automation\/v1\/(uploads|preset)(\/|$)/.test(rawPath)
+    );
+  };
+
   const server = createServer((req, res) => {
+    const guardPath = (req.url ?? "/").split("?")[0];
+    if (guardPath === "/api/automation-guard") {
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ allow_create: allowAutomationCreate }));
+      return;
+    }
+    if (!allowAutomationCreate && isAutomationCreateRequest(req)) {
+      res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(
+        JSON.stringify({
+          detail:
+            "Создание автоматизаций отключено (AUTOMATION_ALLOW_CREATE=0 в .env). " +
+            "Управление существующими — пауза, удаление, запуск — доступно.",
+        }),
+      );
+      return;
+    }
     const backend = route(req.url ?? "/");
     if (backend) {
       if (

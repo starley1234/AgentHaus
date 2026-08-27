@@ -243,6 +243,7 @@ def send_digest(path, count):
 # ── Главный сценарий ─────────────────────────────────────────────────────────
 
 def main():
+    os.makedirs(STATE_DIR, exist_ok=True)  # до создания диалога (working_dir)
     seen = load_seen()
     candidates = collect_candidates(seen)
     log(f"новых статей: {len(candidates)} (в памяти {len(seen)} URL)")
