@@ -18643,6 +18643,42 @@
     "ca": "Encara no s'ha carregat cap pàgina. Demaneu a OpenHands que obri una URL. Exemple: \"Obre https://example.com\"",
     "ru": "Страница ещё не загружена. Попросите OpenHands открыть URL. Например: «Открой https://example.com»"
   },
+  "BROWSER$VIEW_MODE_LABEL": {
+    "en": "View mode",
+    "ru": "Режим просмотра"
+  },
+  "BROWSER$VIEW_MODE_SCREENSHOT": {
+    "en": "Screenshot (read-only)",
+    "ru": "Скриншот (только чтение)"
+  },
+  "BROWSER$VIEW_MODE_LIVE": {
+    "en": "Live interactive view",
+    "ru": "Интерактивный просмотр"
+  },
+  "BROWSER$LIVE_LOADING": {
+    "en": "Connecting to browser...",
+    "ru": "Подключение к браузеру..."
+  },
+  "BROWSER$LIVE_ERROR": {
+    "en": "Failed to connect to the live browser. The VNC server may not be accessible from your browser.",
+    "ru": "Не удалось подключиться к браузеру. VNC-сервер может быть недоступен из вашего браузера."
+  },
+  "BROWSER$LIVE_TIMEOUT": {
+    "en": "Connection to live browser timed out. The VNC server may not be reachable.",
+    "ru": "Превышено время подключения к браузеру. VNC-сервер может быть недоступен."
+  },
+  "BROWSER$LIVE_RETRY": {
+    "en": "Retry",
+    "ru": "Повторить"
+  },
+  "BROWSER$LIVE_FALLBACK_BUTTON": {
+    "en": "Back to Screenshot",
+    "ru": "Вернуться к скриншоту"
+  },
+  "BROWSER$LIVE_TITLE": {
+    "en": "Live browser view",
+    "ru": "Интерактивный просмотр браузера"
+  },
   "USER$AVATAR_PLACEHOLDER": {
     "en": "user avatar placeholder",
     "ja": "ユーザーアバターのプレースホルダー",

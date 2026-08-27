@@ -27,6 +27,10 @@ vi.mock("react-i18next", async () => {
   };
 });
 
+vi.mock("#/hooks/query/use-desktop-url", () => ({
+  useDesktopUrl: () => ({ data: null, isLoading: false }),
+}));
+
 import { BrowserPanel } from "#/components/features/browser/browser";
 import { useBrowserStore } from "#/stores/browser-store";
 
@@ -104,5 +108,35 @@ describe("Browser", () => {
     expect(useBrowserStore.getState().screenshotSrc).toBe(screenshotSrc);
     expect(screen.getByAltText("BROWSER$SCREENSHOT_ALT")).toBeInTheDocument();
     expect(screen.queryByText("BROWSER$NO_PAGE_LOADED")).not.toBeInTheDocument();
+  });
+
+  it("does not show view mode toggle when live view is not available", () => {
+    useBrowserStore.setState({
+      url: "https://example.com",
+      screenshotSrc:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN0uGvyHwAFCAJS091fQwAAAABJRU5ErkJggg==",
+      isLiveAvailable: false,
+    });
+
+    render(<BrowserPanel />);
+
+    expect(
+      screen.queryByTestId("browser-view-mode-toggle"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows view mode toggle when live view is available", () => {
+    useBrowserStore.setState({
+      url: "https://example.com",
+      screenshotSrc:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN0uGvyHwAFCAJS091fQwAAAABJRU5ErkJggg==",
+      isLiveAvailable: true,
+    });
+
+    render(<BrowserPanel />);
+
+    expect(screen.getByTestId("browser-view-mode-toggle")).toBeInTheDocument();
+    expect(screen.getByTestId("browser-view-screenshot")).toBeInTheDocument();
+    expect(screen.getByTestId("browser-view-live")).toBeInTheDocument();
   });
 });
