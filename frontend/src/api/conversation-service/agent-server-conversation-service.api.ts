@@ -57,6 +57,7 @@ import {
   type WorkspaceMode,
 } from "../conversation-metadata-store";
 import { resolveTitleLlmProfile } from "#/utils/title-llm-profile";
+import { getCombinedMetrics } from "#/utils/conversation-metrics";
 import type {
   GetHooksResponse,
   PluginSpec,
@@ -667,7 +668,13 @@ class AgentServerConversationService {
       title: data.title?.trim()
         ? data.title
         : getDefaultConversationTitle(data.id),
-      metrics: normalizeMetrics(data.metrics),
+      // Older runtimes put usage only in stats.usage_to_metrics.
+      metrics: normalizeMetrics(data.metrics) ?? getCombinedMetrics({
+        id: data.id, title: data.title, metrics: null,
+        created_at: data.created_at, updated_at: data.updated_at,
+        status: toRuntimeStatus(data.execution_status),
+        stats: isRecord(stats) ? stats : { usage_to_metrics: {} },
+      }),
       created_at: data.created_at,
       updated_at: data.updated_at,
       status: toRuntimeStatus(data.execution_status),
