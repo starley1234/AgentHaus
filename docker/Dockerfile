@@ -191,6 +191,16 @@ COPY --from=config-gen /tmp/defaults.env /opt/agent-canvas/defaults.env
 COPY extensions/ /opt/agent-canvas/extensions/
 ENV EXTENSIONS_REPO=/opt/agent-canvas/extensions
 
+# Глобальная команда `notify` (email/Telegram/webhook): агент отправляет
+# отчёты одной командой, без поиска пути к скрипту навыка по файловой системе.
+RUN printf '%s\n' \
+      '#!/bin/sh' \
+      's="${EXTENSIONS_REPO:-/opt/agent-canvas/extensions}/skills/notify/scripts/notify.py"' \
+      '[ -f "$s" ] || s=/opt/agent-canvas/extensions/skills/notify/scripts/notify.py' \
+      'exec python3 "$s" "$@"' \
+      > /usr/local/bin/notify && \
+    chmod +x /usr/local/bin/notify
+
 # Copy the entrypoint
 COPY docker/entrypoint.sh /opt/agent-canvas/entrypoint.sh
 # Normalize line endings: if the working copy was checked out with CRLF
