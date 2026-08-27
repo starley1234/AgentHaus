@@ -6,7 +6,7 @@ Zero-dependency (только стандартная библиотека Python
 или в Settings → Secrets):
 
   Email (SMTP):
-    SMTP_HOST        — SMTP-сервер (напр. smtp.yandex.ru, smtp.gmail.com)
+    SMTP_HOST        — SMTP-сервер (напр. smtp.timeweb.ru, smtp.yandex.ru)
     SMTP_PORT        — порт (465 = SSL, 587 = STARTTLS; по умолчанию 465)
     SMTP_USER        — логин (обычно полный email)
     SMTP_PASSWORD    — пароль (для Gmail/Yandex/Mail.ru — «пароль приложения»)
@@ -15,9 +15,18 @@ Zero-dependency (только стандартная библиотека Python
     NOTIFY_EMAIL_TO  — получатель ПО УМОЛЧАНИЮ (email владельца) — сюда агент
                        шлёт отчёты, когда пользователь говорит «отправь мне»
 
+  Приём почты (IMAP) — для реальной переписки:
+    IMAP_HOST        — IMAP-сервер (напр. imap.timeweb.ru). Если не задан —
+                       выводится из SMTP_HOST заменой префикса smtp.→imap.
+    IMAP_PORT        — порт (993 = SSL, по умолчанию 993)
+    IMAP_USER        — логин (по умолчанию = SMTP_USER)
+    IMAP_PASSWORD    — пароль (по умолчанию = SMTP_PASSWORD)
+
   Telegram:
     TELEGRAM_BOT_TOKEN — токен бота от @BotFather
     TELEGRAM_CHAT_ID   — chat_id получателя по умолчанию
+    TELEGRAM_API_BASE  — база API (по умолчанию https://api.telegram.org;
+                         переопределяй для локальных тестов/зеркал)
 
   Webhook (Slack / Discord / Mattermost / свой):
     NOTIFY_WEBHOOK_URL — URL входящего вебхука
@@ -25,6 +34,9 @@ Zero-dependency (только стандартная библиотека Python
 Примеры:
   python3 notify.py status
   python3 notify.py email --subject "Отчёт" --body-file report.md --attach report.md
+  python3 notify.py inbox --unseen                # непрочитанные письма
+  python3 notify.py read --uid 42                 # прочитать письмо
+  python3 notify.py reply --uid 42 --body "Ответ" # ответить отправителю
   python3 notify.py telegram --text "Сборка прошла успешно ✅"
   python3 notify.py webhook --text "Деплой завершён"
   python3 notify.py send --subject "Отчёт" --body-file report.md   # во все настроенные каналы
@@ -33,6 +45,9 @@ Zero-dependency (только стандартная библиотека Python
 """
 
 import argparse
+import email as email_lib
+import email.policy
+import imaplib
 import json
 import mimetypes
 import os
@@ -44,6 +59,7 @@ import urllib.error
 import urllib.request
 import uuid
 from email.message import EmailMessage
+from email.utils import parseaddr, parsedate_to_datetime
 
 TELEGRAM_CHUNK = 4000  # лимит Telegram — 4096 символов на сообщение
 
@@ -96,7 +112,7 @@ def email_configured():
     return bool(env("SMTP_HOST") and env("SMTP_USER") and env("SMTP_PASSWORD"))
 
 
-def send_email(to, subject, body, attachments=()):
+def send_email(to, subject, body, attachments=(), extra_headers=None):
     host = env("SMTP_HOST")
     user = env("SMTP_USER")
     password = env("SMTP_PASSWORD")
@@ -122,6 +138,9 @@ def send_email(to, subject, body, attachments=()):
     msg["To"] = to
     msg["Subject"] = subject or "Отчёт агента AgentHaus"
     msg["Message-ID"] = f"<{uuid.uuid4()}@agenthaus>"
+    for name, value in (extra_headers or {}).items():
+        if value:
+            msg[name] = value
     msg.set_content(body)
 
     for path in attachments:
@@ -161,14 +180,189 @@ def send_email(to, subject, body, attachments=()):
     print(f"✅ Письмо отправлено: {to} (тема: {msg['Subject']})")
 
 
+# ── Приём почты (IMAP) ────────────────────────────────────────────────────────
+
+def imap_host():
+    """IMAP_HOST, либо вывод из SMTP_HOST: smtp.timeweb.ru → imap.timeweb.ru."""
+    host = env("IMAP_HOST")
+    if host:
+        return host
+    smtp_host = env("SMTP_HOST")
+    if smtp_host.startswith("smtp."):
+        return "imap." + smtp_host[len("smtp."):]
+    return ""
+
+
+def imap_configured():
+    return bool(imap_host() and (env("IMAP_USER") or env("SMTP_USER"))
+                and (env("IMAP_PASSWORD") or env("SMTP_PASSWORD")))
+
+
+def imap_connect(folder="INBOX", readonly=False):
+    host = imap_host()
+    user = env("IMAP_USER") or env("SMTP_USER")
+    password = env("IMAP_PASSWORD") or env("SMTP_PASSWORD")
+    if not (host and user and password):
+        die(
+            "приём почты не настроен: задай IMAP_HOST (или SMTP_HOST с "
+            "префиксом smtp.) и IMAP_USER/IMAP_PASSWORD (по умолчанию берутся "
+            "из SMTP_USER/SMTP_PASSWORD) — см. docs/NOTIFICATIONS_RU.md",
+            2,
+        )
+    port = int(env("IMAP_PORT") or "993")
+    try:
+        conn = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
+        conn.login(user, password)
+        status_, _ = conn.select(folder, readonly=readonly)
+        if status_ != "OK":
+            die(f"IMAP: папка {folder} недоступна")
+        return conn
+    except imaplib.IMAP4.error as e:
+        die(
+            f"IMAP-аутентификация/подключение не удалось ({host}:{port}): "
+            f"{sanitize(str(e))}. Проверь IMAP_USER/IMAP_PASSWORD "
+            f"(для Gmail/Yandex/Mail.ru — пароль приложения)."
+        )
+    except OSError as e:
+        die(f"IMAP-сервер {host}:{port} недоступен: {e}")
+
+
+def _decode_header(value):
+    if not value:
+        return ""
+    parts = email_lib.header.decode_header(value)
+    out = []
+    for data, charset in parts:
+        if isinstance(data, bytes):
+            out.append(data.decode(charset or "utf-8", errors="replace"))
+        else:
+            out.append(data)
+    return "".join(out).replace("\n", " ").replace("\r", " ").strip()
+
+
+def _fetch_message(conn, uid):
+    status_, data = conn.uid("fetch", str(uid), "(RFC822)")
+    if status_ != "OK" or not data or data[0] is None:
+        die(f"IMAP: письмо с UID {uid} не найдено")
+    raw = data[0][1]
+    return email_lib.message_from_bytes(raw, policy=email.policy.default)
+
+
+def _message_text(msg):
+    """Извлекает плоский текст письма (text/plain, иначе text/html без тегов)."""
+    body = msg.get_body(preferencelist=("plain", "html"))
+    if body is None:
+        return ""
+    text = body.get_content()
+    if body.get_content_type() == "text/html":
+        text = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", text,
+                      flags=re.S | re.I)
+        text = re.sub(r"<br\s*/?>|</p>", "\n", text, flags=re.I)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def cmd_inbox(args):
+    conn = imap_connect(args.folder, readonly=True)
+    criterion = "UNSEEN" if args.unseen else "ALL"
+    status_, data = conn.uid("search", None, criterion)
+    if status_ != "OK":
+        die("IMAP: поиск писем не удался")
+    uids = data[0].split()
+    total = len(uids)
+    uids = uids[-args.limit:]
+
+    if not uids:
+        print("Писем нет" + (" (непрочитанных)" if args.unseen else "") + ".")
+        conn.logout()
+        return
+
+    print(f"Показано {len(uids)} из {total} "
+          + ("непрочитанных" if args.unseen else "писем")
+          + f" (папка {args.folder}), новые сверху:\n")
+    for uid in reversed(uids):
+        status_, data = conn.uid(
+            "fetch", uid,
+            "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
+        )
+        if status_ != "OK" or not data or data[0] is None:
+            continue
+        flags = b" ".join(d for d in data if isinstance(d, bytes))
+        seen = "  " if b"\\Seen" in flags else "🆕"
+        hdr = email_lib.message_from_bytes(data[0][1], policy=email.policy.default)
+        try:
+            date = parsedate_to_datetime(hdr.get("Date")).strftime("%d.%m %H:%M")
+        except Exception:
+            date = (hdr.get("Date") or "?")[:16]
+        sender = _decode_header(hdr.get("From"))
+        subject = _decode_header(hdr.get("Subject")) or "(без темы)"
+        print(f"{seen} UID {uid.decode():>6} | {date} | {sender[:40]:40} | {subject[:60]}")
+    conn.logout()
+    print("\nЧитать: notify read --uid <UID>; ответить: notify reply --uid <UID> --body \"…\"")
+
+
+def cmd_read(args):
+    conn = imap_connect(args.folder, readonly=not args.mark_seen)
+    msg = _fetch_message(conn, args.uid)
+
+    print(f"От:      {_decode_header(msg.get('From'))}")
+    print(f"Кому:    {_decode_header(msg.get('To'))}")
+    print(f"Дата:    {msg.get('Date')}")
+    print(f"Тема:    {_decode_header(msg.get('Subject'))}")
+
+    attachments = [a for a in msg.iter_attachments()]
+    if attachments:
+        names = [a.get_filename() or "без-имени" for a in attachments]
+        print(f"Вложения: {', '.join(names)}")
+        if args.save_attachments:
+            os.makedirs(args.save_attachments, exist_ok=True)
+            for att in attachments:
+                name = os.path.basename(att.get_filename() or f"attachment-{uuid.uuid4().hex[:8]}")
+                path = os.path.join(args.save_attachments, name)
+                with open(path, "wb") as f:
+                    f.write(att.get_payload(decode=True) or b"")
+                print(f"  сохранено: {path}")
+
+    print("\n" + (_message_text(msg) or "(пустое тело письма)"))
+    conn.logout()
+
+
+def cmd_reply(args):
+    body = read_body(args)
+    conn = imap_connect(args.folder, readonly=True)
+    orig = _fetch_message(conn, args.uid)
+    conn.logout()
+
+    reply_to = orig.get("Reply-To") or orig.get("From")
+    to = parseaddr(reply_to)[1]
+    if not to:
+        die(f"не удалось определить адрес отправителя письма UID {args.uid}")
+
+    subject = _decode_header(orig.get("Subject")) or ""
+    if not re.match(r"(?i)^re:", subject):
+        subject = "Re: " + subject
+    orig_id = orig.get("Message-ID", "")
+    refs = (orig.get("References", "") + " " + orig_id).strip()
+
+    send_email(
+        to, subject, body, args.attach or [],
+        extra_headers={"In-Reply-To": orig_id, "References": refs},
+    )
+
+
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
 def telegram_configured():
     return bool(env("TELEGRAM_BOT_TOKEN") and env("TELEGRAM_CHAT_ID"))
 
 
+def _tg_base():
+    return env("TELEGRAM_API_BASE") or "https://api.telegram.org"
+
+
 def _tg_api(method, payload, token):
-    url = f"https://api.telegram.org/bot{token}/{method}"
+    url = f"{_tg_base()}/bot{token}/{method}"
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -209,7 +403,7 @@ def _tg_send_document(chat_id, path, token):
     body = b"".join(parts)
 
     req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendDocument",
+        f"{_tg_base()}/bot{token}/sendDocument",
         data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
@@ -303,6 +497,10 @@ def cmd_status(_args):
          f"SMTP_USER={env('SMTP_USER') or '<не задано>'}, "
          f"SMTP_PASSWORD={mask(env('SMTP_PASSWORD'))}, "
          f"NOTIFY_EMAIL_TO={env('NOTIFY_EMAIL_TO') or '<не задано>'}"),
+        ("imap", imap_configured(),
+         f"IMAP_HOST={imap_host() or '<не задано>'}, "
+         f"IMAP_USER={env('IMAP_USER') or env('SMTP_USER') or '<не задано>'}, "
+         f"IMAP_PASSWORD={mask(env('IMAP_PASSWORD') or env('SMTP_PASSWORD'))}"),
         ("telegram", telegram_configured(),
          f"TELEGRAM_BOT_TOKEN={mask(env('TELEGRAM_BOT_TOKEN'))}, "
          f"TELEGRAM_CHAT_ID={env('TELEGRAM_CHAT_ID') or '<не задано>'}"),
@@ -374,6 +572,28 @@ def main():
     p.add_argument("--body-file", help="файл с текстом (например report.md)")
     p.add_argument("--attach", action="append", help="вложение (можно несколько раз)")
     p.set_defaults(func=cmd_email)
+
+    p = sub.add_parser("inbox", help="список входящих писем (IMAP)")
+    p.add_argument("--limit", type=int, default=10, help="сколько писем показать (по умолчанию 10)")
+    p.add_argument("--unseen", action="store_true", help="только непрочитанные")
+    p.add_argument("--folder", default="INBOX", help="папка (по умолчанию INBOX)")
+    p.set_defaults(func=cmd_inbox)
+
+    p = sub.add_parser("read", help="прочитать письмо по UID")
+    p.add_argument("--uid", required=True, help="UID письма (из notify inbox)")
+    p.add_argument("--folder", default="INBOX")
+    p.add_argument("--save-attachments", metavar="DIR", help="сохранить вложения в папку")
+    p.add_argument("--no-mark-seen", dest="mark_seen", action="store_false",
+                   help="не помечать письмо прочитанным")
+    p.set_defaults(func=cmd_read, mark_seen=True)
+
+    p = sub.add_parser("reply", help="ответить на письмо (Re:, та же цепочка)")
+    p.add_argument("--uid", required=True, help="UID письма, на которое отвечаем")
+    p.add_argument("--folder", default="INBOX")
+    p.add_argument("--body", help="текст ответа")
+    p.add_argument("--body-file", help="файл с текстом ответа")
+    p.add_argument("--attach", action="append", help="вложение (можно несколько раз)")
+    p.set_defaults(func=cmd_reply)
 
     p = sub.add_parser("telegram", help="отправить сообщение в Telegram")
     p.add_argument("--chat-id", help="chat_id (по умолчанию TELEGRAM_CHAT_ID)")

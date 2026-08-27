@@ -463,16 +463,18 @@
     {
       "name": "notify",
       "source": "./skills/notify",
-      "description": "Отправка отчётов и уведомлений во внешний мир: email (SMTP), Telegram, вебхуки Slack/Discord. Получатель по умолчанию задаётся один раз в .env — агент шлёт отчёты без уточняющих вопросов.",
+      "description": "Связь агента с внешним миром: отправка и приём email (SMTP/IMAP), Telegram, вебхуки Slack/Discord. Контакты задаются один раз в .env — агент шлёт отчёты и ведёт переписку без уточняющих вопросов.",
       "category": "integrations",
       "keywords": [
         "email",
         "smtp",
+        "imap",
         "telegram",
         "webhook",
         "notifications",
         "уведомления",
         "почта",
+        "переписка",
         "отчёт"
       ]
     },
