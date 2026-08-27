@@ -30,6 +30,80 @@ NOVNC_PORT = int(os.getenv("NOVNC_PORT", "8002"))
 NOVNC_BASE_URL = f"http://{VNC_HOST}:{NOVNC_PORT}"
 
 
+# ── WebSocket route MUST be registered BEFORE the HTTP catch-all ────────────
+# FastAPI matches routes in registration order. If the catch-all
+# ``/{path:path}`` is registered first, it intercepts the WebSocket upgrade
+# request as a plain HTTP GET and the WebSocket handshake fails.
+@vnc_proxy_router.websocket("/websockify")
+async def proxy_websocket(websocket: WebSocket):
+    """Proxy WebSocket connections to the VNC server."""
+    await websocket.accept()
+
+    try:
+        import websockets
+    except ImportError:
+        logger.warning("websockets not installed — VNC WebSocket proxy unavailable")
+        await websocket.close(code=1011, reason="websockets not installed")
+        return
+
+    target_ws_url = f"ws://{VNC_HOST}:{NOVNC_PORT}/websockify"
+    logger.info("VNC WebSocket proxy: client connected, forwarding to %s", target_ws_url)
+
+    try:
+        async with websockets.connect(
+            target_ws_url,
+            max_size=2**25,  # 32 MB — VNC frames can be large
+            ping_interval=20,
+            ping_timeout=20,
+        ) as target_ws:
+
+            async def forward_client_to_target():
+                try:
+                    while True:
+                        data = await websocket.receive_bytes()
+                        await target_ws.send(data)
+                except WebSocketDisconnect:
+                    logger.debug("VNC WebSocket: client disconnected")
+                except Exception as e:
+                    logger.debug(f"VNC WebSocket client→target error: {e}")
+
+            async def forward_target_to_client():
+                try:
+                    async for message in target_ws:
+                        if websocket.client_state == WebSocketState.CONNECTED:
+                            if isinstance(message, bytes):
+                                await websocket.send_bytes(message)
+                            else:
+                                await websocket.send_text(message)
+                        else:
+                            break
+                except Exception as e:
+                    logger.debug(f"VNC WebSocket target→client error: {e}")
+
+            # Run both directions concurrently; when either exits the other
+            # will notice the closed connection and exit too.
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.ensure_future(forward_client_to_target()),
+                    asyncio.ensure_future(forward_target_to_client()),
+                ],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            # Cancel the other direction
+            for task in pending:
+                task.cancel()
+
+    except ConnectionRefusedError:
+        logger.error("VNC WebSocket proxy: connection refused by %s", target_ws_url)
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close(code=1011, reason="VNC server not reachable")
+    except Exception as e:
+        logger.error(f"VNC WebSocket proxy error: {e}")
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close(code=1011, reason=f"Proxy error: {str(e)}")
+
+
+# ── HTTP catch-all (registered AFTER WebSocket route) ───────────────────────
 @vnc_proxy_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_http_request(request: Request, path: str = ""):
     """Proxy HTTP requests to the noVNC server."""
@@ -85,51 +159,3 @@ async def proxy_http_request(request: Request, path: str = ""):
             content=f"Proxy error: {str(e)}",
             status_code=502,
         )
-
-
-@vnc_proxy_router.websocket("/websockify")
-async def proxy_websocket(websocket: WebSocket):
-    """Proxy WebSocket connections to the VNC server."""
-    await websocket.accept()
-
-    try:
-        import websockets
-    except ImportError:
-        logger.warning("websockets not installed — VNC WebSocket proxy unavailable")
-        await websocket.close(code=1011, reason="websockets not installed")
-        return
-
-    target_ws_url = f"ws://{VNC_HOST}:{NOVNC_PORT}/websockify"
-
-    try:
-        async with websockets.connect(target_ws_url) as target_ws:
-            async def forward_client_to_target():
-                try:
-                    while True:
-                        data = await websocket.receive_bytes()
-                        await target_ws.send(data)
-                except WebSocketDisconnect:
-                    pass
-                except Exception as e:
-                    logger.debug(f"Client to target error: {e}")
-
-            async def forward_target_to_client():
-                try:
-                    async for message in target_ws:
-                        if websocket.client_state == WebSocketState.CONNECTED:
-                            if isinstance(message, bytes):
-                                await websocket.send_bytes(message)
-                            else:
-                                await websocket.send_text(message)
-                except Exception as e:
-                    logger.debug(f"Target to client error: {e}")
-
-            await asyncio.gather(
-                forward_client_to_target(),
-                forward_target_to_client(),
-            )
-
-    except Exception as e:
-        logger.error(f"WebSocket proxy error: {e}")
-        if websocket.client_state == WebSocketState.CONNECTED:
-            await websocket.close(code=1011, reason=f"Proxy error: {str(e)}")
