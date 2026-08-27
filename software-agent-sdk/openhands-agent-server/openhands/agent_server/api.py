@@ -38,6 +38,7 @@ from openhands.agent_server.dependencies import (
     check_workspace_session,
 )
 from openhands.agent_server.desktop_router import desktop_router
+from openhands.agent_server.vnc_proxy_router import vnc_proxy_router
 from openhands.agent_server.desktop_service import get_desktop_service
 from openhands.agent_server.event_router import event_router
 from openhands.agent_server.file_router import file_router
@@ -439,6 +440,7 @@ def _add_api_routes(app: FastAPI) -> None:
     api_router.include_router(file_router)
     api_router.include_router(vscode_router)
     api_router.include_router(desktop_router)
+    api_router.include_router(vnc_proxy_router)
     api_router.include_router(skills_router)
     api_router.include_router(sub_agents_router)
     api_router.include_router(plugins_router)

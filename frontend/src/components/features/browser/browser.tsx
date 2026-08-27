@@ -47,7 +47,10 @@ export function BrowserPanel() {
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hide bg-[var(--oh-surface)]">
         {showLiveView && vncUrl ? (
-          <BrowserLive vncUrl={vncUrl} />
+          <BrowserLive
+            vncUrl={vncUrl}
+            onFallbackToScreenshot={() => setViewMode("screenshot")}
+          />
         ) : screenshotSrc ? (
           <BrowserSnapshot src={imgSrc} />
         ) : (

@@ -18660,8 +18660,20 @@
     "ru": "Подключение к браузеру..."
   },
   "BROWSER$LIVE_ERROR": {
-    "en": "Failed to connect to the live browser. Falling back to screenshot.",
-    "ru": "Не удалось подключиться к браузеру. Переключение на скриншот."
+    "en": "Failed to connect to the live browser. The VNC server may not be accessible from your browser.",
+    "ru": "Не удалось подключиться к браузеру. VNC-сервер может быть недоступен из вашего браузера."
+  },
+  "BROWSER$LIVE_TIMEOUT": {
+    "en": "Connection to live browser timed out. The VNC server may not be reachable.",
+    "ru": "Превышено время подключения к браузеру. VNC-сервер может быть недоступен."
+  },
+  "BROWSER$LIVE_RETRY": {
+    "en": "Retry",
+    "ru": "Повторить"
+  },
+  "BROWSER$LIVE_FALLBACK_BUTTON": {
+    "en": "Back to Screenshot",
+    "ru": "Вернуться к скриншоту"
   },
   "BROWSER$LIVE_TITLE": {
     "en": "Live browser view",
