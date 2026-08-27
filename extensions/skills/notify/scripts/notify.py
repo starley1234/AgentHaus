@@ -490,6 +490,59 @@ def send_webhook(text):
 
 # ── Команды ───────────────────────────────────────────────────────────────────
 
+def cmd_chatid(args):
+    """Помощник настройки: находит chat_id по последним сообщениям боту."""
+    token = env("TELEGRAM_BOT_TOKEN")
+    if not token:
+        die(
+            "сначала задай TELEGRAM_BOT_TOKEN в .env (токен выдаёт @BotFather "
+            "командой /newbot) и перезапусти контейнер",
+            2,
+        )
+
+    # Если у бота стоит webhook — getUpdates всегда пустой.
+    info = _tg_api("getWebhookInfo", {}, token)
+    webhook_url = (info.get("result") or {}).get("url") or ""
+    if webhook_url:
+        if args.delete_webhook:
+            _tg_api("deleteWebhook", {}, token)
+            print("Webhook удалён — теперь getUpdates будет работать.")
+        else:
+            die(
+                "у бота установлен webhook, поэтому getUpdates пуст. "
+                "Запусти: notify chatid --delete-webhook (webhook будет снят)"
+            )
+
+    data = _tg_api("getUpdates", {"timeout": 0}, token)
+    chats = {}
+    for upd in data.get("result", []):
+        msg = (upd.get("message") or upd.get("edited_message")
+               or upd.get("channel_post") or {})
+        chat = msg.get("chat")
+        if chat and "id" in chat:
+            name = chat.get("title") or " ".join(
+                filter(None, [chat.get("first_name"), chat.get("last_name")])
+            ) or chat.get("username") or "?"
+            chats[chat["id"]] = (chat.get("type", "?"), name)
+
+    if not chats:
+        print(
+            "Бот пока не получал сообщений (result пуст).\n"
+            "1. Найди бота по его @username в поиске Telegram.\n"
+            "2. Отправь ему /start (или любое сообщение).\n"
+            "3. Снова запусти: notify chatid\n"
+            "Учти: обновления хранятся ~24 часа — пиши боту и проверяй сразу."
+        )
+        sys.exit(1)
+
+    print("Найденные чаты:")
+    for chat_id, (ctype, name) in chats.items():
+        print(f"  chat_id = {chat_id}  ({ctype}: {name})")
+    if len(chats) == 1:
+        only = next(iter(chats))
+        print(f"\nДобавь в .env:  TELEGRAM_CHAT_ID={only}  и перезапусти контейнер.")
+
+
 def cmd_status(_args):
     rows = [
         ("email", email_configured(),
@@ -564,6 +617,11 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="какие каналы настроены").set_defaults(func=cmd_status)
+
+    p = sub.add_parser("chatid", help="помощник настройки Telegram: найти свой chat_id")
+    p.add_argument("--delete-webhook", action="store_true",
+                   help="снять webhook бота, если он мешает getUpdates")
+    p.set_defaults(func=cmd_chatid)
 
     p = sub.add_parser("email", help="отправить письмо по SMTP")
     p.add_argument("--to", help="получатель (по умолчанию NOTIFY_EMAIL_TO)")

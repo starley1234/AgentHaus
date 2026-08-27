@@ -79,6 +79,11 @@ notify send --subject "Отчёт" --body-file report.md
 
 # Что настроено (секреты маскируются) — только по явной просьбе пользователя
 notify status
+
+# Помощник настройки Telegram: найти chat_id владельца (когда задан только
+# TELEGRAM_BOT_TOKEN, а TELEGRAM_CHAT_ID ещё пуст). Сам диагностирует
+# пустой getUpdates (нужно написать боту /start) и мешающий webhook.
+notify chatid
 ```
 
 ## Переписка: приём и ответы на письма (IMAP)
@@ -148,7 +153,8 @@ notify reply --uid 42 --body "Готово, отчёт во вложении." -
 |---|---|
 | exit code 2 | канал не настроен — попроси пользователя заполнить `.env` |
 | `SMTP-аутентификация не прошла` | нужен «пароль приложения», а не обычный пароль (Gmail: myaccount.google.com/apppasswords; Yandex: id.yandex.ru → «Пароли приложений»; Mail.ru: account.mail.ru → «Пароли для внешних приложений») |
-| Telegram `chat not found` | пользователь ещё не написал боту `/start`, либо неверный `TELEGRAM_CHAT_ID` |
+| Telegram `chat not found` | пользователь ещё не написал боту `/start`, либо неверный `TELEGRAM_CHAT_ID` — запусти `notify chatid` |
+| Telegram `getUpdates` пуст (`result: []`) | боту ещё не писали, сообщение «сгорело» (>24 ч) или стоит webhook — `notify chatid` разберётся, webhook снимает `notify chatid --delete-webhook` |
 | Telegram HTTP 429 | подожди `retry_after` секунд, повтори один раз |
 | таймаут SMTP | проверь порт: 465 = SSL, 587 = STARTTLS (`SMTP_SECURITY`) |
 | IMAP-аутентификация не прошла | тот же пароль приложения, что и для SMTP; проверь `IMAP_HOST` (например imap.timeweb.ru:993) |
