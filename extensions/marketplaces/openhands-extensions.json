@@ -501,6 +501,25 @@
       ]
     },
     {
+      "name": "office-files",
+      "source": "./skills/office-files",
+      "description": "Работа с офисными файлами: Word (.docx), Excel (.xlsx), PowerPoint (.pptx), PDF. Библиотеки предустановлены в образе — без pip install; рецепты создания, чтения и правки, обработка входящих вложений.",
+      "category": "environment",
+      "keywords": [
+        "word",
+        "excel",
+        "powerpoint",
+        "docx",
+        "xlsx",
+        "pptx",
+        "pdf",
+        "pandas",
+        "документы",
+        "таблицы",
+        "презентации"
+      ]
+    },
+    {
       "name": "onboarding",
       "source": "./plugins/onboarding",
       "description": "Оценка готовности репозитория к работе агента по пяти направлениям, предложение высокоэффективных улучшений и генерация итогового отчёта.",

@@ -37,7 +37,8 @@ npm run dev
 
 - Развёртывание в Docker: [`frontend/docs/DOCKER_DEPLOYMENT_RU.md`](frontend/docs/DOCKER_DEPLOYMENT_RU.md)
 - Уведомления (почта/Telegram, отчёты «отправь мне»): [`docs/NOTIFICATIONS_RU.md`](docs/NOTIFICATIONS_RU.md)
-- Двусторонний Telegram (проект): [`docs/TELEGRAM_TWO_WAY_RU.md`](docs/TELEGRAM_TWO_WAY_RU.md)
+- Двусторонний Telegram (notify ask + проект bridge): [`docs/TELEGRAM_TWO_WAY_RU.md`](docs/TELEGRAM_TWO_WAY_RU.md)
+- Офисные файлы Word/Excel/PowerPoint: [`docs/OFFICE_FILES_RU.md`](docs/OFFICE_FILES_RU.md)
 - Автономный режим: [`frontend/docs/AUTONOMOUS_MODE_RU.md`](frontend/docs/AUTONOMOUS_MODE_RU.md)
 - Навыки и их русификация: [`frontend/docs/SKILLS_RU.md`](frontend/docs/SKILLS_RU.md)
 - Среда разработки: [`frontend/docs/DEVELOPMENT.md`](frontend/docs/DEVELOPMENT.md)

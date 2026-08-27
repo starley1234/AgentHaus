@@ -55,6 +55,7 @@ import re
 import smtplib
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -490,6 +491,85 @@ def send_webhook(text):
 
 # ── Команды ───────────────────────────────────────────────────────────────────
 
+ASK_LOCK = "/tmp/agenthaus-notify-ask.lock"
+ASK_LOCK_STALE_SECONDS = 2 * 3600
+
+
+def _ask_acquire_lock():
+    """Одновременно может ждать ответа только один `ask` (гонки за getUpdates)."""
+    try:
+        if os.path.exists(ASK_LOCK):
+            if time.time() - os.path.getmtime(ASK_LOCK) > ASK_LOCK_STALE_SECONDS:
+                os.unlink(ASK_LOCK)  # протухший lock от упавшего процесса
+            else:
+                die(
+                    "другой `notify ask` уже ждёт ответа в этом инстансе "
+                    f"(lock: {ASK_LOCK}). Дождись его завершения или удали "
+                    "lock-файл, если процесс мёртв."
+                )
+        fd = os.open(ASK_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+    except FileExistsError:
+        die("другой `notify ask` уже ждёт ответа (гонка за lock-файл)")
+
+
+def _ask_release_lock():
+    try:
+        os.unlink(ASK_LOCK)
+    except OSError:
+        pass
+
+
+def cmd_ask(args):
+    """Задать вопрос владельцу в Telegram и дождаться его ответа (long poll)."""
+    token = env("TELEGRAM_BOT_TOKEN")
+    if not token:
+        die("Telegram не настроен: задай TELEGRAM_BOT_TOKEN в .env", 2)
+    chat_id = args.chat_id or env("TELEGRAM_CHAT_ID")
+    if not chat_id:
+        die("chat_id не указан: задай TELEGRAM_CHAT_ID в .env или передай --chat-id", 2)
+
+    _ask_acquire_lock()
+    try:
+        # Базовый offset: всё, что уже лежит в очереди, — не ответ на наш вопрос.
+        data = _tg_api("getUpdates", {"timeout": 0, "offset": -1}, token)
+        baseline = data.get("result", [])
+        offset = (baseline[-1]["update_id"] + 1) if baseline else None
+
+        send_telegram(chat_id, args.text)
+
+        deadline = time.time() + args.timeout
+        while time.time() < deadline:
+            poll = {"timeout": min(25, max(1, int(deadline - time.time())))}
+            if offset is not None:
+                poll["offset"] = offset
+            data = _tg_api("getUpdates", poll, token)
+            for upd in data.get("result", []):
+                offset = upd["update_id"] + 1
+                msg = upd.get("message") or upd.get("edited_message") or {}
+                chat = msg.get("chat") or {}
+                # Allowlist: принимаем ответ ТОЛЬКО из чата владельца.
+                if str(chat.get("id")) != str(chat_id):
+                    continue
+                reply = (msg.get("text") or msg.get("caption") or "").strip()
+                if not reply:
+                    continue
+                # Подтверждаем прочитанное, чтобы ответ не всплыл повторно.
+                _tg_api("getUpdates", {"timeout": 0, "offset": offset}, token)
+                print(f"ОТВЕТ ВЛАДЕЛЬЦА: {reply}")
+                return
+
+        print(
+            f"Ответ не получен за {args.timeout} с — действуй по умолчанию "
+            "или переспроси позже.",
+            file=sys.stderr,
+        )
+        sys.exit(3)
+    finally:
+        _ask_release_lock()
+
+
 def cmd_chatid(args):
     """Помощник настройки: находит chat_id по последним сообщениям боту."""
     token = env("TELEGRAM_BOT_TOKEN")
@@ -617,6 +697,13 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="какие каналы настроены").set_defaults(func=cmd_status)
+
+    p = sub.add_parser("ask", help="задать вопрос владельцу в Telegram и дождаться ответа")
+    p.add_argument("--text", required=True, help="текст вопроса")
+    p.add_argument("--timeout", type=int, default=900,
+                   help="сколько секунд ждать ответ (по умолчанию 900 = 15 мин)")
+    p.add_argument("--chat-id", help="chat_id (по умолчанию TELEGRAM_CHAT_ID)")
+    p.set_defaults(func=cmd_ask)
 
     p = sub.add_parser("chatid", help="помощник настройки Telegram: найти свой chat_id")
     p.add_argument("--delete-webhook", action="store_true",
