@@ -23,6 +23,9 @@
  * без содержимого переписки.
  */
 import { readFile, writeFile, appendFile, stat } from "node:fs/promises";
+import http from "node:http";
+import https from "node:https";
+import tls from "node:tls";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -109,17 +112,125 @@ function log(...args) {
 }
 
 // ── Telegram API ─────────────────────────────────────────────────────────────
-async function tg(method, payload = {}) {
-  const res = await fetch(`${TG_BASE}/bot${TG_TOKEN}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+// Свой HTTP-клиент вместо fetch: undici-fetch игнорирует HTTP(S)_PROXY и может
+// выбрать нерабочий IPv6-адрес. Здесь — прокси из окружения (как в Python),
+// принудительный IPv4 и настоящие коды ошибок вместо «fetch failed».
+
+function proxyFor(urlString) {
+  const url = new URL(urlString);
+  const noProxy = (process.env.NO_PROXY || process.env.no_proxy || "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const host = url.hostname;
+  if (noProxy.some((p) => p === "*" || host === p || host.endsWith("." + p.replace(/^\./, ""))))
+    return null;
+  const raw = url.protocol === "https:"
+    ? process.env.HTTPS_PROXY || process.env.https_proxy ||
+      process.env.HTTP_PROXY || process.env.http_proxy
+    : process.env.HTTP_PROXY || process.env.http_proxy;
+  return raw && raw.trim() ? raw.trim() : null;
+}
+
+function proxyAuthHeader(p) {
+  if (!p.username) return {};
+  const cred = `${decodeURIComponent(p.username)}:${decodeURIComponent(p.password || "")}`;
+  return { "Proxy-Authorization": "Basic " + Buffer.from(cred).toString("base64") };
+}
+
+function postJson(urlString, payload, { timeoutMs = 75_000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const isHttps = url.protocol === "https:";
+    const port = Number(url.port) || (isHttps ? 443 : 80);
+    const body = Buffer.from(JSON.stringify(payload));
+    const headers = {
+      "Content-Type": "application/json",
+      "Content-Length": body.length,
+      Host: url.host,
+    };
+    const fail = (e) => reject(new Error(e?.code || e?.message || String(e)));
+    const onResponse = (res) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (c) => (data += c));
+      res.on("end", () => {
+        let json = {};
+        try { json = JSON.parse(data); } catch { /* не-JSON */ }
+        resolve({ status: res.statusCode, json });
+      });
+      res.on("error", fail);
+    };
+    const arm = (req) => {
+      req.setTimeout(timeoutMs, () => req.destroy(new Error("ETIMEDOUT")));
+      req.on("error", fail);
+    };
+
+    const proxy = proxyFor(urlString);
+    if (proxy && isHttps) {
+      // HTTPS через прокси: CONNECT-туннель + TLS поверх него.
+      const p = new URL(proxy);
+      const connectReq = http.request({
+        host: p.hostname,
+        port: Number(p.port) || 80,
+        method: "CONNECT",
+        path: `${url.hostname}:${port}`,
+        headers: proxyAuthHeader(p),
+        family: 4,
+      });
+      arm(connectReq);
+      connectReq.on("connect", (res2, socket) => {
+        if (res2.statusCode !== 200) {
+          socket.destroy();
+          return reject(new Error(`proxy CONNECT ${res2.statusCode}`));
+        }
+        const req = https.request({
+          host: url.hostname,
+          port,
+          method: "POST",
+          path: url.pathname + url.search,
+          headers,
+          createConnection: () => tls.connect({ socket, servername: url.hostname }),
+        }, onResponse);
+        arm(req);
+        req.end(body);
+      });
+      connectReq.end();
+      return;
+    }
+    if (proxy && !isHttps) {
+      // HTTP через прокси: absolute-URI.
+      const p = new URL(proxy);
+      const req = http.request({
+        host: p.hostname,
+        port: Number(p.port) || 80,
+        method: "POST",
+        path: urlString,
+        headers: { ...headers, ...proxyAuthHeader(p) },
+        family: 4,
+      }, onResponse);
+      arm(req);
+      req.end(body);
+      return;
+    }
+    // Напрямую (IPv4 принудительно — самый частый источник «fetch failed»).
+    const req = (isHttps ? https : http).request({
+      host: url.hostname,
+      port,
+      method: "POST",
+      path: url.pathname + url.search,
+      headers,
+      family: 4,
+    }, onResponse);
+    arm(req);
+    req.end(body);
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.ok === false) {
-    throw new Error(`Telegram ${method} -> ${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
+}
+
+async function tg(method, payload = {}) {
+  const { status, json } = await postJson(`${TG_BASE}/bot${TG_TOKEN}/${method}`, payload);
+  if (status !== 200 || json?.ok === false) {
+    throw new Error(`Telegram ${method} -> ${status}: ${JSON.stringify(json).slice(0, 300)}`);
   }
-  return data;
+  return json;
 }
 
 /** Отправить текст (с нарезкой); вернуть message_id ПОСЛЕДНЕГО куска. */
@@ -360,6 +471,7 @@ async function pollLoop() {
     }
     runtime.polling = true;
     try {
+      const t0 = Date.now();
       const payload = { timeout: 50, allowed_updates: ["message"] };
       if (state.offset !== null) payload.offset = state.offset;
       const data = await tg("getUpdates", payload);
@@ -378,6 +490,11 @@ async function pollLoop() {
             log("handleMessage error:", e.message);
           }
         }
+      }
+      // Telegram держит long poll ~50 с; если ответ пришёл мгновенно и пустой
+      // (прокси/зеркало без long poll) — не молотим API, делаем паузу.
+      if (!(data.result || []).length && Date.now() - t0 < 1000) {
+        await new Promise((r) => setTimeout(r, 2000));
       }
     } catch (e) {
       runtime.lastError = maskToken(e.message).slice(0, 300);
