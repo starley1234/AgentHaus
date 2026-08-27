@@ -98,6 +98,7 @@ services:
       IMAP_PASSWORD: "${IMAP_PASSWORD:-}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
       NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
       # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
       GITHUB_APP_ID: "${GITHUB_APP_ID:-}"

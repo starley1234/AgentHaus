@@ -38,6 +38,36 @@ docker compose logs | grep Telegram   # → «Telegram-мост запущен (
 | `/help`, `/start` | справка |
 | файл/фото | пока не принимаются (мост попросит текст) |
 
+## Диагностика: «пишу боту — ничего не происходит»
+
+Проверь по порядку (все команды — на хосте):
+
+```bash
+# 1. Мост вообще стартовал?
+docker compose logs | grep -i "telegram"
+#   «Telegram-мост запущен…»      → идём дальше
+#   «Telegram-мост не запущен…»   → в .env пустые TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID
+#   ничего                        → образ старый: git pull && docker compose up -d --build
+
+# 2. Переменные дошли до контейнера?
+docker exec agenthaus sh -c 'env | grep TELEGRAM'
+
+# 3. Что говорит сам мост?
+docker exec agenthaus curl -s http://127.0.0.1:8294/api/status
+#   configured:false → пустые переменные;  polling:false / last_error → читай ошибку
+#   (например 401 от Telegram = неверный токен; conflict = второй потребитель getUpdates)
+
+# 4. Правильный ли chat_id? Сравни с тем, что видит бот:
+docker exec agenthaus notify chatid
+```
+
+Типовые причины:
+- **перезапуск без пересборки** — мост появился в образе недавно: нужен
+  `docker compose up -d --build`, а не просто restart;
+- **TELEGRAM_CHAT_ID не заполнен или не твой** — возьми из `notify chatid`;
+- **бот отвечает ⚠️-ошибкой** — читай текст: там причина (обычно LLM-профиль
+  не настроен в Canvas или agent-server ещё поднимается).
+
 ## Безопасность
 
 - **Allowlist**: обрабатываются только чаты из `TELEGRAM_CHAT_ID` /
