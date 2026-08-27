@@ -3,6 +3,9 @@
 Proxies noVNC HTTP requests and WebSocket connections through the agent server,
 so the frontend can access VNC without needing direct access to the VNC port.
 This solves port accessibility issues in containerized/sandbox environments.
+
+All heavy imports (httpx, websockets) are lazy-loaded inside route handlers
+so the module can be imported without those packages being installed.
 """
 
 from __future__ import annotations
@@ -10,9 +13,8 @@ from __future__ import annotations
 import asyncio
 import os
 
-import httpx
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from starlette.websockets import WebSocketState
 
 from openhands.sdk.logger import get_logger
@@ -31,6 +33,12 @@ NOVNC_BASE_URL = f"http://{VNC_HOST}:{NOVNC_PORT}"
 @vnc_proxy_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_http_request(request: Request, path: str = ""):
     """Proxy HTTP requests to the noVNC server."""
+    try:
+        import httpx
+    except ImportError:
+        logger.warning("httpx not installed — VNC proxy unavailable")
+        return Response(content="VNC proxy unavailable (httpx not installed)", status_code=503)
+
     target_url = f"{NOVNC_BASE_URL}/{path}"
 
     # Preserve query parameters
@@ -84,20 +92,17 @@ async def proxy_websocket(websocket: WebSocket):
     """Proxy WebSocket connections to the VNC server."""
     await websocket.accept()
 
+    try:
+        import websockets
+    except ImportError:
+        logger.warning("websockets not installed — VNC WebSocket proxy unavailable")
+        await websocket.close(code=1011, reason="websockets not installed")
+        return
+
     target_ws_url = f"ws://{VNC_HOST}:{NOVNC_PORT}/websockify"
 
     try:
-        async with httpx.AsyncClient() as client:
-            # Connect to the target WebSocket
-            async with client.stream("GET", target_ws_url) as response:
-                # This won't work for WebSocket - need to use websockets library
-                pass
-
-        # Use websockets library instead
-        import websockets
-
         async with websockets.connect(target_ws_url) as target_ws:
-            # Create tasks for bidirectional forwarding
             async def forward_client_to_target():
                 try:
                     while True:
@@ -119,7 +124,6 @@ async def proxy_websocket(websocket: WebSocket):
                 except Exception as e:
                     logger.debug(f"Target to client error: {e}")
 
-            # Run both directions concurrently
             await asyncio.gather(
                 forward_client_to_target(),
                 forward_target_to_client(),
