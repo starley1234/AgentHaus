@@ -18643,6 +18643,30 @@
     "ca": "Encara no s'ha carregat cap pàgina. Demaneu a OpenHands que obri una URL. Exemple: \"Obre https://example.com\"",
     "ru": "Страница ещё не загружена. Попросите OpenHands открыть URL. Например: «Открой https://example.com»"
   },
+  "BROWSER$VIEW_MODE_LABEL": {
+    "en": "View mode",
+    "ru": "Режим просмотра"
+  },
+  "BROWSER$VIEW_MODE_SCREENSHOT": {
+    "en": "Screenshot (read-only)",
+    "ru": "Скриншот (только чтение)"
+  },
+  "BROWSER$VIEW_MODE_LIVE": {
+    "en": "Live interactive view",
+    "ru": "Интерактивный просмотр"
+  },
+  "BROWSER$LIVE_LOADING": {
+    "en": "Connecting to browser...",
+    "ru": "Подключение к браузеру..."
+  },
+  "BROWSER$LIVE_ERROR": {
+    "en": "Failed to connect to the live browser. Falling back to screenshot.",
+    "ru": "Не удалось подключиться к браузеру. Переключение на скриншот."
+  },
+  "BROWSER$LIVE_TITLE": {
+    "en": "Live browser view",
+    "ru": "Интерактивный просмотр браузера"
+  },
   "USER$AVATAR_PLACEHOLDER": {
     "en": "user avatar placeholder",
     "ja": "ユーザーアバターのプレースホルダー",
