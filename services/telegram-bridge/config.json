@@ -1,0 +1,13 @@
+{
+  "$comment": "Сервис «telegram-bridge» — двусторонний Telegram-бот: владелец пишет боту, мост создаёт/продолжает диалоги на едином бэкенде и возвращает ответы агента в чат. Long polling — публичный URL не нужен.",
+  "name": "telegram-bridge",
+  "port": 8294,
+  "title": "Telegram-мост",
+  "description": "Пиши боту в Telegram — агент выполняет задачи и отвечает в чат. Reply продолжает диалог; /new, /status, /stop.",
+  "access": "public",
+  "enabled": true,
+  "max_iterations": 100,
+  "max_new_dialogs_per_hour": 12,
+  "watch_poll_interval_ms": 5000,
+  "watch_timeout_ms": 7200000
+}

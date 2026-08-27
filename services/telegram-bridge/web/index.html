@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram-мост — статус</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 1.4rem; }
+  .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px 20px; margin: 12px 0; }
+  .ok { color: #0a7d33; } .bad { color: #b00020; }
+  code { background: #f4f4f4; padding: 1px 5px; border-radius: 4px; }
+  dt { font-weight: 600; } dd { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<h1>🤖 Telegram-мост</h1>
+<p>Пиши боту в Telegram — агент выполнит задачу и ответит в чат.
+Reply продолжает диалог; команды: <code>/new</code>, <code>/status</code>,
+<code>/stop</code>, <code>/help</code>.</p>
+<div class="card" id="card">Загрузка статуса…</div>
+<p>Настройка: <code>TELEGRAM_BOT_TOKEN</code> и <code>TELEGRAM_CHAT_ID</code>
+в <code>.env</code> (см. <code>docs/TELEGRAM_TWO_WAY_RU.md</code>).
+Содержимое переписки на этой странице не отображается.</p>
+<script>
+async function refresh() {
+  try {
+    const s = await (await fetch("api/status")).json();
+    const rows = [
+      ["Настроен", s.configured ? "✅ да" : "❌ нет — заполни TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID в .env"],
+      ["Опрос Telegram", s.polling ? "✅ идёт" : "⏸ не идёт"],
+      ["Последний успешный опрос", s.last_poll_ok ? new Date(s.last_poll_ok).toLocaleTimeString() : "—"],
+      ["Ошибка", s.last_error || "—"],
+      ["Разрешённых чатов", s.allowed_chats],
+      ["Задач под наблюдением", s.active_watches],
+      ["Новых диалогов за час", s.dialogs_last_hour],
+      ["Аптайм, с", s.uptime_s],
+    ];
+    document.getElementById("card").innerHTML =
+      "<dl>" + rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") + "</dl>";
+  } catch (e) {
+    document.getElementById("card").innerHTML = '<span class="bad">Статус недоступен: ' + e + "</span>";
+  }
+}
+refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>
