@@ -21,7 +21,12 @@ const apiKey = process.env.AGENT_SERVER_API_KEY || "";
 
 function headers(extra = {}) {
   const h = { "Content-Type": "application/json", ...extra };
-  if (apiKey) h.Authorization = `Bearer ${apiKey}`;
+  if (apiKey) {
+    // agent-server проверяет заголовок X-Session-API-Key; Authorization
+    // оставляем для совместимости с прослойками, которые ждут Bearer.
+    h["X-Session-API-Key"] = apiKey;
+    h.Authorization = `Bearer ${apiKey}`;
+  }
   return h;
 }
 
@@ -51,7 +56,9 @@ export async function uploadFile(absPath, data, filename, mime = "application/oc
   fd.append("file", new Blob([data], { type: mime }), filename);
   const res = await fetch(`${baseUrl}/api/file/upload?path=${encodeURIComponent(absPath)}`, {
     method: "POST",
-    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+    headers: apiKey
+      ? { "X-Session-API-Key": apiKey, Authorization: `Bearer ${apiKey}` }
+      : {},
     body: fd,
   });
   if (!res.ok) {

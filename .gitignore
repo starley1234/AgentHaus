@@ -10,3 +10,4 @@ projects/
 # Локальные данные сервисов/шлюза (RBAC-хранилище ./data/auth.json и т.п.).
 data/
 services/book-site/out/index.html
+services/telegram-bridge/state.json

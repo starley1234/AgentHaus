@@ -82,12 +82,38 @@ services:
       # Значение 4 — безопасный дефолт для одного self-hosted инстанса; подними
       # его только если CPU/RAM и лимиты LLM-провайдера это позволяют.
       OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
+
+      # ── Уведомления (навык notify): email / Telegram / webhook ──
+      # Контакты владельца задаются в .env один раз; агент внутри контейнера
+      # наследует эти переменные и шлёт отчёты без уточняющих вопросов.
+      # Подробности: docs/NOTIFICATIONS_RU.md
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      NOTIFY_EMAIL_TO: "${NOTIFY_EMAIL_TO:-}"
+      IMAP_HOST: "${IMAP_HOST:-}"
+      IMAP_PORT: "${IMAP_PORT:-993}"
+      IMAP_USER: "${IMAP_USER:-}"
+      IMAP_PASSWORD: "${IMAP_PASSWORD:-}"
+      NOTIFY_SAVE_SENT: "${NOTIFY_SAVE_SENT:-1}"
+      IMAP_SENT_FOLDER: "${IMAP_SENT_FOLDER:-}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
+      # Рубильник создания автоматизаций (cron-задач): 0 = запретить создавать
+      # новые (управление существующими остаётся доступным).
+      AUTOMATION_ALLOW_CREATE: "${AUTOMATION_ALLOW_CREATE:-1}"
+
       # ── VNC/интерактивный браузер ──
       # Включает VNC-сервер (TigerVNC + noVNC) внутри контейнера.
       # Это позволяет использовать интерактивный просмотр браузера во вкладке
       # «Browser» — кликать, вводить текст, проходить капчу за агента.
       # Без этого работает только статичный скриншот.
       OH_ENABLE_VNC: "${OH_ENABLE_VNC:-true}"
+
       # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
       GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
       GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID:-}"
@@ -98,7 +124,11 @@ services:
       # ── Безопасность: свой ключ вместо автогенерации ──
       LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY:-}"
       # ── При необходимости — внешний URL (если публикуешь наружу) ──
-      AUTOMATION_BASE_URL: "${AUTOMATION_BASE_URL:-http://localhost:${AGENT_CANVAS_PORT:-8000}}"
+      # ВНИМАНИЕ: это ПУБЛИЧНЫЙ URL для callback'ов (webhooks). НЕ задавай его
+      # по умолчанию хостовым портом: внутри контейнера агент должен ходить на
+      # внутренний прокси (http://127.0.0.1:8000) — entrypoint сам подставит
+      # правильный адрес, если переменная пуста.
+      AUTOMATION_BASE_URL: "${AUTOMATION_BASE_URL:-}"
     volumes:
       # Персистентность: настройки, секреты, диалоги, база автоматизаций.
       - openhands_data:/home/openhands/.openhands

@@ -176,6 +176,29 @@ ENV NOVNC_WEB=/usr/share/novnc
 RUN uv pip install --system "openhands-automation==${AUTOMATION_VERSION}" 2>/dev/null \
     || pip install --no-cache-dir "openhands-automation==${AUTOMATION_VERSION}"
 
+# ── Офисные форматы: библиотеки предустановлены, чтобы агент не тратил
+#    время и трафик на `pip install` в каждом диалоге. ──
+#   python-docx  — Word (.docx): создание/чтение/правка
+#   openpyxl     — Excel (.xlsx): чтение/запись, формулы, стили
+#   xlsxwriter   — Excel (.xlsx): быстрая запись, диаграммы, форматирование
+#   python-pptx  — PowerPoint (.pptx): слайды, текст, картинки, таблицы
+#   pandas       — таблицы/аналитика; read_excel/to_excel, CSV
+#   pypdf        — PDF: объединение, разбиение, извлечение страниц
+#   (текст из PDF — poppler-utils/pdftotext, установлен выше)
+RUN (uv pip install --system python-docx openpyxl xlsxwriter python-pptx pandas pypdf 2>/dev/null \
+     || pip install --no-cache-dir python-docx openpyxl xlsxwriter python-pptx pandas pypdf) && \
+    python3 -c "import docx, openpyxl, xlsxwriter, pptx, pandas, pypdf; print('office libs OK')"
+
+# Опционально: LibreOffice headless — конвертация в PDF и поддержка legacy
+# .doc/.xls/.ppt. Добавляет ~700 МБ к образу, поэтому по умолчанию выключен.
+# Включение: docker compose build --build-arg WITH_LIBREOFFICE=1
+ARG WITH_LIBREOFFICE=""
+RUN if [ -n "$WITH_LIBREOFFICE" ] && command -v apt-get >/dev/null 2>&1; then \
+      apt-get update && \
+      apt-get install -y --no-install-recommends libreoffice --no-install-suggests && \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # Use the agent-server built from our LOCAL software-agent-sdk (see
 # stage 1c). The base image ships a PyInstaller binary with a frozen SDK, so
 # site-packages patches never reach it — running from this source venv is the
@@ -226,6 +249,22 @@ COPY --from=config-gen /tmp/defaults.env /opt/agent-canvas/defaults.env
 # no network, deterministic, and already Russian-localized where customized.
 COPY extensions/ /opt/agent-canvas/extensions/
 ENV EXTENSIONS_REPO=/opt/agent-canvas/extensions
+
+# Telegram-мост (двусторонний бот) + общая библиотека сервисов. Entrypoint
+# запускает мост автоматически, когда в .env заданы TELEGRAM_BOT_TOKEN и
+# TELEGRAM_CHAT_ID — отдельных команд на хосте не требуется.
+COPY services/lib/ /opt/agent-canvas/services/lib/
+COPY services/telegram-bridge/ /opt/agent-canvas/services/telegram-bridge/
+
+# Глобальная команда `notify` (email/Telegram/webhook): агент отправляет
+# отчёты одной командой, без поиска пути к скрипту навыка по файловой системе.
+RUN printf '%s\n' \
+      '#!/bin/sh' \
+      's="${EXTENSIONS_REPO:-/opt/agent-canvas/extensions}/skills/notify/scripts/notify.py"' \
+      '[ -f "$s" ] || s=/opt/agent-canvas/extensions/skills/notify/scripts/notify.py' \
+      'exec python3 "$s" "$@"' \
+      > /usr/local/bin/notify && \
+    chmod +x /usr/local/bin/notify
 
 # Copy the entrypoint
 COPY docker/entrypoint.sh /opt/agent-canvas/entrypoint.sh

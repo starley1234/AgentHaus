@@ -39881,5 +39881,23 @@
   "SETTINGS$PLUGINS_BULK_ACTIONS": {
     "en": "Bulk actions",
     "ru": "Массовые действия"
+  },
+  "AUTOMATIONS$CREATE_DISABLED_BANNER": {
+    "en": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "ja": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "zh-CN": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "zh-TW": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "ko-KR": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "no": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "it": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "pt": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "es": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "ar": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "fr": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "tr": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "de": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "uk": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "ca": "Creating new automations is disabled (AUTOMATION_ALLOW_CREATE=0 in .env). You can still pause, run, or delete existing ones.",
+    "ru": "Создание новых автоматизаций отключено (AUTOMATION_ALLOW_CREATE=0 в .env). Управлять существующими — пауза, запуск, удаление — можно."
   }
 }

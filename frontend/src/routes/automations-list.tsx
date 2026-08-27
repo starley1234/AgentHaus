@@ -23,6 +23,7 @@ import {
   useImportAutomation,
 } from "#/hooks/query/use-automations";
 import { useAutomationHealth } from "#/hooks/query/use-automation-health";
+import { useAutomationGuard } from "#/hooks/query/use-automation-guard";
 import { useActiveBackend } from "#/contexts/active-backend-context";
 import { SearchInput } from "#/components/features/automations/search-input";
 import { AutomationGroup } from "#/components/features/automations/automation-group";
@@ -120,6 +121,8 @@ export default function AutomationsList() {
   } = useAutomationHealth();
 
   const isBackendHealthy = healthData?.status === "ok";
+  const { data: guardData } = useAutomationGuard();
+  const createDisabled = guardData?.allow_create === false;
 
   // Only fetch automations if the backend is healthy
   const { data, isLoading, isError, refetch } = useAutomations({
@@ -379,6 +382,7 @@ export default function AutomationsList() {
             className="whitespace-nowrap"
             onClick={() => importInputRef.current?.click()}
             startContent={<FileUp className="size-4" aria-hidden />}
+            isDisabled={createDisabled}
           >
             {t(I18nKey.AUTOMATIONS$IMPORT)}
           </BrandButton>
@@ -396,11 +400,22 @@ export default function AutomationsList() {
             testId="automations-add-automation"
             className="whitespace-nowrap"
             onClick={() => setIsAddAutomationOpen(true)}
+            isDisabled={createDisabled}
           >
             {t(I18nKey.AUTOMATIONS$ADD_AUTOMATION)}
           </BrandButton>
         </div>
       </div>
+
+      {/* Guard banner: creating new automations is disabled server-side */}
+      {createDisabled && (
+        <div
+          data-testid="automations-create-disabled-banner"
+          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          {t(I18nKey.AUTOMATIONS$CREATE_DISABLED_BANNER)}
+        </div>
+      )}
 
       {/* Overview tiles — dashboard mode only */}
       {dashboard && (
