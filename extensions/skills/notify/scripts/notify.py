@@ -491,8 +491,53 @@ def send_webhook(text):
 
 # ── Команды ───────────────────────────────────────────────────────────────────
 
-ASK_LOCK = "/tmp/agenthaus-notify-ask.lock"
+ASK_LOCK = os.environ.get("NOTIFY_ASK_LOCK", "/tmp/agenthaus-notify-ask.lock")
 ASK_LOCK_STALE_SECONDS = 2 * 3600
+# Координация с telegram-bridge: если мост жив (свежий heartbeat), он владеет
+# getUpdates, а ответы владельца ретранслирует в relay-файл — ask читает его.
+BRIDGE_HEARTBEAT = os.environ.get(
+    "TELEGRAM_BRIDGE_HEARTBEAT", "/tmp/agenthaus-telegram-bridge.heartbeat")
+BRIDGE_RELAY = os.environ.get(
+    "TELEGRAM_RELAY_FILE", "/tmp/agenthaus-telegram-relay.jsonl")
+BRIDGE_FRESH_SECONDS = 90
+
+
+def _bridge_alive():
+    try:
+        return time.time() - os.path.getmtime(BRIDGE_HEARTBEAT) < BRIDGE_FRESH_SECONDS
+    except OSError:
+        return False
+
+
+def _ask_wait_via_relay(chat_id, deadline):
+    """Ждать ответ через relay-файл моста (мост владеет getUpdates)."""
+    try:
+        start_size = os.path.getsize(BRIDGE_RELAY)
+    except OSError:
+        start_size = 0
+    started = time.time()
+    while time.time() < deadline:
+        # Обновляем mtime lock-файла — мост по нему понимает, что ask ещё ждёт.
+        try:
+            os.utime(ASK_LOCK)
+        except OSError:
+            pass
+        try:
+            with open(BRIDGE_RELAY, "r", encoding="utf-8", errors="replace") as f:
+                f.seek(start_size)
+                for line in f:
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue
+                    if (str(rec.get("chat_id")) == str(chat_id)
+                            and rec.get("ts", 0) / 1000.0 >= started - 1
+                            and rec.get("text")):
+                        return rec["text"].strip()
+        except OSError:
+            pass
+        time.sleep(1)
+    return None
 
 
 def _ask_acquire_lock():
@@ -532,6 +577,22 @@ def cmd_ask(args):
 
     _ask_acquire_lock()
     try:
+        # Если работает telegram-bridge — getUpdates принадлежит ему; шлём
+        # вопрос и ждём ответ через relay-файл моста.
+        if _bridge_alive():
+            send_telegram(chat_id, args.text)
+            deadline = time.time() + args.timeout
+            reply = _ask_wait_via_relay(chat_id, deadline)
+            if reply is not None:
+                print(f"ОТВЕТ ВЛАДЕЛЬЦА: {reply}")
+                return
+            print(
+                f"Ответ не получен за {args.timeout} с — действуй по умолчанию "
+                "или переспроси позже.",
+                file=sys.stderr,
+            )
+            sys.exit(3)
+
         # Базовый offset: всё, что уже лежит в очереди, — не ответ на наш вопрос.
         data = _tg_api("getUpdates", {"timeout": 0, "offset": -1}, token)
         baseline = data.get("result", [])

@@ -214,6 +214,12 @@ COPY --from=config-gen /tmp/defaults.env /opt/agent-canvas/defaults.env
 COPY extensions/ /opt/agent-canvas/extensions/
 ENV EXTENSIONS_REPO=/opt/agent-canvas/extensions
 
+# Telegram-мост (двусторонний бот) + общая библиотека сервисов. Entrypoint
+# запускает мост автоматически, когда в .env заданы TELEGRAM_BOT_TOKEN и
+# TELEGRAM_CHAT_ID — отдельных команд на хосте не требуется.
+COPY services/lib/ /opt/agent-canvas/services/lib/
+COPY services/telegram-bridge/ /opt/agent-canvas/services/telegram-bridge/
+
 # Глобальная команда `notify` (email/Telegram/webhook): агент отправляет
 # отчёты одной командой, без поиска пути к скрипту навыка по файловой системе.
 RUN printf '%s\n' \

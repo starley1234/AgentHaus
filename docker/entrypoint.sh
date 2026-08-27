@@ -325,6 +325,23 @@ node /opt/agent-canvas/static-server.mjs \
 STATIC_PID=$!
 PIDS+=("$STATIC_PID")
 
+# ── 4b. Telegram-мост (двусторонний бот) ────────────────────────────────────
+# Стартует АВТОМАТИЧЕСКИ, если в .env заданы TELEGRAM_BOT_TOKEN и
+# TELEGRAM_CHAT_ID (или TELEGRAM_ALLOWED_CHAT_IDS) — ничего отдельно
+# запускать не нужно. Общается с agent-server через внутренний прокси.
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && { [ -n "${TELEGRAM_CHAT_ID:-}" ] || [ -n "${TELEGRAM_ALLOWED_CHAT_IDS:-}" ]; }; then
+  if [ -f /opt/agent-canvas/services/telegram-bridge/server.mjs ]; then
+    AGENT_SERVER_URL="http://127.0.0.1:${PORT}" \
+    AGENT_SERVER_API_KEY="$EFFECTIVE_SESSION_KEY" \
+    TELEGRAM_BRIDGE_STATE="${STATE_DIR}/telegram-bridge-state.json" \
+    node /opt/agent-canvas/services/telegram-bridge/server.mjs &
+    PIDS+=("$!")
+    log "Telegram-мост запущен (long polling; напиши своему боту — агент ответит)"
+  fi
+else
+  log "Telegram-мост не запущен (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID пусты в .env)"
+fi
+
 # ── 5. (Optional) Public-mode static server ─────────────────────────────────
 # When PUBLIC_MODE_PORT is set, start a second static-server instance that
 # serves the same frontend WITHOUT injecting the session key into the HTML

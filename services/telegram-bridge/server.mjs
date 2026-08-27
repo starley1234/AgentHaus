@@ -22,7 +22,7 @@
  * (`services/gateway.mjs` → /telegram-bridge/). Веб-страница — только статус,
  * без содержимого переписки.
  */
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, appendFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -51,7 +51,19 @@ const ALLOWED_CHATS = new Set(
 );
 const AGENT_WORK_ROOT = (process.env.AGENT_WORK_ROOT || "/projects").replace(/\/+$/, "");
 
-const STATE_PATH = path.join(__dirname, "state.json");
+const STATE_PATH =
+  process.env.TELEGRAM_BRIDGE_STATE || path.join(__dirname, "state.json");
+// Координация с `notify ask` (оба потребителя getUpdates не могут работать
+// одновременно): мост пишет heartbeat; пока существует свежий ask-lock,
+// сообщения владельца не обрабатываются как задачи, а ретранслируются в
+// relay-файл, откуда их читает notify ask.
+const HEARTBEAT_PATH =
+  process.env.TELEGRAM_BRIDGE_HEARTBEAT || "/tmp/agenthaus-telegram-bridge.heartbeat";
+const ASK_LOCK_PATH =
+  process.env.NOTIFY_ASK_LOCK || "/tmp/agenthaus-notify-ask.lock";
+const RELAY_PATH =
+  process.env.TELEGRAM_RELAY_FILE || "/tmp/agenthaus-telegram-relay.jsonl";
+const ASK_LOCK_FRESH_MS = 2 * 3600_000;
 const TELEGRAM_CHUNK = 4000;
 
 // ── Состояние ────────────────────────────────────────────────────────────────
@@ -265,6 +277,24 @@ async function handleMessage(msg) {
 
   const text = (msg.text || msg.caption || "").trim();
 
+  // Активный `notify ask` ждёт ответа владельца → ретранслируем сообщение
+  // ему (relay-файл) и не трактуем его как новую задачу.
+  if (text && !text.startsWith("/")) {
+    try {
+      const st = await stat(ASK_LOCK_PATH);
+      if (Date.now() - st.mtimeMs < ASK_LOCK_FRESH_MS) {
+        await appendFile(
+          RELAY_PATH,
+          JSON.stringify({ ts: Date.now(), chat_id: chatId, text }) + "\n",
+        );
+        log(`chat ${chatId}: сообщение передано активному notify ask`);
+        return;
+      }
+    } catch {
+      /* lock отсутствует — обычная обработка */
+    }
+  }
+
   if (msg.document || msg.photo) {
     await tgSend(chatId, "📎 Файлы через мост пока не принимаю — положи файл в ./projects/ или пришли текстом, что сделать.");
     if (!text) return;
@@ -335,6 +365,9 @@ async function pollLoop() {
       const data = await tg("getUpdates", payload);
       runtime.lastPollOk = Date.now();
       runtime.lastError = "";
+      // Heartbeat: notify ask по нему понимает, что мост владеет getUpdates,
+      // и переключается на чтение relay-файла вместо собственного опроса.
+      writeFile(HEARTBEAT_PATH, String(Date.now())).catch(() => {});
       for (const upd of data.result || []) {
         state.offset = upd.update_id + 1;
         saveState();
