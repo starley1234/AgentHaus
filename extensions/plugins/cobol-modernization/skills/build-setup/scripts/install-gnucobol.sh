@@ -1,9 +1,9 @@
 #!/bin/bash
-# Install GnuCOBOL compiler for COBOL-to-Java migration projects
+# Установка компилятора GnuCOBOL для проектов миграции COBOL → Java
 
 set -euo pipefail
 
-echo "Installing GnuCOBOL..."
+echo "Устанавливаю GnuCOBOL..."
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if command -v apt-get &> /dev/null; then
@@ -12,21 +12,21 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     elif command -v yum &> /dev/null; then
         sudo yum install -y gnucobol
     else
-        echo "Error: Unsupported Linux package manager"
+        echo "Ошибка: Неподдерживаемый пакетный менеджер Linux"
         exit 1
     fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     if command -v brew &> /dev/null; then
         brew install gnucobol
     else
-        echo "Error: Homebrew not found. Install from https://brew.sh"
+        echo "Ошибка: Homebrew не найден. Установите с https://brew.sh"
         exit 1
     fi
 else
-    echo "Error: Unsupported OS: $OSTYPE"
+    echo "Ошибка: Неподдерживаемая ОС: $OSTYPE"
     exit 1
 fi
 
-echo "Verifying installation..."
+echo "Проверяю установку..."
 cobc --version
-echo "GnuCOBOL installed successfully!"
+echo "GnuCOBOL успешно установлен!"

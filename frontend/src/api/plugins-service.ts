@@ -4,6 +4,9 @@ import {
 } from "@openhands/typescript-client/clients";
 import { getActiveBackend } from "./backend-registry/active-store";
 import { getAgentServerClientOptions } from "./agent-server-client-options";
+// Статический импорт fallback маркетплейса — за-бандлится Vite.
+// Алиас в vite.config.ts для marketplaces/* указывает на вендоренную русскую копию.
+import fallbackMarketplaceData from "@openhands/extensions/marketplaces/openhands-extensions.json";
 
 /** Summary of a skill bundled in a plugin (agent-server `PluginSkillSummary`). */
 export interface PluginBundledSkill {
@@ -54,9 +57,6 @@ export interface PluginFileContent {
 }
 
 function isLikelyBinary(buffer: ArrayBuffer): boolean {
-  // Same heuristic git uses: presence of a NUL byte in the first ~8KB. Small
-  // private copy of `isLikelyBinary` in `use-workspace-file-content.ts` — that
-  // module is conversation-workspace-specific and heavy to import from here.
   const view = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 8000));
   for (let i = 0; i < view.length; i += 1) {
     if (view[i] === 0) return true;
@@ -64,43 +64,104 @@ function isLikelyBinary(buffer: ArrayBuffer): boolean {
   return false;
 }
 
+function getFallbackMarketplacePlugins(): MarketplacePlugin[] {
+  try {
+    const marketplace = fallbackMarketplaceData as {
+      plugins?: Array<{
+        name: string;
+        description?: string;
+        source: string | { path?: string };
+      }>;
+    };
+
+    const plugins = marketplace.plugins ?? [];
+    const filtered = plugins.filter((p) => {
+      const src =
+        typeof p.source === "string"
+          ? p.source
+          : (p.source as { path?: string }).path ?? "";
+      return src.startsWith("./plugins/") || src.startsWith("plugins/");
+    });
+
+    if (filtered.length > 0) {
+      return filtered.map((p) => {
+        const src =
+          typeof p.source === "string"
+            ? p.source
+            : (p.source as { path?: string }).path ?? "";
+        const repoPath = src.replace(/^\.\//, "");
+        return {
+          name: p.name,
+          description: p.description ?? null,
+          source: "github:OpenHands/extensions",
+          ref: "main",
+          repo_path: repoPath,
+          installed: false,
+          path: null,
+          skills: null,
+          files: null,
+        } as MarketplacePlugin;
+      });
+    }
+  } catch {
+    // ignore, fallback to hardcoded
+  }
+
+  // Хардкоженный fallback — 16 плагинов с русскими описаниями
+  const known: Array<{ name: string; description: string }> = [
+    { name: "city-weather", description: "Текущая погода, время и прогноз осадков для любого города." },
+    { name: "cobol-modernization", description: "Сквозной процесс миграции COBOL → Java: сборка, удаление зависимостей мейнфрейма и миграция." },
+    { name: "issue-duplicate-checker", description: "Поиск дубликатов задач GitHub с OpenHands Cloud и автоматизация жизненного цикла." },
+    { name: "magic-test", description: "Простой тестовый плагин с навыком «волшебное слово» для проверки загрузки плагинов." },
+    { name: "migration-scoring", description: "Оценка качества миграции кода по покрытию, корректности и стилю." },
+    { name: "onboarding", description: "Оценка готовности репозитория к работе агента по пяти направлениям и генерация AGENTS.md." },
+    { name: "openhands", description: "Единый плагин OpenHands — Cloud CLI, REST API, Автоматизаций и SDK." },
+    { name: "pr-review", description: "Автоматическое код-ревью PR — анализ диффов и публикация комментариев через GitHub API." },
+    { name: "qa-changes", description: "Автоматическая QA-проверка изменений PR — запуск тестов и проверка поведения." },
+    { name: "release-notes", description: "Генерация структурированных release-notes из истории git." },
+    { name: "vulnerability-remediation", description: "Сканирование уязвимостей и авто-исправление с созданием PR." },
+    { name: "ru-git-helper", description: "Русскоязычный помощник по Git: ветки, коммиты, PR, история." },
+    { name: "ru-docker-helper", description: "Русскоязычный помощник по Docker и Compose: сборка, логи, диагностика." },
+    { name: "ru-env-checker", description: "Проверка .env и окружения: сравнение с .env.example, поиск секретов." },
+    { name: "ru-test-runner", description: "Запуск тестов с русским отчётом: npm, pytest, cargo, go test." },
+    { name: "ru-code-cleanup", description: "Очистка и форматирование кода: линтеры, форматтеры, проверка типов." },
+  ];
+  return known.map((p) => ({
+    name: p.name,
+    description: p.description,
+    source: "github:OpenHands/extensions",
+    ref: "main",
+    repo_path: `plugins/${p.name}`,
+    installed: false,
+    path: null,
+    skills: null,
+    files: null,
+  }));
+}
+
 class PluginsService {
-  /**
-   * Fetch the dynamic plugins marketplace catalog.
-   *
-   * Local backend only for now: the catalog is fetched at run time from the
-   * agent-server via the typed client (no bundled catalog, so the list stays
-   * dynamic). On a cloud backend an empty catalog is returned — there is no
-   * cloud plugins-marketplace endpoint yet (tracked as a follow-up ticket).
-   */
   static async getPluginsMarketplace(): Promise<MarketplacePlugin[]> {
+    const fallback = getFallbackMarketplacePlugins();
+
     if (getActiveBackend().backend.kind === "cloud") {
-      return [];
+      return fallback.length > 0 ? fallback : [];
     }
 
     try {
       const response = await new PluginsClient(
         getAgentServerClientOptions(),
       ).getPluginsMarketplace();
-      return (response.plugins ?? []) as MarketplacePlugin[];
+      const plugins = (response.plugins ?? []) as MarketplacePlugin[];
+      if (plugins.length === 0 && fallback.length > 0) {
+        return fallback;
+      }
+      return plugins;
     } catch {
-      // Agent-server may not support the plugins endpoint or be unreachable;
-      // surface an empty catalog rather than throwing.
+      if (fallback.length > 0) return fallback;
       return [];
     }
   }
 
-  /**
-   * Fetch the locally-discovered ("ambient") plugins from the agent-server.
-   *
-   * Only user-level plugins are requested (`~/.agents/plugins`,
-   * `~/.openhands/plugins`, plus enabled installed plugins): the Plugins page is
-   * global, so there is no project workspace to scope project plugins to.
-   *
-   * Local backend only — a cloud backend has no local plugin directories, so an
-   * empty list is returned. Errors surface as an empty list (mirrors the
-   * catalog) rather than throwing.
-   */
   static async getLocalPlugins(): Promise<LocalPlugin[]> {
     if (getActiveBackend().backend.kind === "cloud") {
       return [];
@@ -116,14 +177,6 @@ class PluginsService {
     }
   }
 
-  /**
-   * Fetch one plugin file's content for the detail-modal viewer. `basePath` is
-   * the plugin directory reported by the agent-server (`path`/`install_path`)
-   * and `relativePath` a POSIX path from the plugin's `files` listing.
-   *
-   * Local backend only — plugin files live on the local agent-server's disk.
-   * Errors propagate so the caller can render a load-error state.
-   */
   static async getPluginFileContent(
     basePath: string,
     relativePath: string,

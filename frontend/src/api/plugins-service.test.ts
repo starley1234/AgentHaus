@@ -58,22 +58,35 @@ describe("PluginsService.getPluginsMarketplace", () => {
     expect(getPluginsMarketplace).toHaveBeenCalledTimes(1);
   });
 
-  it("returns an empty catalog on a cloud backend without calling the client", async () => {
+  it("returns fallback catalog on a cloud backend without calling the client", async () => {
     useBackend("cloud");
 
     const result = await PluginsService.getPluginsMarketplace();
 
-    expect(result).toEqual([]);
+    // Fallback должен вернуть хотя бы city-weather и новые ru-плагины, чтобы UI не был пустым
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.some((p) => p.name === "city-weather")).toBe(true);
     expect(PluginsClient).not.toHaveBeenCalled();
   });
 
-  it("returns an empty catalog when the local request fails", async () => {
+  it("returns fallback catalog when the local request fails", async () => {
     useBackend("local");
     getPluginsMarketplace.mockRejectedValue(new Error("unreachable"));
 
     const result = await PluginsService.getPluginsMarketplace();
 
-    expect(result).toEqual([]);
+    // Fallback вместо пустого списка
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.some((p) => p.name === "city-weather")).toBe(true);
+  });
+
+  it("returns fallback when backend returns empty list", async () => {
+    useBackend("local");
+    getPluginsMarketplace.mockResolvedValue({ plugins: [] });
+
+    const result = await PluginsService.getPluginsMarketplace();
+
+    expect(result.length).toBeGreaterThan(0);
   });
 });
 

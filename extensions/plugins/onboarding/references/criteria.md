@@ -1,144 +1,143 @@
-# Agent Readiness Criteria
+# Критерии готовности к агенту
 
-Features that make a codebase ready for AI-assisted development, organized into
-five pillars.  Derived from cluster analysis of 123 repositories, but written to
-be tool-agnostic.  Every feature answers one question: *if this is missing, what
-goes wrong for the agent?*
+Функции, делающие кодовую базу готовой к AI-ассистированной разработке, организованные в
+пять столпов. Получены из кластерного анализа 123 репозиториев, но написаны так, чтобы
+быть независимыми от инструментов. Каждая функция отвечает на один вопрос: *если этого нет, что
+пойдёт не так у агента?*
 
 ---
 
-## Pillar 1 · Agent Instructions
+## Столп 1 · Инструкции для агента
 
-How the repo tells AI agents what to do, what to avoid, and how the codebase
-works.  This is the highest-signal pillar — it's the difference between an agent
-that understands the project and one that's guessing.
+Как репозиторий сообщает AI-агентам, что делать, чего избегать и как устроена кодовая база.
+Это столп с самым высоким сигналом — разница между агентом, который понимает проект, и тем, который гадает.
 
-| # | Feature | What to look for | Evidence |
+| # | Функция | Что искать | Доказательства |
 |---|---------|------------------|----------|
-| 1 | **Agent instruction file** | A dedicated file telling agents how to work in this repo — conventions, banned patterns, common commands | `AGENTS.md`, `CLAUDE.md`, `COPILOT.md`, `CONVENTIONS.md` at root |
-| 2 | **AI IDE configuration** | Settings or rules for AI-powered editors/IDEs | `.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md`, `.github/instructions/`, `.claude/settings.json` |
-| 3 | **Multi-model support** | Instructions that work across different AI models/tools, not locked to one vendor | 2+ distinct agent config types from features 1–2 present in same repo |
-| 4 | **Agent skills or capabilities** | Packaged, reusable abilities the agent can invoke | `.claude/skills/`, `.factory/skills/`, `skill.md` files, tool definition files |
-| 5 | **Tool server configuration** | Config for agent tool protocols (lets agents use external tools) | `.mcp.json`, `mcp.config.js`, tool server manifests |
-| 6 | **Agent prompt library** | Pre-built prompts for common tasks in this repo | `.github/prompts/`, `prompts/` directory, prompt template files |
-| 7 | **Component-level agent guidance** | Different parts of the codebase have their own agent instructions | `AGENTS.md` or instruction files in subdirectories (e.g. `frontend/AGENTS.md`, `api/CLAUDE.md`) |
-| 8 | **README with build/run/test** | README includes the commands to build, run, and test the project | `README.md` containing code blocks with build/install/test commands |
-| 9 | **Contributing guide** | How to contribute — code style, PR process, commit conventions | `CONTRIBUTING.md`, `docs/contributing.md`, contributing section in README |
-| 10 | **Architecture documentation** | High-level overview of how the system is structured and why | `ARCHITECTURE.md`, `docs/architecture/`, Mermaid/PlantUML diagrams, `doc/design/` |
-| 11 | **API documentation** | Reference docs for the project's interfaces | `openapi.yaml`, generated HTML docs, `doc.go` files, Swagger UI, `api-docs/` |
-| 12 | **Inline code documentation** | Doc comments, docstrings — agents read these to understand intent | JSDoc `/** */` blocks, Python docstrings, GoDoc comments, RDoc `#` blocks, Rust `///` |
-| 13 | **Runnable examples** | Working example code the agent can study and imitate | `examples/` directory, `_examples/`, example apps with their own READMEs |
-| 14 | **Changelog** | History of what changed and how entries should be written | `CHANGELOG.md`, `CHANGES.md`, `HISTORY.md`, release notes in GitHub Releases |
-| 15 | **Environment variable documentation** | Template or docs for required env vars | `.env.example`, `.env.template`, env var table in README or docs |
-| 16 | **Documentation site or directory** | Organized docs beyond the README | `docs/` directory, Docusaurus/Sphinx/MkDocs/VitePress config, published doc site |
-| 17 | **Decision records** | Documented reasoning behind past architectural choices | `doc/adr/`, `decisions/`, `rfcs/`, numbered markdown decision files |
-| 18 | **Module-level READMEs** | Individual packages/modules have their own READMEs | `packages/*/README.md`, `libs/*/README.md`, per-crate/per-module READMEs |
+| 1 | **Файл инструкций для агента** | Отдельный файл, говорящий агентам, как работать в этом репозитории — конвенции, запрещённые паттерны, частые команды | `AGENTS.md`, `CLAUDE.md`, `COPILOT.md`, `CONVENTIONS.md` в корне |
+| 2 | **Конфигурация AI IDE** | Настройки или правила для AI-редакторов/IDE | `.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md`, `.github/instructions/`, `.claude/settings.json` |
+| 3 | **Поддержка нескольких моделей** | Инструкции, работающие на разных AI-моделях/инструментах, а не привязанные к одному вендору | 2+ разных типа конфигов агента из функций 1–2 в одном репозитории |
+| 4 | **Навыки или возможности агента** | Упакованные, переиспользуемые способности, которые агент может вызывать | `.claude/skills/`, `.factory/skills/`, файлы `skill.md`, файлы определений инструментов |
+| 5 | **Конфигурация сервера инструментов** | Конфиг для протоколов инструментов агента (позволяет агентам использовать внешние инструменты) | `.mcp.json`, `mcp.config.js`, манифесты сервера инструментов |
+| 6 | **Библиотека промптов агента** | Готовые промпты для частых задач в этом репозитории | `.github/prompts/`, каталог `prompts/`, файлы шаблонов промптов |
+| 7 | **Инструкции на уровне компонентов** | Разные части кодовой базы имеют свои инструкции для агента | `AGENTS.md` или файлы инструкций в подкаталогах (например, `frontend/AGENTS.md`, `api/CLAUDE.md`) |
+| 8 | **README со сборкой/запуском/тестами** | README включает команды сборки, запуска и тестирования проекта | `README.md`, содержащий блоки кода с командами сборки/установки/тестов |
+| 9 | **Гайд по участию** | Как вносить вклад — стиль кода, процесс PR, конвенции коммитов | `CONTRIBUTING.md`, `docs/contributing.md`, раздел участия в README |
+| 10 | **Документация архитектуры** | Высокоуровневый обзор структуры системы и почему так | `ARCHITECTURE.md`, `docs/architecture/`, диаграммы Mermaid/PlantUML, `doc/design/` |
+| 11 | **Документация API** | Справочные документы по интерфейсам проекта | `openapi.yaml`, сгенерированные HTML-документы, файлы `doc.go`, Swagger UI, `api-docs/` |
+| 12 | **Встроенная документация кода** | Комментарии к документам, docstring — агенты читают их, чтобы понять намерение | Блоки JSDoc `/** */`, docstring Python, комментарии GoDoc, блоки RDoc `#`, Rust `///` |
+| 13 | **Запускаемые примеры** | Рабочий пример кода, который агент может изучать и имитировать | Каталог `examples/`, `_examples/`, примерные приложения со своими README |
+| 14 | **Журнал изменений** | История того, что менялось и как должны писаться записи | `CHANGELOG.md`, `CHANGES.md`, `HISTORY.md`, заметки о релизах в GitHub Releases |
+| 15 | **Документация переменных окружения** | Шаблон или документы для требуемых env-переменных | `.env.example`, `.env.template`, таблица env-переменных в README или доках |
+| 16 | **Сайт или каталог документации** | Организованные доки помимо README | Каталог `docs/`, конфиг Docusaurus/Sphinx/MkDocs/VitePress, опубликованный сайт доков |
+| 17 | **Записи решений** | Задокументированные рассуждения за прошлыми архитектурными выборами | `doc/adr/`, `decisions/`, `rfcs/`, нумерованные markdown-файлы решений |
+| 18 | **README на уровне модулей** | Отдельные пакеты/модули имеют свои README | `packages/*/README.md`, `libs/*/README.md`, README по каждому крейту/модулю |
 
 ---
 
-## Pillar 2 · Feedback Loops
+## Столп 2 · Петли обратной связи
 
-How quickly and clearly the agent learns whether its changes are correct.  Fast,
-clear feedback is the difference between an agent that converges on a solution
-and one that spirals.
+Как быстро и чётко агент узнаёт, правильны ли его изменения. Быстрая,
+чёткая обратная связь — разница между агентом, который сходится к решению,
+и тем, который уходит в спираль.
 
-| # | Feature | What to look for | Evidence |
+| # | Функция | Что искать | Доказательства |
 |---|---------|------------------|----------|
-| 19 | **Linter** | Static analysis that catches bugs and style issues | `.eslintrc.*`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `pylintrc`, lint config in `pyproject.toml` |
-| 20 | **Formatter** | Auto-formatter that enforces consistent style | `.prettierrc`, `rustfmt.toml`, `[tool.black]` in pyproject.toml, `gofmt`/`goimports` in CI |
-| 21 | **Type checking** | Static type system or type checker | `tsconfig.json` with `strict`, `mypy.ini`, `[tool.mypy]`, `py.typed` marker, Go (inherent) |
-| 22 | **Pre-commit hooks** | Checks that run before commit — catches issues before CI | `.pre-commit-config.yaml`, `.husky/`, `lefthook.yml`, `lint-staged` config |
-| 23 | **Unit tests** | Tests for individual components | `*_test.go`, `*_test.py`, `*.spec.ts`, `test/`, `__tests__/`, test runner config |
-| 24 | **Integration tests** | Tests that verify components work together | `test/integration/`, `tests/e2e/`, API test suites, test files with service dependencies |
-| 25 | **End-to-end tests** | Full system/browser tests | Playwright config, Cypress config, Selenium tests, `e2e/` directory |
-| 26 | **Test coverage measurement** | Coverage tracking so the agent knows if new code is tested | `.codecov.yml`, `coverageThreshold` in jest config, `--cov` in pytest, `cover` profile in Go |
-| 27 | **CI pipeline** | Automated checks on every push or PR | `.github/workflows/ci.yml`, `.circleci/config.yml`, `.gitlab-ci.yml`, `Jenkinsfile` |
-| 28 | **Fast CI feedback** | CI completes quickly enough for agent iteration | CI workflow with documented expected duration, parallel jobs, test splitting |
-| 29 | **Test run documentation** | Agent knows exactly how to run which tests | Test commands in README, AGENTS.md, CONTRIBUTING.md, or Makefile help target |
-| 30 | **Config/schema validation** | YAML, JSON, config files validated automatically | `yamllint` config, JSON schema `$schema` refs, `actionlint` in CI, `taplo` for TOML |
-| 31 | **Snapshot or golden-file tests** | Tests that detect unexpected output changes | `__snapshots__/` directories, `.snap` files, `testdata/` golden files, VCR cassettes |
-| 32 | **Benchmark suite** | Performance tests the agent can run to check for regressions | `bench/`, `benchmarks/`, `*_bench_test.go`, pytest-benchmark, Criterion.rs |
-| 33 | **Warnings-as-errors** | Compiler/runtime warnings treated as failures | `-Werror`, `warningsAsErrors` in build config, `filterwarnings = error` in pytest |
-| 34 | **Spell/typo checking** | Automated spelling checks in CI or hooks | `.cspell.json`, `codespell` in pre-commit, `typos.toml`, spell check CI step |
+| 19 | **Линтер** | Статический анализ, ловящий баги и проблемы стиля | `.eslintrc.*`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `pylintrc`, конфиг линта в `pyproject.toml` |
+| 20 | **Форматтер** | Авто-форматтер, обеспечивающий единый стиль | `.prettierrc`, `rustfmt.toml`, `[tool.black]` в pyproject.toml, `gofmt`/`goimports` в CI |
+| 21 | **Проверка типов** | Статическая система типов или проверка типов | `tsconfig.json` с `strict`, `mypy.ini`, `[tool.mypy]`, маркер `py.typed`, Go (изначально) |
+| 22 | **Pre-commit хуки** | Проверки, запускающиеся перед коммитом — ловят проблемы до CI | `.pre-commit-config.yaml`, `.husky/`, `lefthook.yml`, конфиг `lint-staged` |
+| 23 | **Модульные тесты** | Тесты для отдельных компонентов | `*_test.go`, `*_test.py`, `*.spec.ts`, `test/`, `__tests__/`, конфиг тест-раннера |
+| 24 | **Интеграционные тесты** | Тесты, проверяющие совместную работу компонентов | `test/integration/`, `tests/e2e/`, наборы API-тестов, тестовые файлы с зависимостями от сервисов |
+| 25 | **End-to-end тесты** | Полные системные/браузерные тесты | Конфиг Playwright, конфиг Cypress, тесты Selenium, каталог `e2e/` |
+| 26 | **Измерение покрытия тестами** | Отслеживание покрытия, чтобы агент знал, протестирован ли новый код | `.codecov.yml`, `coverageThreshold` в jest-конфиге, `--cov` в pytest, профиль `cover` в Go |
+| 27 | **CI-пайплайн** | Автоматизированные проверки на каждый пуш или PR | `.github/workflows/ci.yml`, `.circleci/config.yml`, `.gitlab-ci.yml`, `Jenkinsfile` |
+| 28 | **Быстрая обратная связь CI** | CI завершается достаточно быстро для итераций агента | CI-workflow с задокументированной ожидаемой длительностью, параллельные джобы, разделение тестов |
+| 29 | **Документация запуска тестов** | Агент точно знает, как запускать какие тесты | Команды тестов в README, AGENTS.md, CONTRIBUTING.md или help-цели Makefile |
+| 30 | **Валидация конфигов/схем** | YAML, JSON, конфиг-файлы валидируются автоматически | Конфиг `yamllint`, ссылки `$schema` JSON-схемы, `actionlint` в CI, `taplo` для TOML |
+| 31 | **Снапшот или golden-file тесты** | Тесты, обнаруживающие неожиданные изменения вывода | Каталоги `__snapshots__/`, файлы `.snap`, golden-файлы `testdata/`, кассеты VCR |
+| 32 | **Набор бенчмарков** | Тесты производительности, которые агент может запускать для проверки регрессий | `bench/`, `benchmarks/`, `*_bench_test.go`, pytest-benchmark, Criterion.rs |
+| 33 | **Warnings-as-errors** | Предупреждения компилятора/рантайма считаются ошибками | `-Werror`, `warningsAsErrors` в конфиге сборки, `filterwarnings = error` в pytest |
+| 34 | **Проверка орфографии/опечаток** | Автоматизированная проверка орфографии в CI или хуках | `.cspell.json`, `codespell` в pre-commit, `typos.toml`, шаг проверки орфографии в CI |
 
 ---
 
-## Pillar 3 · Workflows & Automation
+## Столп 3 · Рабочие процессы и автоматизация
 
-The processes that support agent-driven development — how work is structured,
-tracked, and shipped.
+Процессы, поддерживающие разработку, управляемую агентом — как работа структурируется,
+отслеживается и поставляется.
 
-| # | Feature | What to look for | Evidence |
+| # | Функция | Что искать | Доказательства |
 |---|---------|------------------|----------|
-| 35 | **Issue templates** | Structured templates for bug reports, feature requests | `.github/ISSUE_TEMPLATE/` with `bug_report.md`, `feature_request.md`, `config.yml` |
-| 36 | **PR template** | Template that guides PR descriptions | `.github/pull_request_template.md`, PR template with checklist items |
-| 37 | **Dependency update automation** | Automated PRs for dependency updates | `.github/dependabot.yml`, `renovate.json`, `.renovaterc`, Renovate preset configs |
-| 38 | **Release automation** | Automated release pipeline (build, tag, publish) | Release workflow in CI, `semantic-release` config, GoReleaser config, `release-please` |
-| 39 | **Branch protection** | Protected main branch with required checks | Branch protection rules (inferred from merge queue config, required status checks in CI) |
-| 40 | **Merge automation** | Merge queue, auto-merge, or merge bot | `merge_group` trigger in CI, Mergify config, auto-merge labels, `gh pr merge --auto` |
-| 41 | **Task runner** | Single entry point for common commands | `Makefile`, `Justfile`, `Taskfile.yml`, `package.json` scripts section, `Rakefile` |
-| 42 | **Structured change tracking** | Changesets, conventional commits, or similar discipline | `.changeset/` directory, `commitlint` config, conventional commit enforcement in CI |
-| 43 | **CI concurrency control** | Cancel-in-progress, concurrency groups to avoid CI pile-up | `concurrency:` blocks in GitHub Actions, `cancel-in-progress: true` |
-| 44 | **Automated release notes** | Changelog/release notes generated from commits or PRs | `release-please` config, `auto-changelog`, `git-cliff`, `conventional-changelog` |
-| 45 | **Stale issue/PR management** | Automation to close or label stale items | `.github/workflows/stale.yml`, `stale` bot config, issue lifecycle labels |
-| 46 | **Label automation** | Automatic PR/issue labeling based on paths or content | `.github/labeler.yml`, label-sync config, auto-label workflows |
-| 47 | **Multi-platform CI** | CI matrix covering multiple OS, arch, or runtime versions | `matrix:` in CI with `os: [ubuntu, macos, windows]` or multiple language versions |
-| 48 | **Deployment automation** | Automated deployment pipeline | Deploy workflow triggered on merge/tag, staging + production environments in CI |
-| 49 | **Automated code review checks** | Bot-driven review checks beyond CI | Danger.js config, review bot config, required review assignments, CODEOWNERS + required reviews |
+| 35 | **Шаблоны issue** | Структурированные шаблоны для баг-репортов, запросов фич | `.github/ISSUE_TEMPLATE/` с `bug_report.md`, `feature_request.md`, `config.yml` |
+| 36 | **Шаблон PR** | Шаблон, направляющий описания PR | `.github/pull_request_template.md`, шаблон PR с чек-листом |
+| 37 | **Автоматизация обновления зависимостей** | Автоматизированные PR для обновления зависимостей | `.github/dependabot.yml`, `renovate.json`, `.renovaterc`, конфиги пресетов Renovate |
+| 38 | **Автоматизация релизов** | Автоматизированный пайплайн релиза (сборка, тег, публикация) | Release-workflow в CI, конфиг `semantic-release`, конфиг GoReleaser, `release-please` |
+| 39 | **Защита веток** | Защищённая основная ветка с обязательными проверками | Правила защиты веток (выводятся из конфига очереди мержа, обязательных статус-чеков в CI) |
+| 40 | **Автоматизация мержа** | Очередь мержа, авто-мерж или бот мержа | Триггер `merge_group` в CI, конфиг Mergify, метки auto-merge, `gh pr merge --auto` |
+| 41 | **Таск-раннер** | Единая точка входа для частых команд | `Makefile`, `Justfile`, `Taskfile.yml`, секция scripts в `package.json`, `Rakefile` |
+| 42 | **Структурированное отслеживание изменений** | Changesets, conventional commits или подобная дисциплина | Каталог `.changeset/`, конфиг `commitlint`, enforcement conventional commit в CI |
+| 43 | **Контроль конкурентности CI** | Cancel-in-progress, группы конкурентности, чтобы избежать нагромождения CI | Блоки `concurrency:` в GitHub Actions, `cancel-in-progress: true` |
+| 44 | **Автоматизированные заметки о релизе** | Changelog/заметки о релизе, генерируемые из коммитов или PR | Конфиг `release-please`, `auto-changelog`, `git-cliff`, `conventional-changelog` |
+| 45 | **Управление устаревшими issue/PR** | Автоматизация закрытия или маркировки устаревших элементов | `.github/workflows/stale.yml`, конфиг бота `stale`, метки жизненного цикла issue |
+| 46 | **Автоматизация меток** | Автоматическая маркировка PR/issue по путям или содержимому | `.github/labeler.yml`, конфиг label-sync, workflow авто-маркировки |
+| 47 | **Мультиплатформенный CI** | CI-матрица, покрывающая несколько ОС, архитектур или версий рантайма | `matrix:` в CI с `os: [ubuntu, macos, windows]` или несколькими версиями языка |
+| 48 | **Автоматизация деплоя** | Автоматизированный пайплайн деплоя | Deploy-workflow, срабатывающий на мерж/тег, окружения staging + production в CI |
+| 49 | **Автоматизированные проверки ревью кода** | Проверки ревью, управляемые ботом, помимо CI | Конфиг Danger.js, конфиг бота ревью, обязательные назначения ревьюеров, CODEOWNERS + обязательные ревью |
 
 ---
 
-## Pillar 4 · Policy & Governance
+## Столп 4 · Политики и управление
 
-Rules, ownership, and constraints the agent must know about and respect.
+Правила, владение и ограничения, которые агент должен знать и соблюдать.
 
-| # | Feature | What to look for | Evidence |
+| # | Функция | Что искать | Доказательства |
 |---|---------|------------------|----------|
-| 50 | **Comprehensive .gitignore** | Covers secrets, build artifacts, IDE files, agent artifacts | `.gitignore` with entries for `.env`, `node_modules/`, build dirs, `.cursor/`, `.claude/` |
-| 51 | **License** | Clear license at root | `LICENSE`, `MIT-LICENSE`, `COPYING`, `LICENSE.md` |
-| 52 | **Code ownership** | File/directory ownership mapping | `CODEOWNERS`, `.github/CODEOWNERS`, docs describing area owners or maintainer teams |
-| 53 | **Security policy** | How to report vulnerabilities | `SECURITY.md`, `.github/security.md`, security reporting instructions |
-| 54 | **Code of conduct** | Community standards | `CODE_OF_CONDUCT.md`, conduct link in contributing guide |
-| 55 | **AI usage policy** | Documented guidelines for AI/agent contributions | AI policy in AGENTS.md, CONTRIBUTING.md, or standalone doc; agent boundary definitions |
-| 56 | **Secrets management** | Secrets handled via environment/vault, not hardcoded | References to `${{ secrets.* }}` in CI, vault config, `.env.example` without values, `git-secrets` |
-| 57 | **Security scanning** | Automated vulnerability scanning in CI | `.github/workflows/codeql.yml`, Snyk config, `gosec` in CI, Trivy, Dependabot security alerts |
-| 58 | **Git attributes** | Line endings, diff drivers, LFS, linguist overrides | `.gitattributes` with `text=auto`, `linguist-generated`, LFS tracking patterns |
-| 59 | **Contributor agreement** | DCO sign-off or CLA process | DCO bot config, `Signed-off-by` requirement in contributing guide, CLA-assistant config |
-| 60 | **Governance model** | Documented maintainer roles, decision-making process | `GOVERNANCE.md`, `MAINTAINERS.md`, governance section in docs, team/role descriptions |
-| 61 | **CI workflow validation** | CI config itself is linted/validated | `actionlint` step in CI, `circleci config validate`, CI config schema validation |
-| 62 | **Environment separation** | Distinct configs for dev/test/prod | `.env.test`, `.env.production`, environment-specific config directories, config per deploy target |
+| 50 | **Исчерпывающий .gitignore** | Покрывает секреты, артефакты сборки, файлы IDE, артефакты агента | `.gitignore` с записями для `.env`, `node_modules/`, каталогов сборки, `.cursor/`, `.claude/` |
+| 51 | **Лицензия** | Чёткая лицензия в корне | `LICENSE`, `MIT-LICENSE`, `COPYING`, `LICENSE.md` |
+| 52 | **Владение кодом** | Карта владения файлами/каталогами | `CODEOWNERS`, `.github/CODEOWNERS`, доки, описывающие владельцев областей или команды мейнтейнеров |
+| 53 | **Политика безопасности** | Как сообщать об уязвимостях | `SECURITY.md`, `.github/security.md`, инструкции по сообщению о безопасности |
+| 54 | **Кодекс поведения** | Стандарты сообщества | `CODE_OF_CONDUCT.md`, ссылка на кодекс в гайде по участию |
+| 55 | **Политика использования AI** | Задокументированные гайдлайны для AI/агентных вкладов | AI-политика в AGENTS.md, CONTRIBUTING.md или отдельный док; определения границ агента |
+| 56 | **Управление секретами** | Секреты через окружение/хранилище, а не захардкожены | Ссылки на `${{ secrets.* }}` в CI, конфиг хранилища, `.env.example` без значений, `git-secrets` |
+| 57 | **Сканирование безопасности** | Автоматизированное сканирование уязвимостей в CI | `.github/workflows/codeql.yml`, конфиг Snyk, `gosec` в CI, Trivy, алерты безопасности Dependabot |
+| 58 | **Git-атрибуты** | Окончания строк, драйверы diff, LFS, переопределения linguist | `.gitattributes` с `text=auto`, `linguist-generated`, паттерны отслеживания LFS |
+| 59 | **Соглашение участника** | Процесс DCO sign-off или CLA | Конфиг DCO-бота, требование `Signed-off-by` в гайде по участию, конфиг CLA-assistant |
+| 60 | **Модель управления** | Задокументированные роли мейнтейнеров, процесс принятия решений | `GOVERNANCE.md`, `MAINTAINERS.md`, раздел управления в доках, описания команд/ролей |
+| 61 | **Валидация CI-workflow** | Сам конфиг CI линтится/валидируется | Шаг `actionlint` в CI, `circleci config validate`, валидация схемы конфига CI |
+| 62 | **Разделение окружений** | Различные конфиги для dev/test/prod | `.env.test`, `.env.production`, каталоги конфигов, специфичных для окружения, конфиг по целям деплоя |
 
 ---
 
-## Pillar 5 · Build & Dev Environment
+## Столп 5 · Сборка и окружение разработки
 
-Can the agent actually build, run, and iterate on the project?  Reproducibility
-and speed matter — an agent that can't build the project can't do anything.
+Может ли агент вообще собрать, запустить и итерироваться над проектом? Воспроизводимость
+и скорость важны — агент, который не может собрать проект, не может ничего.
 
-| # | Feature | What to look for | Evidence |
+| # | Функция | Что искать | Доказательства |
 |---|---------|------------------|----------|
-| 63 | **Dependency lockfile** | Pinned dependency versions for reproducible installs | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `uv.lock`, `Cargo.lock`, `go.sum`, `Gemfile.lock`, `poetry.lock` |
-| 64 | **Single-command build** | One documented command to build the entire project | `make build`, `npm run build`, `cargo build` documented in README or agent file |
-| 65 | **Single-command dev setup** | One command to bootstrap a working dev environment | `bin/setup`, `make dev`, `scripts/bootstrap.sh`, `just setup` |
-| 66 | **Dev container** | Containerized dev environment definition | `.devcontainer/devcontainer.json`, `devcontainer.json` at root |
-| 67 | **Containerized services** | Docker-based local development stack | `Dockerfile`, `docker-compose.yml`, `compose.yaml` with dev services |
-| 68 | **Reproducible environment** | Declarative, reproducible dev environment | `flake.nix`, `shell.nix`, `devbox.json`, hermetic build definitions |
-| 69 | **Tool version pinning** | Runtime/tool versions pinned to a file | `.tool-versions`, `mise.toml`, `.node-version`, `.python-version`, `.ruby-version`, `rust-toolchain.toml` |
-| 70 | **Monorepo orchestration** | Tooling for multi-package repositories | Workspace config in `package.json`, `pnpm-workspace.yaml`, Cargo workspace, Go multi-module, Nx/Turborepo/Bazel config |
-| 71 | **Build caching** | Caching for faster rebuilds | CI cache steps (`actions/cache`), Turborepo remote cache, ccache/sccache config, layer caching in Docker |
-| 72 | **Cross-platform support** | Builds on multiple OS/arch | CI matrix with multiple OS entries, cross-compilation configs, multi-arch Docker builds |
-| 73 | **Cloud dev environment** | Cloud-based workspace configuration | `.devcontainer/` with Codespaces features, `.gitpod.yml`, cloud workspace config |
-| 74 | **Package manager configuration** | Custom registry, auth, resolution settings | `.npmrc`, `pip.conf`, `.cargo/config.toml`, registry overrides, resolution overrides |
+| 63 | **Лок-файл зависимостей** | Зафиксированные версии зависимостей для воспроизводимых установок | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `uv.lock`, `Cargo.lock`, `go.sum`, `Gemfile.lock`, `poetry.lock` |
+| 64 | **Сборка одной командой** | Одна задокументированная команда для сборки всего проекта | `make build`, `npm run build`, `cargo build`, задокументированные в README или файле агента |
+| 65 | **Настройка dev одной командой** | Одна команда для поднятия рабочего dev-окружения | `bin/setup`, `make dev`, `scripts/bootstrap.sh`, `just setup` |
+| 66 | **Dev-контейнер** | Определение контейнеризованного dev-окружения | `.devcontainer/devcontainer.json`, `devcontainer.json` в корне |
+| 67 | **Контейнеризованные сервисы** | Локальный стек разработки на Docker | `Dockerfile`, `docker-compose.yml`, `compose.yaml` с dev-сервисами |
+| 68 | **Воспроизводимое окружение** | Декларативное, воспроизводимое dev-окружение | `flake.nix`, `shell.nix`, `devbox.json`, hermetic-определения сборки |
+| 69 | **Фиксация версий инструментов** | Версии рантайма/инструментов зафиксированы в файле | `.tool-versions`, `mise.toml`, `.node-version`, `.python-version`, `.ruby-version`, `rust-toolchain.toml` |
+| 70 | **Оркестрация монорепозитория** | Инструменты для мультипакетных репозиториев | Конфиг workspace в `package.json`, `pnpm-workspace.yaml`, workspace Cargo, мульти-модуль Go, конфиг Nx/Turborepo/Bazel |
+| 71 | **Кэширование сборки** | Кэширование для более быстрых пересборок | Шаги кэша CI (`actions/cache`), удалённый кэш Turborepo, конфиг ccache/sccache, кэширование слоёв в Docker |
+| 72 | **Кроссплатформенная поддержка** | Собирается на нескольких ОС/архитектурах | CI-матрица с несколькими ОС, конфиги кросскомпиляции, мульти-арх Docker-сборки |
+| 73 | **Облачное dev-окружение** | Конфигурация облачного рабочего пространства | `.devcontainer/` с фичами Codespaces, `.gitpod.yml`, конфиг облачного workspace |
+| 74 | **Конфигурация пакетного менеджера** | Пользовательский реестр, аутентификация, настройки резолва | `.npmrc`, `pip.conf`, `.cargo/config.toml`, переопределения реестра, переопределения резолва |
 
 ---
 
-## Summary
+## Резюме
 
-| Pillar | Features | What it answers |
+| Столп | Функций | На что отвечает |
 |--------|----------|-----------------|
-| Agent Instructions | 18 | Does the agent know what to do? |
-| Feedback Loops | 16 | Does the agent know if it's right? |
-| Workflows & Automation | 15 | Does the process support agent work? |
-| Policy & Governance | 13 | Does the agent know the rules? |
-| Build & Dev Environment | 12 | Can the agent build and run the project? |
-| **Total** | **74** | |
+| Инструкции для агента | 18 | Знает ли агент, что делать? |
+| Петли обратной связи | 16 | Знает ли агент, правильно ли он? |
+| Рабочие процессы и автоматизация | 15 | Поддерживает ли процесс работу агента? |
+| Политики и управление | 13 | Знает ли агент правила? |
+| Сборка и окружение разработки | 12 | Может ли агент собрать и запустить проект? |
+| **Всего** | **74** | |

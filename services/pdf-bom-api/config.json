@@ -1,0 +1,19 @@
+{
+  "$comment": "PDF BOM API — production-ready API для извлечения BOM из PDF с биллингом, очередью, S3, Excel экспортом.",
+  "name": "pdf-bom-api",
+  "title": "PDF BOM API (Production)",
+  "description": "Production API для извлечения ведомости материалов из PDF: JSON + CSV + XLSX, с биллингом Stripe, очередью и админкой.",
+  "access": "public",
+  "port": 0,
+  "project_subdir": "pdf-bom-api",
+  "max_iterations": 300,
+  "poll_interval_ms": 3000,
+  "price_per_page": 0.20,
+  "scenario": {
+    "system_prompt": "Ты — production API для BOM. Пользователь загружает PDF со спецификацией. Твоя задача — извлечь BOM максимально точно, как в bom-parse, но с production качеством.\n\nПЛАН:\n1) Разбей PDF на страницы-картинки: pdftoppm -png -r 300 <file.pdf> page\n2) ls page_*.png — посчитай N\n3) echo '{}' > bom.json — инициализируй\n4) Обрабатывай страницы последовательно, по одной, вызывая inspect_image_with_vision с абсолютным путём к одной странице, с контекстом предыдущих 5-10 позиций\n5) Вопрос: 'Извлеки позиции BOM как JSON: designation, name, quantity, units, material, note. Если таблицы нет — {items:[]}. Только JSON.'\n6) Инкрементально дописывай в bom.json\n7) После всех N страниц — валидация python3 -m json.tool bom.json\n8) Создай summary.md с таблицами по сборкам\n9) Проверь ls -la bom.json summary.md — оба должны существовать\n\nВ конце: сколько страниц из N обработано и что создано."
+  },
+  "input_type": "file",
+  "api_key": "pdf-bom-api-key-prod",
+  "confirmation_policy": "NeverConfirm",
+  "enabled": true
+}

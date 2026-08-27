@@ -1,49 +1,49 @@
-# QA Changes Plugin
+# Плагин QA изменений
 
-Automated pull request QA validation using OpenHands agents. Unlike the [PR Review plugin](../pr-review/) which reads diffs and posts code review comments, this plugin **actually runs the software** — setting up the environment, exercising changed behavior as a real user would, and posting a structured QA report. It does not re-run the test suite (that's CI's job) or analyze code style/logic (that's code review's job).
+Автоматизированная QA-валидация пулл-реквестов с использованием агентов OpenHands. В отличие от [плагина ревью PR](../pr-review/), который читает диффы и публикует комментарии код-ревью, этот плагин **фактически запускает софт** — настраивает окружение, проверяет изменённое поведение так, как это сделал бы реальный пользователь, и публикует структурированный QA-отчёт. Он не перезапускает набор тестов (это работа CI) и не анализирует стиль/логику кода (это работа код-ревью).
 
-## Quick Start
+## Быстрый старт
 
-Copy the workflow file to your repository:
+Скопируйте файл workflow в ваш репозиторий:
 
 ```bash
 cp plugins/qa-changes/workflows/qa-changes-by-openhands.yml \
    .github/workflows/qa-changes-by-openhands.yml
 ```
 
-Then configure the required secrets (see [Installation](#installation) below).
+Затем настройте необходимые секреты (см. [Установка](#установка) ниже).
 
-## How It Works
+## Как это работает
 
-The QA agent follows a four-phase methodology:
+QA-агент следует четырёхфазной методологии:
 
-1. **Understand** — Reads the PR diff, title, and description. Classifies changes and identifies entry points (CLI commands, API endpoints, UI pages).
-2. **Setup** — Bootstraps the repo: installs dependencies, builds the project. Notes CI status but does not re-run tests.
-3. **Exercise** — The core phase. Actually uses the software the way a human would: spins up servers, opens browsers, runs CLI commands, makes HTTP requests. Focuses on functional verification that CI and code review cannot do.
-4. **Report** — Posts a structured QA report as a PR review with evidence (commands, outputs, screenshots) and a verdict.
+1. **Понять** — Читает дифф PR, заголовок и описание. Классифицирует изменения и определяет точки входа (CLI-команды, API-эндпоинты, UI-страницы).
+2. **Настроить** — Поднимает репозиторий: устанавливает зависимости, собирает проект. Отмечает статус CI, но не перезапускает тесты.
+3. **Проверить** — Основная фаза. Фактически использует софт так, как это сделал бы человек: поднимает серверы, открывает браузеры, запускает CLI-команды, делает HTTP-запросы. Фокус на функциональной проверке, которую CI и код-ревью не могут сделать.
+4. **Отчитаться** — Публикует структурированный QA-отчёт как ревью PR с доказательствами (команды, выводы, скриншоты) и вердиктом.
 
-The agent knows when to give up: if a verification approach fails after three materially different attempts, it switches to a different approach. If two fundamentally different approaches fail, it reports honestly what could not be verified and suggests `AGENTS.md` guidance for future runs.
+Агент знает, когда сдаться: если подход проверки терпит неудачу после трёх существенно разных попыток, он переключается на другой подход. Если два принципиально разных подхода терпят неудачу, он честно сообщает, что не удалось проверить, и предлагает руководство AGENTS.md для будущих прогонов.
 
-## Plugin Contents
+## Содержимое плагина
 
 ```
 plugins/qa-changes/
-├── README.md              # This file
-├── action.yml             # Composite GitHub Action
-├── skills/                # Symbolic links to QA skills
+├── README.md              # Этот файл
+├── action.yml             # Композитный GitHub Action
+├── skills/                # Символические ссылки на навыки QA
 │   └── qa-changes -> ../../../skills/qa-changes
-├── workflows/             # Example GitHub workflow files
+├── workflows/             # Примеры файлов GitHub workflow
 │   └── qa-changes-by-openhands.yml
-└── scripts/               # Python scripts for QA execution
-    ├── agent_script.py    # Main QA agent script
-    └── prompt.py          # Prompt template
+└── scripts/               # Python-скрипты для выполнения QA
+    ├── agent_script.py    # Основной скрипт QA-агента
+    └── prompt.py          # Шаблон промпта
 ```
 
-## Installation
+## Установка
 
-### 1. Copy the Workflow File
+### 1. Скопируйте файл workflow
 
-Copy the workflow file to your repository's `.github/workflows/` directory:
+Скопируйте файл workflow в каталог `.github/workflows/` вашего репозитория:
 
 ```bash
 mkdir -p .github/workflows
@@ -51,135 +51,135 @@ cp plugins/qa-changes/workflows/qa-changes-by-openhands.yml \
    .github/workflows/qa-changes-by-openhands.yml
 ```
 
-### 2. Configure Secrets
+### 2. Настройте секреты
 
-Add the following secrets in your repository settings (**Settings → Secrets and variables → Actions**):
+Добавьте следующие секреты в настройках репозитория (**Settings → Secrets and variables → Actions**):
 
-| Secret | Required | Description |
+| Секрет | Обязательно | Описание |
 |--------|----------|-------------|
-| `LLM_API_KEY` | Yes | API key for your LLM provider |
-| `GITHUB_TOKEN` | Auto | Provided automatically by GitHub Actions |
+| `LLM_API_KEY` | Да | API-ключ для вашего LLM-провайдера |
+| `GITHUB_TOKEN` | Авто | Предоставляется автоматически GitHub Actions |
 
-### 3. Create the QA Label (Optional)
+### 3. Создайте QA-метку (опционально)
 
-Create a `qa-this` label for manual QA triggers:
+Создайте метку `qa-this` для ручных триггеров QA:
 
-1. Go to **Issues → Labels**
-2. Click **New label**
-3. Name: `qa-this`
-4. Description: `Trigger OpenHands QA validation`
+1. Перейдите в **Issues → Labels**
+2. Нажмите **New label**
+3. Имя: `qa-this`
+4. Описание: `Триггер QA-валидации OpenHands`
 
-## Usage
+## Использование
 
-### Automatic Triggers
+### Автоматические триггеры
 
-QA validation is automatically triggered when:
-- A new non-draft PR is opened (by trusted contributors)
-- A draft PR is marked as ready for review
-- The `qa-this` label is added
-- `openhands-agent` is requested as a reviewer
+QA-валидация автоматически триггерится когда:
+- Новый не-черновой PR открыт (доверенными контрибьюторами)
+- Черновой PR помечен как готовый к ревью
+- Добавлена метка `qa-this`
+- `openhands-agent` запрошен как ревьюер
 
-### Requesting QA
+### Запрос QA
 
-**Option 1: Add Label**
+**Вариант 1: Добавить метку**
 
-Add the `qa-this` label to any PR.
+Добавьте метку `qa-this` к любому PR.
 
-**Option 2: Request as Reviewer**
+**Вариант 2: Запросить как ревьюера**
 
-Request `openhands-agent` as a reviewer on the PR.
+Запросите `openhands-agent` как ревьюера в PR.
 
-## Action Inputs
+## Входные параметры Action
 
-| Input | Required | Default | Description |
+| Вход | Обязательно | По умолчанию | Описание |
 |-------|----------|---------|-------------|
-| `llm-model` | No | `anthropic/claude-sonnet-4-5-20250929` | LLM model to use |
-| `llm-base-url` | No | `''` | Custom LLM endpoint URL |
-| `extensions-repo` | No | `OpenHands/extensions` | Extensions repository |
-| `extensions-version` | No | `main` | Git ref (tag, branch, or SHA) |
-| `max-budget` | No | `10.0` | Maximum LLM cost in dollars — agent stops when exceeded |
-| `timeout-minutes` | No | `30` | Wall-clock timeout for the QA step |
-| `max-iterations` | No | `500` | Maximum agent iterations (each is one LLM call + action) |
-| `llm-api-key` | Yes | - | LLM API key |
-| `github-token` | Yes | - | GitHub token for API access |
+| `llm-model` | Нет | `anthropic/claude-sonnet-4-5-20250929` | Используемая LLM-модель |
+| `llm-base-url` | Нет | `''` | Пользовательский URL эндпоинта LLM |
+| `extensions-repo` | Нет | `OpenHands/extensions` | Репозиторий расширений |
+| `extensions-version` | Нет | `main` | Git ref (тег, ветка или SHA) |
+| `max-budget` | Нет | `10.0` | Максимальная стоимость LLM в долларах — агент останавливается при превышении |
+| `timeout-minutes` | Нет | `30` | Таймаут по wall-clock для шага QA |
+| `max-iterations` | Нет | `500` | Максимальное число итераций агента (каждая — один вызов LLM + действие) |
+| `llm-api-key` | Да | - | API-ключ LLM |
+| `github-token` | Да | - | GitHub токен для доступа к API |
 
-## QA Report Format
+## Формат QA-отчёта
 
-The agent posts a PR comment with this structure:
+Агент публикует комментарий PR с такой структурой:
 
 ```
-## QA Report
+## QA-отчёт
 
-**Summary**: [One-sentence verdict]
+**Резюме**: [Вердикт в одном предложении]
 
-### Environment Setup
-[Build/install results]
+### Настройка окружения
+[Результаты сборки/установки]
 
-### CI Status
-[Note whether CI checks pass or fail — do not re-run tests]
+### Статус CI
+[Примечание, проходят ли проверки CI или падают — не перезапускать тесты]
 
-### Functional Verification
-[Commands run, outputs observed, screenshots, behavior verified]
+### Функциональная проверка
+[Запущенные команды, наблюдаемые выводы, скриншоты, проверенное поведение]
 
-### Unable to Verify (if applicable)
-[What could not be verified, what was attempted, suggested AGENTS.md guidance]
+### Не удалось проверить (если применимо)
+[Что не удалось проверить, что было предпринято, предложенное руководство AGENTS.md]
 
-### Issues Found
-- 🔴 **Blocker**: [Description]
-- 🟠 **Issue**: [Description]
-- 🟡 **Minor**: [Description]
+### Найденные проблемы
+- 🔴 **Блокер**: [Описание]
+- 🟠 **Проблема**: [Описание]
+- 🟡 **Минор**: [Описание]
 
-### Verdict
+### Вердикт
 ✅ PASS / ⚠️ PASS WITH ISSUES / ❌ FAIL / 🟡 PARTIAL
 ```
 
-## Customizing QA Guidelines
+## Кастомизация QA-гайдлайнов
 
-Add project-specific QA guidelines to your repository:
+Добавьте проектно-специфичные QA-гайдлайны в ваш репозиторий:
 
-### Option 1: Custom QA Skill
+### Вариант 1: Кастомный QA-навык
 
-Create `.agents/skills/qa-guide.md`:
+Создайте `.agents/skills/qa-guide.md`:
 
 ```markdown
 ---
 name: qa-guide
-description: Project-specific QA guidelines
+description: Проектно-специфичные QA-гайдлайны
 triggers:
 - /qa-changes
 ---
 
-# Project QA Guidelines
+# Гайдлайны QA проекта
 
-## Setup Commands
-- `make install` to install dependencies
-- `make build` to build the project
+## Команды настройки
+- `make install` для установки зависимостей
+- `make build` для сборки проекта
 
-## How to Run the App
-- `make serve` to start the dev server on port 8080
-- `python -m myapp --help` for CLI usage
+## Как запустить приложение
+- `make serve` для запуска dev-сервера на порту 8080
+- `python -m myapp --help` для использования CLI
 
-## Key Behaviors to Verify
-- [List critical user flows]
-- [List known fragile areas]
+## Ключевые поведения для проверки
+- [Список критичных пользовательских сценариев]
+- [Список известных хрупких мест]
 ```
 
-### Option 2: Repository AGENTS.md
+### Вариант 2: AGENTS.md репозитория
 
-Add setup and test commands to `AGENTS.md` at your repository root. The agent reads this file automatically.
+Добавьте команды настройки и тестов в `AGENTS.md` в корне вашего репозитория. Агент читает этот файл автоматически.
 
-## Security
+## Безопасность
 
-The workflow uses `pull_request` (not `pull_request_target`) so that fork PRs do **not** get access to the base repository's secrets. Since the QA agent *executes* code from the PR (unlike a code-review agent which only reads diffs), using `pull_request_target` would allow untrusted fork code to run with the repo's `GITHUB_TOKEN` and `LLM_API_KEY`.
+Workflow использует `pull_request` (не `pull_request_target`), чтобы PR из форков **не** получали доступ к секретам базового репозитория. Поскольку QA-агент *выполняет* код из PR (в отличие от агента код-ревью, который только читает диффы), использование `pull_request_target` позволило бы недоверенному коду форка запускаться с `GITHUB_TOKEN` и `LLM_API_KEY` репозитория.
 
-The trade-off is that fork PRs won't have access to repository secrets. In the example `pull_request` workflow, the action now detects that case and exits successfully with a clear skip notice instead of failing. Maintainers can run QA locally or set up a separate trusted workflow for those cases.
+Компромисс в том, что PR из форков не будут иметь доступа к секретам репозитория. В примере workflow `pull_request` action теперь обнаруживает этот случай и успешно завершается с понятным уведомлением о пропуске вместо падения. Мейнтейнеры могут запускать QA локально или настроить отдельный доверенный workflow для этих случаев.
 
-**Note**: The `FIRST_TIME_CONTRIBUTOR` and `NONE` author associations are excluded from automatic triggers as an additional safety layer.
+**Примечание**: Ассоциации авторов `FIRST_TIME_CONTRIBUTOR` и `NONE` исключены из автоматических триггеров как дополнительный слой безопасности.
 
-## Contributing
+## Участие
 
-See the main [extensions repository](https://github.com/OpenHands/extensions) for contribution guidelines.
+См. основной [репозиторий расширений](https://github.com/OpenHands/extensions) для гайдлайнов по участию.
 
-## License
+## Лицензия
 
-This plugin is part of the OpenHands extensions repository. See [LICENSE](/LICENSE) for details.
+Этот плагин — часть репозитория расширений OpenHands. См. [LICENSE](/LICENSE) для деталей.

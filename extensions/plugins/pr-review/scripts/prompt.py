@@ -1,178 +1,173 @@
 """
-PR Review Prompt Template
+Шаблон промпта для ревью PR
 
-This module contains the prompt template used by the OpenHands agent
-for conducting pull request reviews. The template uses skill triggers:
-- {skill_trigger} will be replaced with '/codereview'
-- /github-pr-review provides instructions for posting review comments via GitHub API
+Этот модуль содержит шаблон промпта, используемый агентом OpenHands
+для проведения ревью пулл-реквестов. Шаблон использует триггеры навыков:
+- {skill_trigger} будет заменён на '/codereview'
+- /github-pr-review предоставляет инструкции для публикации комментариев ревью через GitHub API
 
-The template includes:
-- {diff} - The complete git diff for the PR (may be truncated for large files)
-- {pr_number} - The PR number
-- {commit_id} - The HEAD commit SHA
-- {review_context} - Previous review comments and thread resolution status
+Шаблон включает:
+- {diff} - Полный git diff для PR (может быть усечён для больших файлов)
+- {pr_number} - Номер PR
+- {commit_id} - SHA HEAD-коммита
+- {review_context} - Предыдущие комментарии ревью и статус разрешения тредов
 
-When sub-agent delegation is enabled (``use_sub_agents=True``), a short
-delegation suffix is appended to the base prompt giving the agent the
-option to delegate file-level reviews via the TaskToolSet.
+Когда делегирование под-агентам включено (``use_sub_agents=True``), короткий
+суффикс делегирования добавляется к базовому промпту, давая агенту
+опцию делегировать ревью на уровне файлов через TaskToolSet.
 """
 
-# Template for when there is review context available
+# Шаблон для случая, когда доступен контекст ревью
 _REVIEW_CONTEXT_SECTION = """
-## Previous Review History
+## История предыдущих ревью
 
-The following shows previous reviews and review threads on this PR.
-Pay attention to:
-- **Unresolved threads**: These issues may still need to be addressed
-- **Resolved threads**: These provide context on what was already discussed
-- **Previous review decisions**: See what other reviewers have said
+Ниже показана история предыдущих ревью и тредов ревью на этом PR.
+Обратите внимание на:
+- **Нерешённые треды**: Эти проблемы всё ещё могут требовать решения
+- **Решённые треды**: Они дают контекст того, что уже обсуждалось
+- **Предыдущие решения по ревью**: Посмотрите, что сказали другие ревьюеры
 
 {review_context}
 
-When reviewing, consider:
-1. Don't repeat comments that have already been made and are still relevant
-2. If an issue is still unresolved in the code, you may reference it
-3. If resolved, don't bring it up unless the fix introduced new problems
-4. Focus on NEW issues in the current diff that haven't been discussed yet
+При ревью учитывайте:
+1. Не повторяйте комментарии, которые уже были сделаны и всё ещё актуальны
+2. Если проблема всё ещё не решена в коде, вы можете на неё сослаться
+3. Если решена, не поднимайте её, если фикс не внёс новых проблем
+4. Сфокусируйтесь на НОВЫХ проблемах в текущем диффе, которые ещё не обсуждались
 """
 
 _EVIDENCE_REQUIREMENT_SECTION = """
-## PR Description Evidence Requirement
+## Требование к доказательствам в описании PR
 
-Require the PR description to include an `Evidence` section (or similarly labeled section) showing that the code actually works.
+Требуйте, чтобы описание PR включало раздел `Evidence` (или раздел с похожим названием), показывающий, что код действительно работает.
 
-When checking the PR description:
-- For frontend or UI changes, require a screenshot or video that demonstrates the implemented behavior in the actual product.
-- For backend, API, CLI, or script changes, require the command(s) used to run or exercise the real code path end-to-end and the resulting output.
-- Unit tests alone do **not** count as evidence. Do not accept `pytest`, unit test output, or similar test runs as the only proof that the change works.
-- If the change appears to come from an agent conversation or AI-assisted workflow, prefer a conversation link such as `https://app.all-hands.dev/conversations/{conversation_id}` so reviewers can trace the work.
-- Do not accept vague claims like "tested locally" without concrete runtime artifacts, commands, or output.
+При проверке описания PR:
+- Для изменений фронтенда или UI требуйте скриншот или видео, демонстрирующее реализованное поведение в реальном продукте.
+- Для изменений бэкенда, API, CLI или скриптов требуйте команду(ы), использованную для прогона или проверки реального пути кода сквозным образом, и результирующий вывод.
+- Одни модульные тесты **не** считаются доказательством. Не принимайте `pytest`, вывод модульных тестов или подобные прогоны тестов как единственное доказательство работоспособности изменения.
+- Если изменение, похоже, пришло из беседы агента или AI-ассистированного workflow, предпочтите ссылку на беседу, например `https://app.all-hands.dev/conversations/{conversation_id}`, чтобы ревьюеры могли отследить работу.
+- Не принимайте расплывчатые заявления вроде «протестировано локально» без конкретных артефактов рантайма, команд или вывода.
 
-If the change is substantive and this evidence is missing or weak, call it out as a must-fix issue in your review. Do not invent evidence that is not present in the PR description.
+Если изменение существенное и это доказательство отсутствует или слабое, укажите это как обязательную к исправлению проблему в вашем ревью. Не выдумывайте доказательства, которых нет в описании PR.
 """
 
 FEEDBACK_COMMENT_MARKER = "<!-- openhands-pr-review-feedback -->"
 
 _FEEDBACK_FOOTER_SECTION = """
-## Review Feedback Footer
+## Футер обратной связи ревью
 
-When you submit the top-level GitHub review body, append this exact footer at the end of that same review body so maintainers can react without creating a separate PR comment:
+Когда вы отправляете основное тело GitHub-ревью, добавьте этот точный футер в конце того же тела ревью, чтобы мейнтейнеры могли отреагировать без создания отдельного комментария к PR:
 
 ```md
 ---
-Was this automated review useful? React with 👍 or 👎 to this review to help us measure review quality.
-Workflow run: {review_run_url}
+Было ли это автоматизированное ревью полезным? Отреагируйте 👍 или 👎 на это ревью, чтобы помочь нам измерить качество ревью.
+Прогон workflow: {review_run_url}
 {feedback_comment_marker}
 ```
 
-Requirements:
-- Put this footer in the main review body, not in a separate issue comment.
-- Keep the rest of the review body concise.
-- If you would otherwise post only inline comments, still include a short top-level review body so this footer has somewhere to live.
+Требования:
+- Поместите этот футер в основное тело ревью, а не в отдельный комментарий к issue.
+- Держите остальное тело ревью кратким.
+- Если бы вы иначе опубликовали только inline-комментарии, всё равно включите короткое основное тело ревью, чтобы у этого футера было место для жизни.
 """
 
 PROMPT = """{skill_trigger}
 /github-pr-review
 
-When posting a review, keep the review body brief unless your active review instructions require a longer structured format.
+При публикации ревью держите тело ревью кратким, если только ваши активные инструкции по ревью не требуют более длинного структурированного формата.
 
-For dependency update PRs, do **NOT** approve a target version that was published less than 7 days ago. First-party packages maintained by the same organization as the reviewed repository are intentionally excluded from this 7-day waiting rule, but still scrutinize them for supply-chain risk.
+Для PR с обновлением зависимостей **НЕ** одобряйте целевую версию, которая была опубликована менее 7 дней назад. Пакеты первой стороны, поддерживаемые той же организацией, что и ревьюируемый репозиторий, намеренно исключены из этого правила 7-дневного ожидания, но всё равно тщательно проверяйте их на риск цепочки поставок.
 
-Review the PR changes below and identify issues that need to be addressed.
+Проверьте изменения PR ниже и определите проблемы, требующие решения.
 
-## Pull Request Information
+## Информация о пулл-реквесте
 
-- **Title**: {title}
-- **Description**: {body}
-- **Repository**: {repo_name}
-- **Base Branch**: {base_branch}
-- **Head Branch**: {head_branch}
-- **PR Number**: {pr_number}
-- **Commit ID**: {commit_id}
+- **Заголовок**: {title}
+- **Описание**: {body}
+- **Репозиторий**: {repo_name}
+- **Базовая ветка**: {base_branch}
+- **Ветка HEAD**: {head_branch}
+- **Номер PR**: {pr_number}
+- **ID коммита**: {commit_id}
 
 {review_context_section}{evidence_requirements_section}{feedback_footer_section}
 {files_manifest}
-## Patches
+## Патчи
 
-The fenced block below contains the per-file patches. Individual patches may be **abbreviated** (look for `[patch abbreviated: ...]`) or **omitted** (look for `[patch omitted: ...]`) when they exceed the per-file or total budget. Files that appear in the manifest above but whose patch is missing or short here are still present in the PR — read the file from the workspace to inspect them. Do not flag them as missing from the PR.
+Ограждённый блок ниже содержит патчи по файлам. Отдельные патчи могут быть **сокращены** (ищите `[patch abbreviated: ...]`) или **опущены** (ищите `[patch omitted: ...]`), когда они превышают бюджет на файл или общий бюджет. Файлы, которые появляются в манифесте выше, но чей патч отсутствует или короток здесь, всё равно присутствуют в PR — прочитайте файл из workspace, чтобы изучить их. Не помечайте их как отсутствующие в PR.
 
 ```diff
 {diff}
 ```
 
-Analyze the changes and post your review using the GitHub API.
+Проанализируйте изменения и опубликуйте ваше ревью, используя GitHub API.
 """
 
-# Appended to PROMPT when use_sub_agents=True.  Gives the main agent the
-# option to delegate via the TaskToolSet without duplicating the base prompt.
+# Добавляется к PROMPT, когда use_sub_agents=True. Даёт основному агенту
+# опцию делегировать через TaskToolSet без дублирования базового промпта.
 _DELEGATION_SUFFIX = """
-## Sub-agent Delegation
+## Делегирование под-агентам
 
-You have access to the **task** tool for delegating file-level reviews to
-`file_reviewer` sub-agents. Use it when the diff is large — roughly 4+ files
-or 500+ changed lines. For smaller diffs, just review directly.
+У вас есть доступ к инструменту **task** для делегирования ревью на уровне файлов под-агентам `file_reviewer`. Используйте его, когда дифф большой — примерно 4+ файла или 500+ изменённых строк. Для меньших диффов просто ревьюйте напрямую.
 
-When delegating, split the diff by file (or small group of related files) and
-call the task tool with `subagent_type: "file_reviewer"`. Each sub-agent will
-return a JSON array of findings. Merge them, de-duplicate, drop noise, and
-post a single consolidated review via the GitHub API.
+При делегировании разбейте дифф по файлам (или небольшой группе связанных файлов) и вызовите инструмент task с `subagent_type: "file_reviewer"`. Каждый под-агент вернёт JSON-массив находок. Объедините их, дедуплицируйте, отбросьте шум и опубликуйте одно консолидированное ревью через GitHub API.
 """
 
-# Skill content injected into each file_reviewer sub-agent.
-# Defines the review persona, available tools, and — most importantly — the
-# exact JSON schema the sub-agent must return.
+# Контент навыка, инжектируемый в каждого под-агента file_reviewer.
+# Определяет персону ревьюера, доступные инструменты и — самое главное — точную
+# JSON-схему, которую должен вернуть под-агент.
 FILE_REVIEWER_SKILL = """\
-You are a **file-level code reviewer** sub-agent.
+Вы — **под-агент ревьюера кода на уровне файлов**.
 
-## Your Task
+## Ваша задача
 
-You will receive a diff for one or more files from a pull request.
-Review the changes and return structured findings.
+Вы получите дифф для одного или нескольких файлов из пулл-реквеста.
+Проверьте изменения и верните структурированные находки.
 
-## Tools
+## Инструменты
 
-You have `terminal` and `file_editor` so you can inspect the full source
-files for surrounding context — use `cat`, `grep`, or `file_editor view`
-when the diff alone is not enough to judge an issue.
+У вас есть `terminal` и `file_editor`, чтобы вы могли инспектировать полные исходные
+файлы для окружающего контекста — используйте `cat`, `grep` или `file_editor view`,
+когда одного диффа недостаточно для оценки проблемы.
 
-## Review Style
+## Стиль ревью
 
-Be direct, pragmatic, and thorough. Focus on correctness, security,
-simplicity, and maintainability. Call out real problems; skip trivial noise.
+Будьте прямыми, прагматичными и тщательными. Фокус на корректности, безопасности,
+простоте и поддерживаемости. Отмечайте реальные проблемы; пропускайте тривиальный шум.
 
-## Output Format
+## Формат вывода
 
-Return a JSON array wrapped in a ```json fenced code block.
-Each element must have exactly these fields:
+Верните JSON-массив, обёрнутый в ограждённый блок кода ```json.
+Каждый элемент должен иметь ровно эти поля:
 
-| Field      | Type   | Description |
+| Поле      | Тип   | Описание |
 |------------|--------|-------------|
-| `path`     | string | File path exactly as shown in the diff header (e.g. `src/utils.py`) |
-| `line`     | int    | Line number in the **new** file where the issue occurs |
-| `severity` | string | One of: `"critical"`, `"major"`, `"minor"`, `"nit"` |
-| `body`     | string | Concise description of the issue, including a suggested fix |
+| `path`     | string | Путь к файлу точно как показано в заголовке диффа (например, `src/utils.py`) |
+| `line`     | int    | Номер строки в **новом** файле, где возникает проблема |
+| `severity` | string | Одно из: `\"critical\"`, `\"major\"`, `\"minor\"`, `\"nit\"` |
+| `body`     | string | Краткое описание проблемы, включая предлагаемый фикс |
 
-### Severity guide
-- **critical** — bug, security vulnerability, or data loss
-- **major** — incorrect logic, missing error handling, performance issue
-- **minor** — style, readability, or minor correctness concern
-- **nit** — cosmetic or trivial preference
+### Гайд по серьёзности
+- **critical** — баг, уязвимость безопасности или потеря данных
+- **major** — некорректная логика, отсутствие обработки ошибок, проблема производительности
+- **minor** — стиль, читаемость или незначительная проблема корректности
+- **nit** — косметическое или тривиальное предпочтение
 
-### Example
+### Пример
 
 ```json
 [
-  {{"path": "src/utils.py", "line": 42, "severity": "major", "body": "Unchecked `None` return — add a guard before accessing `.value`."}},
-  {{"path": "src/utils.py", "line": 78, "severity": "nit", "body": "Unused import `os`."}}
+  {{"path": "src/utils.py", "line": 42, "severity": "major", "body": "Непроверенный возврат `None` — добавьте guard перед доступом к `.value`."}},
+  {{"path": "src/utils.py", "line": 78, "severity": "nit", "body": "Неиспользуемый импорт `os`."}}
 ]
 ```
 
-If you find no issues, return:
+Если проблем не найдено, верните:
 ```json
 []
 ```
 
-When you are done, call the `finish` tool with the JSON array as the message.
+Когда закончите, вызовите инструмент `finish` с JSON-массивом как сообщением.
 """
 
 
@@ -193,33 +188,32 @@ def format_prompt(
     review_run_url: str = "",
     use_sub_agents: bool = False,
 ) -> str:
-    """Format the PR review prompt with all parameters.
+    """Форматирует промпт ревью PR со всеми параметрами.
 
     Args:
-        skill_trigger: The skill trigger (e.g., '/codereview')
-        title: PR title
-        body: PR description
-        repo_name: Repository name (owner/repo)
-        base_branch: Base branch name
-        head_branch: Head branch name
-        pr_number: PR number
-        commit_id: HEAD commit SHA
-        diff: Git diff content
-        review_context: Formatted previous review context. If empty or whitespace-only,
-                        the review context section is omitted from the prompt.
-        require_evidence: Whether to instruct the reviewer to enforce PR description
-                          evidence showing the code works.
-        collect_feedback: Whether to instruct the reviewer to append the feedback
-                          footer to the main review body.
-        review_run_url: Workflow run URL to embed in the feedback footer.
-        use_sub_agents: When True, the agent gets the TaskToolSet and decides
-                        at runtime whether to delegate file-level reviews to
-                        sub-agents based on diff size and complexity.
+        skill_trigger: Триггер навыка (например, '/codereview')
+        title: Заголовок PR
+        body: Описание PR
+        repo_name: Имя репозитория (owner/repo)
+        base_branch: Имя базовой ветки
+        head_branch: Имя head-ветки
+        pr_number: Номер PR
+        commit_id: SHA HEAD-коммита
+        diff: Содержимое git diff
+        review_context: Отформатированный предыдущий контекст ревью. Если пустой или только из пробелов,
+                        секция контекста ревью опускается из промпта.
+        require_evidence: Требовать ли от ревьюера проверки доказательств в описании PR,
+                          показывающих, что код работает.
+        collect_feedback: Требовать ли от ревьюера добавления футера обратной связи к основному телу ревью.
+        review_run_url: URL прогона workflow для встраивания в футер обратной связи.
+        use_sub_agents: Когда True, агент получает TaskToolSet и решает
+                        в рантайме, делегировать ли ревью на уровне файлов под-агентам
+                        на основе размера и сложности диффа.
 
     Returns:
-        Formatted prompt string
+        Отформатированная строка промпта
     """
-    # Only include the review context section if there is actual context
+    # Включаем секцию контекста ревью только если есть реальный контекст
     if review_context and review_context.strip():
         review_context_section = _REVIEW_CONTEXT_SECTION.format(
             review_context=review_context
@@ -234,7 +228,7 @@ def format_prompt(
     feedback_footer_section = ""
     if collect_feedback:
         feedback_footer_section = _FEEDBACK_FOOTER_SECTION.format(
-            review_run_url=review_run_url or "unavailable",
+            review_run_url=review_run_url or "недоступно",
             feedback_comment_marker=FEEDBACK_COMMENT_MARKER,
         )
 

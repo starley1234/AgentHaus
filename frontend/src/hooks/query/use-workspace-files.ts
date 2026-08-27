@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import AgentServerRuntimeService from "#/api/runtime-service/agent-server-runtime-service";
 import { useActiveBackend } from "#/contexts/active-backend-context";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
-import { useRuntimeIsReady } from "#/hooks/use-runtime-is-ready";
 import { useUnifiedGetGitChanges } from "#/hooks/query/use-unified-get-git-changes";
 
 // Cap the number of files we render so a giant repo doesn't freeze the UI.
@@ -58,8 +57,6 @@ function normalizePath(path: string): string {
  */
 function useLocalWorkspaceFiles(enabled: boolean): WorkspaceFilesResult {
   const { data: conversation } = useActiveConversation();
-  const runtimeIsReady = useRuntimeIsReady();
-
   const conversationId = conversation?.id;
   const conversationUrl = conversation?.conversation_url;
   const sessionApiKey = conversation?.session_api_key;
@@ -97,7 +94,10 @@ function useLocalWorkspaceFiles(enabled: boolean): WorkspaceFilesResult {
       // Defensive: keep results unique and bounded.
       return Array.from(new Set(lines)).slice(0, MAX_FILES);
     },
-    enabled: enabled && runtimeIsReady && !!conversationId && !!workingDir,
+    // Finished/stopped conversations still own a persistent workspace. Do not
+    // gate file access on the agent's execution state: that made the Files tab
+    // go blank exactly when users needed to inspect or download the result.
+    enabled: enabled && !!conversationId && !!workingDir,
     retry: false,
     staleTime: 1000 * 30,
     gcTime: 1000 * 60 * 5,

@@ -1,6 +1,6 @@
 ---
-name: OpenHands PR Review
-description: Automated PR review using OpenHands agent
+name: OpenHands Ревью PR
+description: Автоматизированное ревью PR с использованием агента OpenHands
 author: OpenHands
 
 branding:
@@ -10,117 +10,106 @@ branding:
 inputs:
     agent-kind:
         description: >
-            Review agent backend. Use 'openhands' for the standard OpenHands
-            SDK Agent, or 'acp' to run an ACP-compatible agent server.
+            Бэкенд агента ревью. Используйте 'openhands' для стандартного
+            SDK-агента OpenHands, или 'acp' для запуска ACP-совместимого агент-сервера.
         required: false
         default: openhands
     llm-model:
         description: >
-            LLM model to use for the review. In ACP mode this is passed to the
-            ACP server when supported. Can be a comma-separated list for A/B
-            testing - one model will be randomly selected per review.
-            Example: 'model-a' or 'model-a,model-b,model-c'
+            LLM-модель для ревью. В режиме ACP передаётся ACP-серверу, когда поддерживается.
+            Может быть списком через запятую для A/B тестирования — одна модель будет случайно выбрана на ревью.
+            Пример: 'model-a' или 'model-a,model-b,model-c'
         required: false
         default: anthropic/claude-sonnet-4-5-20250929
     acp-command:
         description: >
-            Command used to start the ACP server when agent-kind is
-            'acp'. The command must be available in the runner environment
-            or runnable through a package manager. The value is shell-split
-            before execution.
-            Examples: 'npx -y @zed-industries/codex-acp@0.12.0',
-            'codex-acp', 'claude-agent-acp', or 'npx -y
-            @agentclientprotocol/claude-agent-acp'.
+            Команда для запуска ACP-сервера, когда agent-kind = 'acp'.
+            Команда должна быть доступна в окружении раннера или запускаться через пакетный менеджер.
+            Значение shell-split'ится перед выполнением.
+            Примеры: 'npx -y @zed-industries/codex-acp@0.12.0',
+            'codex-acp', 'claude-agent-acp' или 'npx -y @agentclientprotocol/claude-agent-acp'.
         required: false
         default: ''
     acp-prompt-timeout:
-        description: Timeout in seconds for one ACP prompt turn.
+        description: Таймаут в секундах на один ход промпта ACP.
         required: false
         default: '1800'
     llm-base-url:
-        description: LLM base URL (optional, for custom LLM endpoints)
+        description: Базовый URL LLM (опционально, для кастомных эндпоинтов LLM)
         required: false
         default: ''
     review-style:
-        description: "[DEPRECATED] Previously chose between 'standard' and 'roasted' review styles. These have been merged into a single code-review skill. The input is kept for backward compatibility but no longer changes behavior. Will be removed in a future version."
+        description: "[УСТАРЕЛО] Ранее выбирал между стилями ревью 'standard' и 'roasted'. Они объединены в один навык code-review. Вход сохранён для обратной совместимости, но больше не меняет поведение. Будет удалён в будущей версии."
         required: false
         default: roasted
     require-evidence:
-        description: "When true, require the reviewer to check the PR description for an Evidence section proving the code works end-to-end (screenshots/videos for frontend changes; commands and runtime output for backend, CLI, or script changes; conversation link when agent-generated). Test output alone does not count."
+        description: "Когда true, требовать от ревьюера проверки описания PR на наличие раздела Evidence, доказывающего работоспособность кода сквозным образом (скриншоты/видео для изменений фронтенда; команды и вывод рантайма для бэкенда, CLI или скриптов; ссылка на беседу, когда сгенерировано агентом). Один вывод тестов не считается."
         required: false
         default: 'false'
     use-sub-agents:
         description: >
-            Enable sub-agent delegation for file-level reviews.
-            When true, the agent gets the TaskToolSet and decides at runtime
-            whether to delegate based on diff size and complexity.
-            Disabled by default due to high token costs and potential timeouts
-            (see issue #208). Set to 'true' to opt in.
+            Включить делегирование под-агентам для ревью на уровне файлов.
+            Когда true, агент получает TaskToolSet и решает в рантайме, делегировать ли, на основе размера и сложности диффа.
+            Отключено по умолчанию из-за высоких затрат на токены и потенциальных таймаутов (см. issue #208). Установите 'true' для включения.
         required: false
         default: 'false'
     load-public-skills:
         description: >
-            Load the public skills repository into the review agent context.
-            Disable this to keep PR review prompts limited to project skills
-            and the pr-review plugin skills.
+            Загружать публичный репозиторий навыков в контекст агента ревью.
+            Отключите, чтобы ограничить промпты ревью PR только навыками проекта и навыками плагина pr-review.
         required: false
         default: 'true'
     collect-feedback:
         description: >
-            Ask maintainers to rate the automated review with thumbs up/down
-            reactions by appending a short footer to the main review body.
+            Просить мейнтейнеров оценить автоматизированное ревью реакциями thumbs up/down, добавляя короткий футер к основному телу ревью.
         required: false
         default: 'true'
     extensions-repo:
-        description: GitHub repository for extensions (owner/repo)
+        description: Репозиторий GitHub для расширений (owner/repo)
         required: false
         default: OpenHands/extensions
     extensions-version:
-        description: Git ref to use for extensions (tag, branch, or commit SHA, e.g., v1.0.0, main, or abc1234)
+        description: Git ref для использования расширений (тег, ветка или SHA коммита, например, v1.0.0, main или abc1234)
         required: false
         default: main
     openhands-sdk-package:
         description: >
-            Package spec passed to uv for openhands-sdk. Keep the default for
-            normal use, or override it to pin a specific SDK build for testing
-            or rollout control.
+            Спецификация пакета, передаваемая в uv для openhands-sdk. Оставьте дефолт для нормального использования,
+            или переопределите, чтобы зафиксировать конкретную сборку SDK для тестирования или контроля раскатки.
         required: false
         default: openhands-sdk
     llm-api-key:
         description: >
-            LLM API key. Required when agent-kind is 'openhands'.
-            Ignored in ACP mode because the ACP server owns authentication.
+            API-ключ LLM. Требуется, когда agent-kind = 'openhands'.
+            Игнорируется в режиме ACP, потому что ACP-сервер владеет аутентификацией.
         required: false
     github-token:
-        description: GitHub token for API access (required)
+        description: GitHub токен для доступа к API (обязательно)
         required: true
     lmnr-api-key:
-        description: Laminar API key for observability (optional)
+        description: API-ключ Laminar для наблюдаемости (опционально)
         required: false
         default: ''
     enable-uv-cache:
         description: >
-            Enable setup-uv's GitHub Actions cache for Python dependencies.
-            Default is 'false' for security: shared caches can become a pivot
-            into more privileged workflows (prompt-injected reviewer could
-            write a malicious wheel into cache; subsequent higher-privilege
-            workflow hits poisoned cache). Only opt in when you control the
-            runner environment (e.g. self-hosted, single-tenant) and accept
-            the trade-off.
+            Включить кэш GitHub Actions для setup-uv для Python-зависимостей.
+            По умолчанию 'false' для безопасности: общие кэши могут стать pivot'ом в более привилегированные workflow
+            (prompt-injected ревьюер мог бы записать вредоносный wheel в кэш; последующий более привилегированный workflow попадает в отравленный кэш).
+            Включайте только когда контролируете окружение раннера (например, self-hosted, single-tenant) и принимаете компромисс.
         required: false
         default: 'false'
 
 runs:
     using: composite
     steps:
-        - name: Checkout extensions repository
+        - name: Checkout репозитория расширений
           uses: actions/checkout@v4
           with:
               repository: ${{ inputs.extensions-repo }}
               ref: ${{ inputs.extensions-version }}
               path: extensions
 
-        - name: Checkout PR repository
+        - name: Checkout репозитория PR
           uses: actions/checkout@v4
           with:
               repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -130,36 +119,35 @@ runs:
               path: pr-repo
               submodules: recursive
 
-        - name: Set up Python
+        - name: Настройка Python
           uses: actions/setup-python@v5
           with:
               python-version: '3.12'
 
-        # Security: caching is disabled by default. Prompt injection can coerce
-        # the reviewer into running commands, and shared caches can become a
-        # pivot into more privileged workflows. Opt in via `enable-uv-cache`
-        # only when the runner is single-tenant / self-hosted.
-        - name: Install uv
+        # Безопасность: кэширование отключено по умолчанию. Prompt injection может принудить
+        # ревьюера к выполнению команд, и общие кэши могут стать pivot'ом в более привилегированные workflow.
+        # Включайте через `enable-uv-cache` только когда раннер single-tenant / self-hosted.
+        - name: Установка uv
           uses: astral-sh/setup-uv@v6
           with:
               enable-cache: ${{ inputs.enable-uv-cache }}
 
-        - name: Install GitHub CLI
+        - name: Установка GitHub CLI
           shell: bash
           run: |
-              # `gh` is preinstalled on all GitHub-hosted Ubuntu runners, so the
-              # apt path only runs on self-hosted runners that lack it. This
-              # avoids a ~10s `apt-get update` on every review on hosted runners,
-              # and also avoids spurious failures when an apt mirror is flaky.
+              # `gh` предустановлен на всех GitHub-hosted Ubuntu раннерах, поэтому
+              # apt-путь запускается только на self-hosted раннерах без него. Это
+              # избегает ~10s `apt-get update` на каждом ревью на hosted раннерах,
+              # а также избегает ложных сбоев, когда apt-зеркало нестабильно.
               if command -v gh >/dev/null 2>&1; then
-                  echo "gh already installed: $(gh --version | head -n1)"
+                  echo "gh уже установлен: $(gh --version | head -n1)"
               else
-                  echo "gh not found, installing via apt..."
+                  echo "gh не найден, устанавливаю через apt..."
                   sudo apt-get update
                   sudo apt-get install -y gh
               fi
 
-        - name: Check required configuration and select model
+        - name: Проверка требуемой конфигурации и выбор модели
           id: select-model
           shell: bash
           env:
@@ -175,46 +163,46 @@ runs:
               EXTENSIONS_VERSION: ${{ inputs.extensions-version }}
           run: |
               if [ "$AGENT_KIND" != "openhands" ] && [ "$AGENT_KIND" != "acp" ]; then
-                echo "Error: agent-kind must be 'openhands' or 'acp'."
+                echo "Ошибка: agent-kind должен быть 'openhands' или 'acp'."
                 exit 1
               fi
 
               if [ "$AGENT_KIND" = "openhands" ] && [ -z "$LLM_API_KEY" ]; then
-                echo "Error: llm-api-key is required when agent-kind is 'openhands'."
+                echo "Ошибка: llm-api-key обязателен, когда agent-kind = 'openhands'."
                 exit 1
               fi
 
               if [ "$AGENT_KIND" = "acp" ] && [ -z "$ACP_COMMAND" ]; then
-                echo "Error: acp-command is required when agent-kind is 'acp'."
+                echo "Ошибка: acp-command обязателен, когда agent-kind = 'acp'."
                 exit 1
               fi
 
               if [ -z "$GITHUB_TOKEN" ]; then
-                echo "Error: github-token is required."
+                echo "Ошибка: github-token обязателен."
                 exit 1
               fi
 
-              # Select one model randomly from the comma-separated list
+              # Выбрать одну модель случайно из списка через запятую
               MODELS_LIST="$LLM_MODEL_INPUT"
               IFS=',' read -ra MODELS <<< "$MODELS_LIST"
               SELECTED_MODEL="${MODELS[$RANDOM % ${#MODELS[@]}]}"
               printf 'selected_model=%s\n' "$SELECTED_MODEL" >> "$GITHUB_OUTPUT"
 
-              printf 'PR Number: %s\n' "$PR_NUMBER"
-              printf 'PR Title: %s\n' "$PR_TITLE"
-              printf 'Repository: %s\n' "$REPOSITORY"
-              printf 'Extensions Version: %s\n' "$EXTENSIONS_VERSION"
-              printf 'Agent kind: %s\n' "$AGENT_KIND"
-              printf 'Available models: %s\n' "$MODELS_LIST"
-              printf 'Selected LLM model: %s\n' "$SELECTED_MODEL"
+              printf 'Номер PR: %s\n' "$PR_NUMBER"
+              printf 'Заголовок PR: %s\n' "$PR_TITLE"
+              printf 'Репозиторий: %s\n' "$REPOSITORY"
+              printf 'Версия расширений: %s\n' "$EXTENSIONS_VERSION"
+              printf 'Тип агента: %s\n' "$AGENT_KIND"
+              printf 'Доступные модели: %s\n' "$MODELS_LIST"
+              printf 'Выбранная LLM-модель: %s\n' "$SELECTED_MODEL"
               if [ "$AGENT_KIND" = "acp" ]; then
-                printf 'ACP command: %s\n' "$ACP_COMMAND"
+                printf 'Команда ACP: %s\n' "$ACP_COMMAND"
               fi
               if [ -n "$LLM_BASE_URL" ]; then
-                printf 'LLM base URL: %s\n' "$LLM_BASE_URL"
+                printf 'Базовый URL LLM: %s\n' "$LLM_BASE_URL"
               fi
 
-        - name: Preflight review permission smoke test
+        - name: Предварительная проверка прав на ревью (smoke test)
           shell: bash
           env:
               GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -225,32 +213,29 @@ runs:
                 gh api \
                   -X POST \
                   "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-                  -f body='Preflight review permission smoke test. This pending review will be deleted immediately.' \
+                  -f body='Предварительная проверка прав на ревью. Это pending ревью будет сразу удалено.' \
                   --jq '.id'
               )"; then
-                echo "Failed to create pending review during preflight smoke test"
-                echo "The GITHUB_TOKEN lacks 'pull_requests: write' permission."
-                echo "Add 'permissions: { pull-requests: write }' to your workflow job."
+                echo "Не удалось создать pending ревью при предварительной проверке"
+                echo "У GITHUB_TOKEN нет права 'pull_requests: write'."
+                echo "Добавьте 'permissions: { pull-requests: write }' в job вашего workflow."
                 exit 1
               fi
 
               if [ -z "$REVIEW_ID" ]; then
-                echo "Preflight smoke test returned an empty review id"
+                echo "Предварительная проверка вернула пустой review id"
                 exit 1
               fi
 
               if ! gh api \
                 -X DELETE \
                 "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}"; then
-                echo "Warning: Failed to delete preflight review (ID: ${REVIEW_ID}). This is cosmetic and won't affect the workflow."
+                echo "Предупреждение: Не удалось удалить тестовое ревью (ID: ${REVIEW_ID}). Это косметика и не повлияет на workflow."
               fi
 
-        - name: Run PR review
+        - name: Запуск ревью PR
           shell: bash
           env:
-              # Pin uv to the exact Python installed by setup-python so it
-              # ignores any .python-version in the PR repo checkout (which
-              # could be older *or* newer than 3.12).
               UV_PYTHON: '3.12'
               OPENHANDS_SDK_PACKAGE: ${{ inputs.openhands-sdk-package }}
               AGENT_KIND: ${{ inputs.agent-kind }}
@@ -278,7 +263,7 @@ runs:
               uv run --no-project --with "$OPENHANDS_SDK_PACKAGE" --with openhands-tools --with lmnr \
                 python ../extensions/plugins/pr-review/scripts/agent_script.py
 
-        - name: Upload logs as artifact
+        - name: Загрузка логов как артефакта
           uses: actions/upload-artifact@v4
           if: always()
           with:
@@ -288,7 +273,7 @@ runs:
                   output/
               retention-days: 7
 
-        - name: Upload Laminar trace info for evaluation
+        - name: Загрузка информации о трейсе Laminar для оценки
           uses: actions/upload-artifact@v4
           if: success()
           with:

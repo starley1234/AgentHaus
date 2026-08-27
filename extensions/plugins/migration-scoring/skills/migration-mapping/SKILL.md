@@ -7,20 +7,22 @@ triggers:
   - migration mapping
   - source target mapping
   - file mapping
+  - карта миграции
+  - соответствие файлов
 ---
 
-Create a mapping from source language files (e.g., COBOL) to target language files (e.g., Java) to document which target files implement the functionality of each source file.
+Создайте карту соответствий от файлов исходного языка (например, COBOL) к файлам целевого языка (например, Java), чтобы задокументировать, какие целевые файлы реализуют функциональность каждого исходного файла.
 
-## Task
+## Задача
 
-Examine all source language files and identify the corresponding target language files that implement the same functionality. This mapping is essential for:
-- Migration quality evaluation
-- Traceability documentation
-- Gap analysis
+Изучите все файлы исходного языка и определите соответствующие файлы целевого языка, реализующие ту же функциональность. Эта карта необходима для:
+- Оценки качества миграции
+- Документации трассируемости
+- Анализа пробелов
 
-## Output Format
+## Формат вывода
 
-Save the mapping as a JSON file with this structure:
+Сохраните карту как JSON-файл со структурой:
 
 ```json
 {
@@ -30,27 +32,27 @@ Save the mapping as a JSON file with this structure:
 }
 ```
 
-## Rules
+## Правила
 
-1. **Many-to-many mapping**: A source file may map to multiple target files, and a target file may implement logic from multiple source files
-2. **Complete coverage**: EVERY source file must appear as a key in the mapping
-3. **Complete target coverage**: EVERY target file should appear as a value at least once
-4. **Empty arrays**: If a source file has no corresponding target implementation, use an empty array `[]`
-5. **Incremental**: If a mapping file already exists, update it rather than replacing it
+1. **Связь многие-ко-многим**: Исходный файл может отображаться в несколько целевых файлов, и целевой файл может реализовывать логику из нескольких исходных
+2. **Полное покрытие**: КАЖДЫЙ исходный файл должен присутствовать как ключ в карте
+3. **Полное покрытие целевых файлов**: КАЖДЫЙ целевой файл должен встречаться как значение хотя бы раз
+4. **Пустые массивы**: Если у исходного файла нет соответствующей целевой реализации, используйте пустой массив `[]`
+5. **Инкрементальность**: Если файл карты уже существует, обновите его, а не заменяйте полностью
 
-## How to Identify Mappings
+## Как определять соответствия
 
-Look for:
-- Matching class/program names
-- Similar function/paragraph names
-- Matching business logic patterns
-- Comments referencing source files
-- Import/include statements
-- Data structure similarities
+Ищите:
+- Совпадающие имена классов/программ
+- Похожие имена функций/параграфов
+- Совпадающие паттерны бизнес-логики
+- Комментарии, ссылающиеся на исходные файлы
+- Инструкции import/include
+- Сходство структур данных
 
-## Example
+## Пример
 
-For a COBOL-to-Java migration:
+Для миграции COBOL → Java:
 
 ```json
 {
@@ -61,12 +63,12 @@ For a COBOL-to-Java migration:
 }
 ```
 
-Note: `SCREEN001.cbl` maps to nothing because UI code was not migrated.
+Примечание: `SCREEN001.cbl` ни к чему не привязан, потому что UI-код не мигрировался.
 
-## Verification
+## Проверка
 
-After creating the mapping:
-- [ ] Every source file is a key
-- [ ] No duplicate keys
-- [ ] Target files are relative paths from project root
-- [ ] JSON is valid and well-formatted
+После создания карты:
+- [ ] Каждый исходный файл — ключ
+- [ ] Нет дублирующихся ключей
+- [ ] Целевые файлы — относительные пути от корня проекта
+- [ ] JSON валиден и хорошо отформатирован

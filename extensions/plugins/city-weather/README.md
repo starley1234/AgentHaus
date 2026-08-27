@@ -1,36 +1,36 @@
-# City Weather Plugin
+# Плагин погоды по городам
 
-Get current weather, time, and precipitation forecast for any city worldwide using the free [Open-Meteo API](https://open-meteo.com/).
+Получите текущую погоду, время и прогноз осадков для любого города мира с помощью бесплатного [Open-Meteo API](https://open-meteo.com/).
 
-This plugin is also useful for **testing plugin loading** in OpenHands Cloud and the Software Agent SDK.
+Этот плагин также полезен для **тестирования загрузки плагинов** в OpenHands Cloud и Software Agent SDK.
 
-## Features
+## Возможности
 
-- **Slash command**: `/city-weather:now <city>`
-- **Temperature** in both Fahrenheit and Celsius
-- **Current time** in the city's local timezone
-- **Precipitation forecast** for the next 4 hours
-- **No API key required** — uses the free Open-Meteo API
+- **Слэш-команда**: `/city-weather:now <город>`
+- **Температура** в градусах Фаренгейта и Цельсия
+- **Текущее время** в локальном часовом поясе города
+- **Прогноз осадков** на ближайшие 4 часа
+- **API-ключ не требуется** — используется бесплатный Open-Meteo API
 
-## Usage
-
-```
-/city-weather:now New York
-/city-weather:now Tokyo
-/city-weather:now London
-```
-
-### Example Output
+## Использование
 
 ```
-City Weather Report for Tokyo, Japan
+/city-weather:now Москва
+/city-weather:now Токио
+/city-weather:now Лондон
+```
 
-- Current Time: 2025-02-19 14:30 JST
-- Temperature: 52°F / 11°C
-- Current Precipitation: 0.0 mm
+### Пример вывода
 
-Precipitation Forecast (Next 4 Hours):
-| Time  | Probability |
+```
+Отчёт о погоде для города Токио, Япония
+
+- Текущее время: 2025-02-19 14:30 JST
+- Температура: 52°F / 11°C
+- Текущие осадки: 0.0 мм
+
+Прогноз осадков (следующие 4 часа):
+| Время | Вероятность |
 |-------|-------------|
 | 15:00 | 10%         |
 | 16:00 | 15%         |
@@ -40,13 +40,13 @@ Precipitation Forecast (Next 4 Hours):
 
 ---
 
-## Testing Plugin Loading
+## Тестирование загрузки плагина
 
-This plugin can be used to verify that plugin loading works correctly across different OpenHands platforms.
+Этот плагин можно использовать, чтобы проверить, что загрузка плагинов корректно работает на разных платформах OpenHands.
 
 ### OpenHands Cloud (app.all-hands.dev)
 
-Test the plugin loading endpoint at [app.all-hands.dev](https://app.all-hands.dev):
+Протестируйте эндпоинт загрузки плагина на [app.all-hands.dev](https://app.all-hands.dev):
 
 ```bash
 curl -X POST "https://app.all-hands.dev/api/v1/app-conversations" \
@@ -64,13 +64,13 @@ curl -X POST "https://app.all-hands.dev/api/v1/app-conversations" \
   }'
 ```
 
-The response includes a conversation ID. Poll `/api/v1/app-conversations/search` until `sandbox_status` is `"RUNNING"`, then view at:
+В ответе приходит ID беседы. Опрашивайте `/api/v1/app-conversations/search`, пока `sandbox_status` не станет `"RUNNING"`, затем откройте:
 
 ```
 https://app.all-hands.dev/conversations/{conversation_id}
 ```
 
-> **Note:** Sandbox startup typically takes 30-90 seconds.
+> **Примечание:** Запуск песочницы обычно занимает 30-90 секунд.
 
 ### Software Agent SDK (1.10.0+)
 
@@ -100,46 +100,46 @@ conversation.run()
 
 ---
 
-## Plugin Structure
+## Структура плагина
 
-This plugin follows the [Claude Code plugin marketplace format](https://code.claude.com/docs/en/plugin-marketplaces):
+Этот плагин следует формату [маркетплейса плагинов Claude Code](https://code.claude.com/docs/en/plugin-marketplaces):
 
 ```
 city-weather/
 ├── .claude-plugin/
-│   └── plugin.json      # Plugin manifest
+│   └── plugin.json      # Манифест плагина
 ├── commands/
-│   └── now.md           # Slash command definition
+│   └── now.md           # Определение слэш-команды
 └── README.md
 ```
 
-### How It Works
+### Как это работает
 
-1. The `/city-weather:now` slash command is converted to a `KeywordTrigger` skill
-2. When triggered, the agent receives instructions to:
-   - Call the Open-Meteo Geocoding API to find city coordinates
-   - Call the Open-Meteo Weather API to fetch current conditions and forecast
-   - Format and present the results
+1. Слэш-команда `/city-weather:now` преобразуется в навык с триггером по ключевому слову `KeywordTrigger`
+2. При срабатывании агент получает инструкции:
+   - Вызвать Geocoding API Open-Meteo для поиска координат города
+   - Вызвать Weather API Open-Meteo для получения текущих условий и прогноза
+   - Отформатировать и показать результаты
 
-The `$ARGUMENTS` placeholder in the command captures user input (e.g., "Tokyo").
-
----
-
-## API Reference
-
-This plugin uses two Open-Meteo endpoints:
-
-| Endpoint | Purpose |
-|----------|---------|
-| `geocoding-api.open-meteo.com/v1/search` | Convert city name to coordinates |
-| `api.open-meteo.com/v1/forecast` | Fetch weather data |
-
-Both APIs are free and require no authentication.
+Плейсхолдер `$ARGUMENTS` в команде захватывает ввод пользователя (например, «Токио»).
 
 ---
 
-## Related Resources
+## Справочник API
 
-- [OpenHands SDK Plugin Documentation](https://docs.openhands.dev/sdk/guides/plugins)
+Этот плагин использует два эндпоинта Open-Meteo:
+
+| Эндпоинт | Назначение |
+|----------|------------|
+| `geocoding-api.open-meteo.com/v1/search` | Преобразование названия города в координаты |
+| `api.open-meteo.com/v1/forecast` | Получение данных о погоде |
+
+Оба API бесплатны и не требуют аутентификации.
+
+---
+
+## Связанные ресурсы
+
+- [Документация по плагинам OpenHands SDK](https://docs.openhands.dev/sdk/guides/plugins)
 - [OpenHands Cloud](https://app.all-hands.dev)
-- [Open-Meteo API Documentation](https://open-meteo.com/en/docs)
+- [Документация Open-Meteo API](https://open-meteo.com/en/docs)

@@ -1,18 +1,18 @@
-# Troubleshooting Guide
+# Руководство по устранению неполадок
 
-## COBOL doesn't compile after mainframe removal
+## COBOL не компилируется после удаления мейнфрейма
 
-- Check FILE STATUS is declared for all files
-- Ensure CLOSE statements in all code paths
-- Verify paragraph names match PERFORM statements
+- Проверьте, что FILE STATUS объявлен для всех файлов
+- Убедитесь, что инструкции CLOSE есть во всех ветках кода
+- Проверьте, что имена параграфов совпадают с инструкциями PERFORM
 
-## Java tests fail
+## Падают Java-тесты
 
-- Compare output byte-by-byte with golden files
-- Check decimal precision (use BigDecimal)
-- Verify character encoding matches COBOL
+- Сравните вывод побайтово с эталонными файлами
+- Проверьте точность десятичных чисел (используйте BigDecimal)
+- Убедитесь, что кодировка символов совпадает с COBOL
 
-## Missing functionality
+## Отсутствует функциональность
 
-- Check the migration mapping for coverage gaps
-- Review `mainframe_dependency_removal_plan.md` for skipped items
+- Проверьте карту миграции на пробелы в покрытии
+- Изучите `mainframe_dependency_removal_plan.md` на предмет пропущенных элементов

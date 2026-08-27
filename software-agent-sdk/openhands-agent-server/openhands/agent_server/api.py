@@ -38,10 +38,12 @@ from openhands.agent_server.dependencies import (
     check_workspace_session,
 )
 from openhands.agent_server.desktop_router import desktop_router
+from openhands.agent_server.vnc_proxy_router import vnc_proxy_router
 from openhands.agent_server.desktop_service import get_desktop_service
 from openhands.agent_server.event_router import event_router
 from openhands.agent_server.file_router import file_router
 from openhands.agent_server.git_router import git_router
+from openhands.agent_server.github_app_router import github_app_router
 from openhands.agent_server.hooks_router import hooks_router
 from openhands.agent_server.init_router import (
     InitService,
@@ -432,6 +434,9 @@ def _add_api_routes(app: FastAPI) -> None:
     api_router.include_router(tool_router)
     api_router.include_router(bash_router)
     api_router.include_router(git_router)
+    # Optional, server-side GitHub App capability. Existing git/PAT/SSH flows
+    # remain unchanged when its three environment variables are absent.
+    api_router.include_router(github_app_router)
     api_router.include_router(file_router)
     api_router.include_router(vscode_router)
     api_router.include_router(desktop_router)
@@ -462,6 +467,17 @@ def _add_api_routes(app: FastAPI) -> None:
     )
     workspace_api_router.include_router(workspace_router)
     app.include_router(workspace_api_router)
+
+    # VNC proxy: registered WITHOUT dependencies because the workspace
+    # auth (APIKeyHeader + APIKeyCookie) crashes on WebSocket scope —
+    # FastAPI calls APIKeyHeader.__call__() which expects an HTTP Request,
+    # but WebSocket has a different ASGI scope. Instead, auth is checked
+    # inside the HTTP handler via the workspace session cookie, and
+    # WebSocket connections inherit the authenticated session from the
+    # same browser that loaded the noVNC page (same-origin cookies).
+    vnc_proxy_api_router = APIRouter(prefix="/api")
+    vnc_proxy_api_router.include_router(vnc_proxy_router)
+    app.include_router(vnc_proxy_api_router)
 
     app.include_router(sockets_router)
 

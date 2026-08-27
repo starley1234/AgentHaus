@@ -1,69 +1,69 @@
 #!/bin/bash
-# OpenHands Cloud — install CLI, authenticate, send a task, open conversation URL
-# Usage: run.sh "your message here"
-# Exit codes: 0 = success, 1 = error, 2 = auth required (re-run after user authenticates)
+# OpenHands Cloud — установка CLI, аутентификация, отправка задачи, открытие URL беседы
+# Использование: run.sh "ваше сообщение здесь"
+# Коды выхода: 0 = успех, 1 = ошибка, 2 = требуется аутентификация (повторно запустите после аутентификации пользователя)
 
 set -o pipefail
 
 MESSAGE="$1"
 
 if [ -z "$MESSAGE" ]; then
-    echo "ERROR: No message provided"
-    echo "Usage: run.sh \"your message here\""
+    echo "ОШИБКА: Сообщение не предоставлено"
+    echo "Использование: run.sh \"ваше сообщение здесь\""
     exit 1
 fi
 
-# Step 1: Ensure the OpenHands CLI is installed
+# Шаг 1: Убедиться, что OpenHands CLI установлен
 if ! command -v openhands &> /dev/null; then
-    echo "OpenHands CLI not found. Installing..."
+    echo "OpenHands CLI не найден. Устанавливаю..."
     uv tool install openhands --python 3.12
     if [ $? -ne 0 ]; then
-        echo "ERROR: Failed to install OpenHands CLI"
+        echo "ОШИБКА: Не удалось установить OpenHands CLI"
         exit 1
     fi
-    echo "OpenHands CLI installed successfully."
+    echo "OpenHands CLI успешно установлен."
 
-    # Fresh install — start authentication flow
+    # Свежая установка — запуск потока аутентификации
     echo ""
-    echo "Authentication required. Starting OpenHands Cloud authentication..."
+    echo "Требуется аутентификация. Запускаю аутентификацию OpenHands Cloud..."
     openhands cloud
     echo ""
-    echo "AUTH_REQUIRED: Please confirm you have authenticated, then this script will be re-run."
+    echo "AUTH_REQUIRED: Пожалуйста, подтвердите, что вы прошли аутентификацию, затем этот скрипт будет перезапущен."
     exit 2
 fi
 
-# Step 2: Send the task
-echo "Sending task to OpenHands Cloud..."
+# Шаг 2: Отправка задачи
+echo "Отправка задачи в OpenHands Cloud..."
 OUTPUT=$(openhands cloud -t "$MESSAGE" 2>&1)
 EXIT_CODE=$?
 
-# Check for authentication failures
+# Проверка на сбои аутентификации
 if [ $EXIT_CODE -ne 0 ] || echo "$OUTPUT" | grep -qi "auth\|login\|unauthorized\|token"; then
     if echo "$OUTPUT" | grep -qi "auth\|login\|unauthorized\|token\|credential"; then
-        echo "Authentication required. Starting OpenHands Cloud authentication..."
+        echo "Требуется аутентификация. Запускаю аутентификацию OpenHands Cloud..."
         openhands cloud
         echo ""
-        echo "AUTH_REQUIRED: Please confirm you have authenticated, then this script will be re-run."
+        echo "AUTH_REQUIRED: Пожалуйста, подтвердите, что вы прошли аутентификацию, затем этот скрипт будет перезапущен."
         exit 2
     else
-        echo "ERROR: Command failed"
+        echo "ОШИБКА: Команда завершилась неудачей"
         echo "$OUTPUT"
         exit 1
     fi
 fi
 
-# Step 3: Extract URL and open in browser
+# Шаг 3: Извлечь URL и открыть в браузере
 echo "$OUTPUT"
 
 URL=$(echo "$OUTPUT" | grep -oE 'https?://[^[:space:]]+' | head -1 | sed 's/[,;)]$//')
 
 if [ -n "$URL" ]; then
     echo ""
-    echo "Opening $URL in browser..."
+    echo "Открываю $URL в браузере..."
     case "$(uname -s)" in
         Darwin)       open "$URL" ;;
-        Linux)        xdg-open "$URL" 2>/dev/null || sensible-browser "$URL" 2>/dev/null || echo "Please open the URL manually: $URL" ;;
+        Linux)        xdg-open "$URL" 2>/dev/null || sensible-browser "$URL" 2>/dev/null || echo "Пожалуйста, откройте URL вручную: $URL" ;;
         MINGW*|CYGWIN*|MSYS*) start "$URL" ;;
-        *)            echo "Please open the URL manually: $URL" ;;
+        *)            echo "Пожалуйста, откройте URL вручную: $URL" ;;
     esac
 fi

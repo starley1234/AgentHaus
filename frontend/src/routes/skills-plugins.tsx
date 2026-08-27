@@ -120,6 +120,21 @@ export default function SkillsPluginsScreen() {
     );
   };
 
+  const handleEnableAllPlugins = () => {
+    // Включить все установленные плагины
+    const installedPlugins = plugins.filter((p) => p.installed);
+    installedPlugins.forEach((p) => {
+      setPluginEnabled.mutate({ name: p.name, enabled: true });
+    });
+  };
+
+  const handleDisableAllPlugins = () => {
+    const installedPlugins = plugins.filter((p) => p.installed);
+    installedPlugins.forEach((p) => {
+      setPluginEnabled.mutate({ name: p.name, enabled: false });
+    });
+  };
+
   return (
     <div
       data-testid="skills-plugins-screen"
@@ -171,6 +186,23 @@ export default function SkillsPluginsScreen() {
               <p className="text-sm text-tertiary-light">
                 {t(I18nKey.SETTINGS$PLUGINS_NO_PLUGINS)}
               </p>
+              <p className="text-xs text-tertiary-light mt-2">
+                Если вы только что пересобрали образ, подождите 10-20 сек и обновите страницу.
+                <br />
+                Проверьте логи: <code>docker compose logs --tail=50</code>
+                <br />
+                Убедитесь, что <code>EXTENSIONS_REPO=/opt/agent-canvas/extensions</code> в контейнере.
+              </p>
+              <div className="mt-3">
+                <BrandButton
+                  type="button"
+                  variant="secondary"
+                  onClick={() => window.location.reload()}
+                  testId="plugins-retry-button"
+                >
+                  Обновить страницу
+                </BrandButton>
+              </div>
             </div>
           )}
 
@@ -182,6 +214,35 @@ export default function SkillsPluginsScreen() {
                 statusFilter={statusFilter}
                 onStatusFilterChange={setStatusFilter}
               />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-tertiary-light">
+                  {t(I18nKey.SETTINGS$PLUGINS_BULK_ACTIONS)}:
+                </span>
+                <BrandButton
+                  type="button"
+                  variant="secondary"
+                  testId="plugins-enable-all-button"
+                  isDisabled={!isLocal || plugins.filter((p) => p.installed).length === 0}
+                  onClick={handleEnableAllPlugins}
+                  className="text-xs"
+                >
+                  {t(I18nKey.SETTINGS$PLUGINS_ENABLE_ALL)}
+                </BrandButton>
+                <BrandButton
+                  type="button"
+                  variant="secondary"
+                  testId="plugins-disable-all-button"
+                  isDisabled={!isLocal || plugins.filter((p) => p.installed).length === 0}
+                  onClick={handleDisableAllPlugins}
+                  className="text-xs"
+                >
+                  {t(I18nKey.SETTINGS$PLUGINS_DISABLE_ALL)}
+                </BrandButton>
+                <span className="text-xs text-tertiary-light ml-2">
+                  Установлено: {plugins.filter((p) => p.installed).length} / {plugins.length}
+                </span>
+              </div>
               {filteredPlugins.length === 0 ? (
                 <div
                   data-testid="plugins-no-match"

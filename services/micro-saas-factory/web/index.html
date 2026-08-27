@@ -1,0 +1,73 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Фабрика микро-SaaS</title><style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--accent:#5b5ff0}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:3rem 1.25rem 4rem}
+h1{font-family:Georgia,serif;font-weight:600;font-size:2rem;margin:.2rem 0 .5rem}
+.sub{color:var(--mut);margin:0 0 2rem}
+label{font-size:.85rem;color:var(--mut);display:block;margin:0 0 .35rem}
+input,textarea{width:100%;padding:.7rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--card);font:inherit;margin-bottom:1rem}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem 1.4rem;font:inherit;cursor:pointer}
+button:disabled{opacity:.6}
+.job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin:.8rem 0}
+.job .t{font-weight:600}
+.job a{color:var(--accent)}
+.err{color:#b91c1c}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-top:1.5rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.2rem}
+.card h3{margin:0 0 .4rem;font-size:1.1rem}
+.card p{margin:0;color:var(--mut);font-size:.9rem}
+.ideas{margin:2rem 0;padding:1.2rem;background:#fff;border:1px solid var(--line);border-radius:12px}
+.ideas h3{margin:0 0 .6rem}
+.ideas ul{margin:0;padding-left:1.2rem}
+.ideas li{margin:.3rem 0;font-size:.9rem}
+</style></head><body><div class="wrap">
+<h1>🏭 Фабрика микро-SaaS</h1>
+<p class="sub">Автономный завод маленьких платных инструментов. Каждый запуск = новый микро-SaaS с лендингом. Работает в браузере, без бэкенда — можно продавать как статический сайт на Gumroad, Vercel, Product Hunt.</p>
+
+<div class="ideas">
+<h3>💡 Идеи микро-SaaS (популярные, продаются по $5-19):</h3>
+<ul>
+<li>PDF to Excel / CSV / JSON — для бухгалтеров, закупок</li>
+<li>CSV Cleaner — удалить дубликаты, пустые строки, форматировать</li>
+<li>JSON Formatter + Validator — с подсветкой ошибок</li>
+<li>Image Compressor — сжатие без потери качества</li>
+<li>Background Remover — удалить фон (через Canvas API)</li>
+<li>QR Generator — с лого, цветами</li>
+<li>Password Generator — с правилами</li>
+<li>Regex Tester — тестер регулярных выражений</li>
+<li>Color Palette Extractor — из картинки</li>
+<li>Markdown to HTML / PDF — конвертер</li>
+</ul>
+</div>
+
+<label for="inp">Идея микро-SaaS (например, 'PDF to Excel для бухгалтеров' или 'CSV cleaner для маркетологов')</label>
+<textarea id="inp" rows="3" placeholder="Опиши идею или оставь пустым — агент придумает сам"></textarea>
+<label for="title">Название инструмента</label>
+<input type="text" id="title" placeholder="Например, PDF to Excel Pro">
+<button id="go">🚀 Создать микро-SaaS</button>
+<div id="out"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function chip(s){return s==='finished'?'✅ готово':s==='running'?'⏳ выполняется':s==='error'?'⚠️ ошибка':s}
+async function refresh(){
+  const r=await (await fetch("api/jobs")).json();
+  $("out").innerHTML=r.jobs.map(j=>`<div class="job"><div class="t">${esc(j.title||"Микро-SaaS")}</div><div>${chip(j.status)}</div>${j.status==="finished"?`<div><a href="${j.site_url}" target="_blank">Открыть сайт ↗</a> · <a href="${j.site_url}product.json" target="_blank">product.json</a></div>`:j.status==="error"?`<div class="err">${esc(j.error||"")}</div>`:""}</div>`).join("");
+}
+async function start(){
+  const go=$("go");go.disabled=true;go.textContent="Создаю…";
+  const res=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input:$("inp").value.trim(),title:$("title").value.trim()})});
+  if(!res.ok){$("out").innerHTML=`<div class="err">Ошибка запуска</div>`;go.disabled=false;go.textContent="🚀 Создать микро-SaaS";return}
+  const d=await res.json();
+  refresh();
+  const poll=setInterval(async()=>{
+    const st=await (await fetch(`api/status?id=${d.jobId}`)).json();
+    refresh();
+    if(st.status!=="running"&&st.status!=="stuck"){clearInterval(poll);go.disabled=false;go.textContent="🚀 Создать микро-SaaS"}
+  },2000);
+}
+$("go").onclick=start;
+refresh();
+</script>
+</div></body></html>

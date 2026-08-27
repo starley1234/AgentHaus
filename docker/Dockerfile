@@ -91,13 +91,43 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/agent-server-venv
 ENV UV_PYTHON_INSTALL_DIR=/opt/uv-managed-python
 COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
 WORKDIR /tmp/software-agent-sdk
-COPY software-agent-sdk/ ./
+
+# ── Cache-friendly: copy ONLY dependency manifests first ─────────────────────
+# uv.lock + pyproject.toml files define the full dependency graph. As long as
+# these don't change, the `uv sync` layer stays cached — even when Python
+# source files change. This saves minutes on every rebuild.
+COPY software-agent-sdk/pyproject.toml software-agent-sdk/uv.lock ./
+COPY software-agent-sdk/openhands-sdk/pyproject.toml ./openhands-sdk/
+COPY software-agent-sdk/openhands-tools/pyproject.toml ./openhands-tools/
+COPY software-agent-sdk/openhands-workspace/pyproject.toml ./openhands-workspace/
+COPY software-agent-sdk/openhands-agent-server/pyproject.toml ./openhands-agent-server/
+
+# Create minimal placeholder package structures so uv can resolve the workspace.
+# All packages use the `openhands` namespace directory (not the package name).
+RUN set -eux; \
+    for pkg in openhands-sdk openhands-tools openhands-workspace openhands-agent-server; do \
+      mkdir -p "$pkg/openhands"; \
+      touch "$pkg/openhands/__init__.py"; \
+    done
+
+# Install dependencies (this layer is cached as long as lock/toml files are unchanged)
 RUN set -eux; \
     EXTRA_FLAGS=""; \
     if [ "$ENABLE_VERTEX" = "1" ]; then EXTRA_FLAGS="--extra vertex"; fi; \
     uv venv --python-preference only-managed --python 3.13 /opt/agent-server-venv && \
     uv sync --frozen --no-editable --managed-python --extra boto3 $EXTRA_FLAGS && \
     test -x /opt/agent-server-venv/bin/python
+
+# ── Now copy the actual source code (invalidates only this cheap layer) ──────
+COPY software-agent-sdk/ ./
+
+# Re-sync to install the real source over the placeholder packages.
+# This is fast: all external dependencies are already installed from the
+# cached layer above; only the 4 workspace packages get reinstalled.
+RUN set -eux; \
+    EXTRA_FLAGS=""; \
+    if [ "$ENABLE_VERTEX" = "1" ]; then EXTRA_FLAGS="--extra vertex"; fi; \
+    uv sync --frozen --no-editable --managed-python --extra boto3 $EXTRA_FLAGS
 
 # ── Stage 2: Combined image ──────────────────────────────────────────────────
 FROM ${AGENT_SERVER_IMAGE} AS final
@@ -127,11 +157,17 @@ USER root
 # (asyncpg needs libpq, which the agent-server base image may not include).
 # curl is added so the OpenSCAD vision loop (and similar workflows) can
 # download a rendered image URL into the workspace and view it via file_editor.
+# VNC stack: TigerVNC + XFCE4 + noVNC for interactive browser access.
 RUN if command -v apt-get >/dev/null 2>&1; then \
       apt-get update && \
-      apt-get install -y --no-install-recommends libpq-dev curl poppler-utils && \
+      apt-get install -y --no-install-recommends \
+        libpq-dev curl poppler-utils \
+        tigervnc-standalone-server xfce4 dbus-x11 novnc websockify && \
       rm -rf /var/lib/apt/lists/*; \
     fi
+
+# Ensure noVNC web files are findable by DesktopService
+ENV NOVNC_WEB=/usr/share/novnc
 
 # Install automation server via pip.
 # Shared deps (openhands-sdk, fastapi, uvicorn, pydantic, httpx, …) are

@@ -1,56 +1,56 @@
 ---
 allowed-tools: Bash(curl:*)
-argument-hint: <city>
-description: Get current weather, time, and precipitation forecast for a city
+argument-hint: <город>
+description: Получить текущую погоду, время и прогноз осадков для города
 ---
 
-# City Weather Report
+# Отчёт о погоде по городу
 
-Get the current time, temperature (in both Fahrenheit and Celsius), and precipitation forecast for the next 4 hours for the specified city.
+Получите текущее время, температуру (в Фаренгейтах и Цельсиях) и прогноз осадков на ближайшие 4 часа для указанного города.
 
-## Instructions
+## Инструкции
 
-1. Parse the city name from the arguments: **$ARGUMENTS**
+1. Извлеките название города из аргументов: **$ARGUMENTS**
 
-2. Use the Open-Meteo Geocoding API to find the city coordinates:
+2. Используйте Geocoding API Open-Meteo для поиска координат города:
    ```bash
-   curl -s "https://geocoding-api.open-meteo.com/v1/search?name=CITY_NAME&count=1&language=en&format=json"
+   curl -s "https://geocoding-api.open-meteo.com/v1/search?name=CITY_NAME&count=1&language=ru&format=json"
    ```
-   Replace `CITY_NAME` with the URL-encoded city name.
+   Замените `CITY_NAME` на URL-кодированное название города.
 
-3. Extract the latitude, longitude, and timezone from the response.
+3. Извлеките широту, долготу и часовой пояс из ответа.
 
-4. Use the Open-Meteo Weather API to fetch current weather and hourly forecast:
+4. Используйте Weather API Open-Meteo для получения текущей погоды и почасового прогноза:
    ```bash
    curl -s "https://api.open-meteo.com/v1/forecast?latitude=LAT&longitude=LON&current=temperature_2m,precipitation&hourly=temperature_2m,precipitation_probability&timezone=TIMEZONE&forecast_hours=4"
    ```
-   Replace `LAT`, `LON`, and `TIMEZONE` with the values from step 3.
+   Замените `LAT`, `LON` и `TIMEZONE` на значения из шага 3.
 
-5. Format and present the results in a clear report:
+5. Отформатируйте и представьте результаты в виде понятного отчёта:
 
-   **City Weather Report for [City Name]**
+   **Отчёт о погоде для города [Название города]**
    
-   - **Current Time:** [formatted local time in the city's timezone]
-   - **Temperature:** [X]°F / [Y]°C
-   - **Current Precipitation:** [amount] mm
+   - **Текущее время:** [отформатированное локальное время в часовом поясе города]
+   - **Температура:** [X]°F / [Y]°C
+   - **Текущие осадки:** [количество] мм
    
-   **Precipitation Forecast (Next 4 Hours):**
-   | Time | Probability |
+   **Прогноз осадков (следующие 4 часа):**
+   | Время | Вероятность |
    |------|-------------|
-   | [hour 1] | [X]% |
-   | [hour 2] | [Y]% |
-   | [hour 3] | [Z]% |
-   | [hour 4] | [W]% |
+   | [час 1] | [X]% |
+   | [час 2] | [Y]% |
+   | [час 3] | [Z]% |
+   | [час 4] | [W]% |
 
-## Example Usage
+## Примеры использования
 
-`/city-weather:now New York`
-`/city-weather:now Tokyo`
-`/city-weather:now London`
+`/city-weather:now Москва`
+`/city-weather:now Токио`
+`/city-weather:now Лондон`
 
-## Notes
+## Примечания
 
-- Uses the free Open-Meteo API (no API key required)
-- Temperature is provided in both Fahrenheit and Celsius
-- Precipitation probability is shown for the next 4 hours
-- Times are displayed in the city's local timezone
+- Используется бесплатный Open-Meteo API (API-ключ не требуется)
+- Температура выводится в Фаренгейтах и Цельсиях
+- Вероятность осадков показывается на ближайшие 4 часа
+- Время отображается в локальном часовом поясе города

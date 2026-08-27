@@ -1,23 +1,23 @@
-# Agent Readiness Report
+# Отчёт о готовности к агенту
 
-Evaluate how well a repository supports autonomous AI-assisted development.
+Оцените, насколько хорошо репозиторий поддерживает автономную разработку с помощью ИИ.
 
-## Triggers
+## Триггеры
 
-This skill is activated by the following keywords:
+Этот навык активируется по ключевым словам:
 
 - `agent-readiness-report`
 
-## What This Does
+## Что делает
 
-Assesses a codebase across five pillars that determine whether an AI agent can work effectively in a repository. Produces a structured report identifying what's present, what's missing, and which pillars are strongest and weakest.
+Оценивает кодовую базу по пяти столпам, определяющим, может ли ИИ-агент эффективно работать в репозитории. Выдаёт структурированный отчёт, показывающий, что присутствует, чего не хватает и какие столпы самые сильные и слабые.
 
-The five pillars are:
+Пять столпов:
 
-- **Agent Instructions** — does the agent know what to do?
-- **Feedback Loops** — does the agent know if it's right?
-- **Workflows & Automation** — does the process support agent work?
-- **Policy & Governance** — does the agent know the rules?
-- **Build & Dev Environment** — can the agent build and run the project?
+- **Инструкции для агента** — знает ли агент, что делать?
+- **Петли обратной связи** — знает ли агент, правильно ли он?
+- **Рабочие процессы и автоматизация** — поддерживает ли процесс работу агента?
+- **Политики и управление** — знает ли агент правила?
+- **Сборка и окружение разработки** — может ли агент собрать и запустить проект?
 
-Once you have a report, use `improve-agent-readiness` to turn the gaps into concrete fixes.
+Получив отчёт, используйте `improve-agent-readiness`, чтобы превратить пробелы в конкретные исправления.

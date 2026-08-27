@@ -1,6 +1,6 @@
-# COBOL to Java Transformation Example
+# Пример трансформации COBOL → Java
 
-## COBOL (Before)
+## COBOL (До)
 
 ```cobol
        IDENTIFICATION DIVISION.
@@ -17,12 +17,12 @@
            STOP RUN.
 ```
 
-## Java (After)
+## Java (После)
 
 ```java
 /**
- * Tax calculation service.
- * COBOL equivalent: CALC-TAX.cbl
+ * Сервис расчёта налогов.
+ * Эквивалент COBOL: CALC-TAX.cbl
  */
 public class TaxCalculator {
     private static final BigDecimal DEFAULT_TAX_RATE = new BigDecimal("0.085");
@@ -34,23 +34,23 @@ public class TaxCalculator {
     }
 
     public TaxCalculator(BigDecimal taxRate) {
-        this.taxRate = Objects.requireNonNull(taxRate, "Tax rate cannot be null");
+        this.taxRate = Objects.requireNonNull(taxRate, "Ставка налога не может быть null");
     }
 
     /**
-     * Calculate tax for a given subtotal.
-     * COBOL equivalent: CALC-TAX.cbl lines 10-12
+     * Рассчитать налог для заданной суммы.
+     * Эквивалент COBOL: CALC-TAX.cbl строки 10-12
      *
-     * @param subtotal The pre-tax amount
-     * @return The calculated tax amount
-     * @throws IllegalArgumentException if subtotal is null or negative
+     * @param subtotal Сумма до налога
+     * @return Рассчитанная сумма налога
+     * @throws IllegalArgumentException если subtotal null или отрицательный
      */
     public BigDecimal calculateTax(BigDecimal subtotal) {
         if (subtotal == null) {
-            throw new IllegalArgumentException("Subtotal cannot be null");
+            throw new IllegalArgumentException("Подытог не может быть null");
         }
         if (subtotal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Subtotal cannot be negative");
+            throw new IllegalArgumentException("Подытог не может быть отрицательным");
         }
         return subtotal.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
     }

@@ -36,11 +36,15 @@ export async function sendMessageWithAttachments(options: {
     t,
   } = options;
 
-  const { imagesToEmbed, imagesAsFiles } = partitionImagesForUpload(
+  const { imagesToEmbed } = partitionImagesForUpload(
     images,
     imagesMarkedUploadAsFile,
   );
-  const filesToUpload = [...files, ...imagesAsFiles];
+  // Keep the image block in the chat message for vision-capable models, but
+  // always also write image attachments into the workspace.  A later tool
+  // call cannot recover browser-only image data, whereas a workspace file can
+  // be opened and compared by skills such as OpenSCAD.
+  const filesToUpload = [...files, ...images];
 
   const validation = validateFiles([...imagesToEmbed, ...filesToUpload]);
   if (!validation.isValid) {

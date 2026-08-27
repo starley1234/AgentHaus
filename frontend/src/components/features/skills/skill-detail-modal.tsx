@@ -18,12 +18,49 @@ import { isCopyableSkillSource } from "./is-copyable-skill-source";
 import { SkillCardPillRow } from "./skill-card-pill-row";
 import { getSkillChatLaunchMessage } from "./get-skill-chat-launch-message";
 import { useLaunchSkillInChat } from "#/hooks/use-launch-skill-in-chat";
+import { useUninstallSkill } from "#/hooks/mutation/use-uninstall-skill";
 
 interface SkillDetailModalProps {
   skill: SkillInfo;
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
   onClose: () => void;
+  onDelete?: (skillName: string) => void;
+}
+
+function isDeletableSkill(skill: SkillInfo): boolean {
+  // Public навыки (source === "public") нельзя удалить, только отключить
+  // Удаляемые — те, что установлены в ~/.openhands/skills/installed
+  // Навыки вида "agents:..." или "agents:frontend" — это path-правила из AGENTS.md,
+  // они генерируются автоматически и не удаляются через API uninstall.
+  if (!skill.source) return false;
+  if (skill.source === "public") return false;
+
+  // Проверка паттерна имени для uninstall API: ^[a-z0-9]+(-[a-z0-9]+)*$
+  // Если имя не соответствует (содержит :, /, и т.д.) — это не installed skill
+  const validNamePattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+  if (!validNamePattern.test(skill.name)) return false;
+
+  // Если source содержит путь к installed — считаем удаляемым
+  const src = skill.source.toLowerCase();
+  return (
+    src.includes("installed") ||
+    src.includes(".agents/skills") ||
+    src.includes(".openhands/skills")
+  );
+}
+
+function isPathRuleSkill(skill: SkillInfo): boolean {
+  // Path-правила вида "agents:..." генерируются из AGENTS.md / CLAUDE.md
+  return skill.name.includes(":") || skill.name.startsWith("agents");
+}
+
+function getSkillTypeLabel(skill: SkillInfo): string {
+  if (skill.source === "public") return "Публичный (из @openhands/extensions)";
+  if (isPathRuleSkill(skill)) return "Авто-правило из AGENTS.md / CLAUDE.md";
+  if (skill.source.toLowerCase().includes("installed")) return "Установленный";
+  if (skill.source.toLowerCase().includes(".agents/skills")) return "Пользовательский (.agents/skills)";
+  return "Проектый";
 }
 
 function ReadonlyTextArea({
@@ -57,14 +94,31 @@ export function SkillDetailModal({
   enabled,
   onToggle,
   onClose,
+  onDelete,
 }: SkillDetailModalProps) {
   const { t } = useTranslation("openhands");
   const launchSkillInChat = useLaunchSkillInChat();
+  const uninstallSkill = useUninstallSkill();
   const [sourceCopied, setSourceCopied] = React.useState(false);
   const chatLaunchMessage = React.useMemo(
     () => getSkillChatLaunchMessage(skill),
     [skill],
   );
+
+  const deletable = isDeletableSkill(skill);
+  const pathRule = isPathRuleSkill(skill);
+  const typeLabel = getSkillTypeLabel(skill);
+
+  const handleDelete = () => {
+    const confirmMessage = t(I18nKey.SETTINGS$SKILLS_DELETE_CONFIRM);
+    if (!window.confirm(confirmMessage)) return;
+    uninstallSkill.mutate(skill.name, {
+      onSuccess: () => {
+        onDelete?.(skill.name);
+        onClose();
+      },
+    });
+  };
 
   const description = getSkillCardDescription(skill);
   const pills = React.useMemo(
@@ -112,6 +166,7 @@ export function SkillDetailModal({
             >
               {skill.name}
             </h2>
+            <p className="text-xs text-tertiary-light mt-1">{typeLabel}</p>
             {skill.source ? (
               <div className="mt-0.5 flex min-w-0 items-center gap-1">
                 <p
@@ -145,6 +200,18 @@ export function SkillDetailModal({
             ) : null}
           </div>
         </div>
+
+        {pathRule ? (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+            <p className="font-medium">⚠️ Авто-правило из AGENTS.md</p>
+            <p className="mt-1 text-tertiary-light">
+              Этот навык сгенерирован автоматически из файла <code>AGENTS.md</code> или <code>CLAUDE.md</code> в проекте. 
+              Его нельзя удалить через API, только отключив переключателем выше или удалив/отредактировав исходный файл.
+              <br />
+              Имя <code>{skill.name}</code> не соответствует паттерну для установленных навыков, поэтому API возвращает 422.
+            </p>
+          </div>
+        ) : null}
 
         <div
           data-testid={`skill-modal-enable-row-${skill.name}`}
@@ -188,27 +255,45 @@ export function SkillDetailModal({
           />
         ) : null}
 
-        <div className="mt-2 flex justify-end gap-2">
-          <BrandButton
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            testId="skill-detail-close"
-          >
-            {t(I18nKey.BUTTON$CLOSE)}
-          </BrandButton>
-          <BrandButton
-            type="button"
-            variant="primary"
-            isDisabled={!enabled}
-            onClick={() => launchSkillInChat(chatLaunchMessage, onClose)}
-            testId={`skill-detail-use-skill-${skill.name}`}
-            startContent={
-              <MessageSquareShareIcon className="size-4" aria-hidden />
-            }
-          >
-            {t(I18nKey.SETTINGS$SKILLS_USE_SKILL_BUTTON)}
-          </BrandButton>
+        <div className="mt-2 flex justify-between gap-2">
+          <div>
+            {deletable ? (
+              <BrandButton
+                type="button"
+                variant="secondary"
+                onClick={handleDelete}
+                testId={`skill-detail-uninstall-${skill.name}`}
+                isDisabled={uninstallSkill.isPending}
+                className="text-red-400 hover:text-red-300 border-red-500/30"
+              >
+                {uninstallSkill.isPending
+                  ? t(I18nKey.SETTINGS$SKILLS_UNINSTALL) + "..."
+                  : t(I18nKey.SETTINGS$SKILLS_UNINSTALL)}
+              </BrandButton>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <BrandButton
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              testId="skill-detail-close"
+            >
+              {t(I18nKey.BUTTON$CLOSE)}
+            </BrandButton>
+            <BrandButton
+              type="button"
+              variant="primary"
+              isDisabled={!enabled}
+              onClick={() => launchSkillInChat(chatLaunchMessage, onClose)}
+              testId={`skill-detail-use-skill-${skill.name}`}
+              startContent={
+                <MessageSquareShareIcon className="size-4" aria-hidden />
+              }
+            >
+              {t(I18nKey.SETTINGS$SKILLS_USE_SKILL_BUTTON)}
+            </BrandButton>
+          </div>
         </div>
       </div>
     </ModalBackdrop>

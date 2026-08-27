@@ -1,0 +1,58 @@
+[
+  {
+    "name": "landing-coffee",
+    "title": "☕ Лендинг кофейни",
+    "description": "Современный лендинг для кофейни с меню, картой, формой бронирования",
+    "prompt": "Создай современный лендинг для кофейни 'Aroma' в стиле минимализм, с секциями: hero с фото кофе, меню (эспрессо, капучино, латте с ценами), о нас, карта, форма бронирования столика, контакты. Используй frontend-design навык, светлая тема, адаптивный, с анимациями. Сохрани как index.html с app.js для формы.",
+    "price": 19,
+    "category": "landing"
+  },
+  {
+    "name": "saas-dashboard",
+    "title": "📊 SaaS дашборд",
+    "description": "Дашборд для SaaS с графиками, таблицей пользователей, метриками",
+    "prompt": "Создай SaaS дашборд для аналитики с секциями: метрики (MRR, пользователи, churn), график дохода за 6 месяцев (Chart.js), таблица последних пользователей, список задач. Тёмная тема, современный дизайн, с HeroUI компонентами. Сохрани как index.html",
+    "price": 29,
+    "category": "saas"
+  },
+  {
+    "name": "telegram-bot",
+    "title": "🤖 Telegram бот",
+    "description": "Telegram бот на Node.js с командами /start, /help, обработкой сообщений",
+    "prompt": "Создай Telegram бота на Node.js с использованием node-telegram-bot-api. Команды: /start (приветствие), /help (список команд), /echo (повторяет сообщение). Добавь обработку ошибок, логирование, .env.example с BOT_TOKEN. Сохрани как bot.js + README.md с инструкцией запуска.",
+    "price": 15,
+    "category": "bot"
+  },
+  {
+    "name": "fastapi-api",
+    "title": "⚡ FastAPI API",
+    "description": "REST API на FastAPI с CRUD для пользователей, документацией Swagger",
+    "prompt": "Создай REST API на FastAPI с эндпоинтами: GET /users, POST /users, GET /users/{id}, PUT /users/{id}, DELETE /users/{id}. Используй Pydantic модели, SQLite через SQLAlchemy, документация Swagger на /docs. Добавь тесты pytest и README.md. Сохрани в main.py",
+    "price": 19,
+    "category": "api"
+  },
+  {
+    "name": "portfolio",
+    "title": "🎨 Портфолио дизайнера",
+    "description": "Портфолио для дизайнера с галереей работ, о себе, контактами",
+    "prompt": "Создай портфолио сайт для дизайнера с секциями: hero с именем и слоганом, галерея работ (6 проектов с фото placeholder), о себе, навыки, контакты с формой. Дизайн через theme-factory, выразительный, с градиентами, анимациями. Сохрани как index.html",
+    "price": 19,
+    "category": "landing"
+  },
+  {
+    "name": "csv-cleaner-tool",
+    "title": "🧹 CSV Cleaner (микро-SaaS)",
+    "description": "Микро-SaaS для очистки CSV: удаление дубликатов, пустых строк, форматирование",
+    "prompt": "Создай микро-SaaS инструмент CSV Cleaner: лендинг index.html с формой загрузки CSV, app.js который в браузере читает CSV, удаляет дубликаты, пустые строки, тримит пробелы, показывает статистику (сколько удалено) и скачивает очищенный файл. Дизайн чистый, с drag&drop зоной, ценой $5, кнопкой Stripe заглушкой. Сохрани как index.html + app.js + product.json",
+    "price": 5,
+    "category": "micro-saas"
+  },
+  {
+    "name": "bom-excel-converter",
+    "title": "📄 BOM → Excel (микро-SaaS)",
+    "description": "Конвертер BOM JSON в Excel для производства",
+    "prompt": "Создай микро-SaaS BOM to Excel: index.html с загрузкой bom.json, app.js который конвертирует в CSV и XLSX (через SheetJS или CSV), показывает таблицу предпросмотра, скачивает результат. Для заводов и КБ, цена $9. Сохрани как index.html + app.js",
+    "price": 9,
+    "category": "micro-saas"
+  }
+]

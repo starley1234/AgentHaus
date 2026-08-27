@@ -1,6 +1,6 @@
 ---
-name: OpenHands QA Changes
-description: Automated QA validation of PR changes using OpenHands agent
+name: OpenHands QA изменений
+description: Автоматизированная QA-валидация изменений PR с использованием агента OpenHands
 author: OpenHands
 
 branding:
@@ -9,48 +9,48 @@ branding:
 
 inputs:
   llm-model:
-    description: LLM model to use for QA validation.
+    description: LLM-модель для QA-валидации.
     required: false
     default: anthropic/claude-sonnet-4-5-20250929
   llm-base-url:
-    description: LLM base URL (optional, for custom LLM endpoints)
+    description: Базовый URL LLM (опционально, для кастомных эндпоинтов LLM)
     required: false
     default: ''
   extensions-repo:
-    description: GitHub repository for extensions (owner/repo)
+    description: GitHub репозиторий для расширений (owner/repo)
     required: false
     default: OpenHands/extensions
   extensions-version:
-    description: Git ref to use for extensions (tag, branch, or commit SHA)
+    description: Git ref для использования расширений (тег, ветка или SHA коммита)
     required: false
     default: main
   max-budget:
-    description: Maximum LLM cost in dollars. The agent stops when this budget is exceeded.
+    description: Максимальная стоимость LLM в долларах. Агент останавливается при превышении бюджета.
     required: false
     default: '10.0'
   timeout-minutes:
-    description: Maximum wall-clock time in minutes for the QA job.
+    description: Максимальное время wall-clock в минутах для QA-задачи.
     required: false
     default: '30'
   max-iterations:
-    description: Maximum number of agent iterations (each iteration is one LLM call + action).
+    description: Максимальное количество итераций агента (каждая итерация — один вызов LLM + действие).
     required: false
     default: '500'
   llm-api-key:
-    description: LLM API key (required)
+    description: API-ключ LLM (обязательно)
     required: true
   github-token:
-    description: GitHub token for API access (required)
+    description: GitHub токен для доступа к API (обязательно)
     required: true
   lmnr-api-key:
-    description: Laminar API key for observability (optional)
+    description: API-ключ Laminar для наблюдаемости (опционально)
     required: false
     default: ''
 
 runs:
   using: composite
   steps:
-    - name: Preflight fork/secrets guard
+    - name: Предварительная проверка форка/секретов
       id: preflight
       shell: bash
       env:
@@ -58,14 +58,14 @@ runs:
         LLM_API_KEY: ${{ inputs.llm-api-key }}
       run: |
         if [ "$IS_FORK_PR" = "true" ] && [ -z "$LLM_API_KEY" ]; then
-          echo "::notice title=Skipping QA Changes for fork PR::This workflow runs in pull_request context, so fork PRs do not receive repository secrets such as LLM_API_KEY. Skipping automated QA instead of failing. A maintainer can run QA locally or via a separate trusted workflow."
+          echo "::notice title=Пропуск QA Changes для форк-PR::Этот workflow работает в контексте pull_request, поэтому форк-PR не получают секреты репозитория, такие как LLM_API_KEY. Пропускаем автоматизированный QA вместо падения. Мейнтейнер может запустить QA локально или через отдельный доверенный workflow."
           {
-            echo "## QA Changes skipped"
+            echo "## QA Changes пропущен"
             echo
-            echo "This PR comes from a fork, and pull_request workflows do not receive repository secrets such as LLM_API_KEY."
-            echo "Skipping automated QA instead of failing."
+            echo "Этот PR пришёл из форка, и pull_request workflow не получают секреты репозитория, такие как LLM_API_KEY."
+            echo "Пропускаем автоматизированный QA вместо падения."
             echo
-            echo "A maintainer can run QA locally or via a separate trusted workflow if needed."
+            echo "Мейнтейнер может запустить QA локально или через отдельный доверенный workflow при необходимости."
           } >> "$GITHUB_STEP_SUMMARY"
           echo "skip=true" >> "$GITHUB_OUTPUT"
           exit 0
@@ -73,7 +73,7 @@ runs:
 
         echo "skip=false" >> "$GITHUB_OUTPUT"
 
-    - name: Checkout extensions repository
+    - name: Checkout репозитория расширений
       if: steps.preflight.outputs.skip != 'true'
       uses: actions/checkout@v4
       with:
@@ -81,7 +81,7 @@ runs:
         ref: ${{ inputs.extensions-version }}
         path: extensions
 
-    - name: Checkout PR repository
+    - name: Checkout репозитория PR
       if: steps.preflight.outputs.skip != 'true'
       uses: actions/checkout@v4
       with:
@@ -92,28 +92,28 @@ runs:
         path: pr-repo
         submodules: recursive
 
-    - name: Set up Python
+    - name: Настройка Python
       if: steps.preflight.outputs.skip != 'true'
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
-    - name: Install uv
+    - name: Установка uv
       if: steps.preflight.outputs.skip != 'true'
       uses: astral-sh/setup-uv@v6
       with:
         enable-cache: false
 
-    - name: Install system dependencies
+    - name: Установка системных зависимостей
       if: steps.preflight.outputs.skip != 'true'
       shell: bash
       run: |
         sudo apt-get update
-        # gh: GitHub CLI for posting QA reports
-        # tmux: required by the OpenHands agent runtime
+        # gh: GitHub CLI для публикации QA-отчётов
+        # tmux: требуется для рантайма агента OpenHands
         sudo apt-get install -y gh tmux
 
-    - name: Check required configuration
+    - name: Проверка требуемой конфигурации
       if: steps.preflight.outputs.skip != 'true'
       shell: bash
       env:
@@ -123,20 +123,20 @@ runs:
         INPUTS_LLM_MODEL: ${{ inputs.llm-model }}
       run: |
         if [ -z "$LLM_API_KEY" ]; then
-          echo "Error: llm-api-key is required."
+          echo "Ошибка: llm-api-key обязателен."
           exit 1
         fi
         if [ -z "$GITHUB_TOKEN" ]; then
-          echo "Error: github-token is required."
+          echo "Ошибка: github-token обязателен."
           exit 1
         fi
 
-        echo "PR Number: ${{ github.event.pull_request.number }}"
-        echo "PR Title: $GITHUB_EVENT_PULL_REQUEST_TITLE"
-        echo "Repository: ${{ github.repository }}"
-        echo "LLM model: $INPUTS_LLM_MODEL"
+        echo "Номер PR: ${{ github.event.pull_request.number }}"
+        echo "Заголовок PR: $GITHUB_EVENT_PULL_REQUEST_TITLE"
+        echo "Репозиторий: ${{ github.repository }}"
+        echo "LLM-модель: $INPUTS_LLM_MODEL"
 
-    - name: Run QA validation
+    - name: Запуск QA-валидации
       if: steps.preflight.outputs.skip != 'true'
       shell: bash
       env:
@@ -156,28 +156,28 @@ runs:
         REPO_NAME: ${{ github.repository }}
       run: |
         cd pr-repo
-        # timeout-minutes is not supported on composite action steps,
-        # so we enforce the time limit via the coreutils timeout command.
+        # timeout-minutes не поддерживается на шагах composite action,
+        # поэтому мы форсируем лимит времени через команду coreutils timeout.
         TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
         timeout "${TIMEOUT_SECONDS}" \
           uv run --no-project --with openhands-sdk --with openhands-tools --with 'lmnr<0.7.53' \
             python ../extensions/plugins/qa-changes/scripts/agent_script.py
 
-    - name: Upload logs as artifact
+    - name: Загрузка логов как артефакта
       uses: actions/upload-artifact@v4
       if: always() && steps.preflight.outputs.skip != 'true'
       with:
-        name: openhands-qa-changes-logs
-        path: |
-          *.log
-          output/
-        retention-days: 7
+          name: openhands-qa-changes-logs
+          path: |
+            *.log
+            output/
+          retention-days: 7
 
-    - name: Upload Laminar trace info for evaluation
+    - name: Загрузка информации о трейсе Laminar для оценки
       uses: actions/upload-artifact@v4
       if: success() && steps.preflight.outputs.skip != 'true'
       with:
-        name: qa-changes-trace-${{ github.event.pull_request.number }}
-        path: pr-repo/laminar_trace_info.json
-        retention-days: 30
-        if-no-files-found: ignore
+          name: qa-changes-trace-${{ github.event.pull_request.number }}
+          path: pr-repo/laminar_trace_info.json
+          retention-days: 30
+          if-no-files-found: ignore

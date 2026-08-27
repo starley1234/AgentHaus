@@ -1,20 +1,20 @@
-# Set Up OpenHands
+# Настройка OpenHands
 
-Configure a repository for effective use with OpenHands in one pass.
+Настройте репозиторий для эффективного использования с OpenHands за один проход.
 
-## Triggers
+## Триггеры
 
-This skill is activated by the following keywords:
+Этот навык активируется по ключевым словам:
 
 - `setup-openhands`
 - `set up openhands`
 - `configure openhands for this repo`
 
-## What This Does
+## Что делает
 
-Walks through four steps to make a repo OpenHands-ready:
+Проходит четыре шага, чтобы сделать репозиторий готовым к OpenHands:
 
-1. **AGENTS.md** — generates a root-level agent instruction file with real commands and conventions from the repo
-2. **`.openhands/setup.sh`** — creates a bootstrap script that installs dependencies and sets up the environment at the start of every session
-3. **`.openhands/pre-commit.sh`** — creates a pre-commit script that mirrors CI checks so the agent gets fast feedback before pushing
-4. **PR review workflow** — adds a GitHub Actions workflow for automated code review on pull requests
+1. **AGENTS.md** — генерирует файл инструкций агента в корне с реальными командами и конвенциями из репозитория
+2. **`.openhands/setup.sh`** — создаёт bootstrap-скрипт, устанавливающий зависимости и настраивающий окружение в начале каждой сессии
+3. **`.openhands/pre-commit.sh`** — создаёт pre-commit скрипт, зеркалящий проверки CI, чтобы агент получал быструю обратную связь перед пушем
+4. **Workflow ревью PR** — добавляет GitHub Actions workflow для автоматизированного ревью кода в пулл-реквестах

@@ -11,6 +11,31 @@
   },
   "plugins": [
     {
+      "name": "add-skill",
+      "source": "./skills/add-skill",
+      "description": "Добавить (импортировать) навык OpenHands из GitHub-репозитория в текущее рабочее пространство.",
+      "category": "agent-authoring",
+      "keywords": [
+        "skill",
+        "import",
+        "github",
+        "sparse-checkout"
+      ]
+    },
+    {
+      "name": "agent-canvas-environment",
+      "source": "./skills/agent-canvas-environment",
+      "description": "Эффективная работа в локальной среде Agent Canvas, включая локальный agent-server и автоматизации.",
+      "category": "agent-authoring",
+      "keywords": [
+        "agent-canvas",
+        "openhands",
+        "local",
+        "conversation",
+        "delegation"
+      ]
+    },
+    {
       "name": "agent-creator",
       "source": "./skills/agent-creator",
       "description": "Создание файловых субагентов в виде Markdown-файлов — без написания Python-кода. Ведёт пользователя через структурированный опрос и генерирует готовый к развёртыванию .md-файл агента по спецификации OpenHands SDK.",
@@ -22,18 +47,6 @@
         "markdown",
         "no-code",
         "create"
-      ]
-    },
-    {
-      "name": "add-skill",
-      "source": "./skills/add-skill",
-      "description": "Добавить (импортировать) навык OpenHands из GitHub-репозитория в текущее рабочее пространство.",
-      "category": "agent-authoring",
-      "keywords": [
-        "skill",
-        "import",
-        "github",
-        "sparse-checkout"
       ]
     },
     {
@@ -58,61 +71,6 @@
         "sdk",
         "builder",
         "openhands"
-      ]
-    },
-    {
-      "name": "code-simplifier",
-      "source": "./skills/code-simplifier",
-      "description": "Упрощает и улучшает код по трём направлениям — переиспользование, качество и эффективность. Используй при рефакторинге.",
-      "category": "code-quality",
-      "keywords": [
-        "simplify",
-        "refine",
-        "cleanup",
-        "code-quality",
-        "reuse",
-        "efficiency",
-        "refactor"
-      ]
-    },
-    {
-      "name": "openhands-automation",
-      "source": "./skills/openhands-automation",
-      "description": "Создание и управление автоматизациями OpenHands — запланированными задачами, выполняемыми в песочницах. Используй при настройке автоматизаций.",
-      "category": "automations",
-      "keywords": [
-        "automation",
-        "cron",
-        "scheduled-task",
-        "sandbox",
-        "openhands"
-      ]
-    },
-    {
-      "name": "agent-canvas-environment",
-      "source": "./skills/agent-canvas-environment",
-      "description": "Эффективная работа в локальной среде Agent Canvas, включая локальный agent-server и автоматизации.",
-      "category": "agent-authoring",
-      "keywords": [
-        "agent-canvas",
-        "openhands",
-        "local",
-        "conversation",
-        "delegation"
-      ]
-    },
-    {
-      "name": "openhands-sdk",
-      "source": "./skills/openhands-sdk",
-      "description": "Справочный навык по OpenHands Software Agent SDK — создание ИИ-агентов с собственными инструментами.",
-      "category": "agent-authoring",
-      "keywords": [
-        "sdk",
-        "agent",
-        "openhands",
-        "tools",
-        "llm",
-        "conversation"
       ]
     },
     {
@@ -191,6 +149,21 @@
       ]
     },
     {
+      "name": "code-simplifier",
+      "source": "./skills/code-simplifier",
+      "description": "Упрощает и улучшает код по трём направлениям — переиспользование, качество и эффективность. Используй при рефакторинге.",
+      "category": "code-quality",
+      "keywords": [
+        "simplify",
+        "refine",
+        "cleanup",
+        "code-quality",
+        "reuse",
+        "efficiency",
+        "refactor"
+      ]
+    },
+    {
       "name": "datadog",
       "source": "./skills/datadog",
       "description": "Запросы и анализ логов, метрик, APM-трейсов и мониторов Datadog через Datadog API. Используй при работе с Datadog.",
@@ -201,6 +174,20 @@
         "logs",
         "metrics",
         "apm"
+      ]
+    },
+    {
+      "name": "debate",
+      "source": "./skills/debate",
+      "description": "Организация управляемой дискуссии нескольких агентов (2–3 профиля) на заданную тему с N раундов, ограничением контекста и суммаризацией, опционально с арбитром. Итог — сайт-стенограмма.",
+      "category": "other",
+      "keywords": [
+        "debate",
+        "дискуссия",
+        "агенты",
+        "арбитр",
+        "стенограмма",
+        "мнения"
       ]
     },
     {
@@ -236,6 +223,20 @@
         "docker",
         "container",
         "images"
+      ]
+    },
+    {
+      "name": "evidence-based-citations",
+      "source": "./skills/evidence-based-citations",
+      "description": "Подкрепление фактических утверждений и значений полей официальными проверяемыми источниками. Используй, когда пользователь запрашивает достоверность.",
+      "category": "writing",
+      "keywords": [
+        "evidence",
+        "citations",
+        "sources",
+        "verification",
+        "documentation",
+        "official"
       ]
     },
     {
@@ -302,6 +303,20 @@
       ]
     },
     {
+      "name": "github-pr-reviewer",
+      "source": "./skills/github-pr-reviewer",
+      "description": "Создание автоматизации, которая ревьюит GitHub PR при их открытии или обновлении.",
+      "category": "automations",
+      "keywords": [
+        "github",
+        "pull-request",
+        "review",
+        "code-review",
+        "automation",
+        "integration"
+      ]
+    },
+    {
       "name": "github-repo-monitor",
       "source": "./skills/github-repo-monitor",
       "description": "Создание cron-автоматизации, которая опрашивает GitHub-репозиторий на предмет комментариев в задачах и PR, содержащих заданные триггеры.",
@@ -326,6 +341,45 @@
         "gitlab",
         "git",
         "merge-request"
+      ]
+    },
+    {
+      "name": "incident-retrospective",
+      "source": "./skills/incident-retrospective",
+      "description": "Создание автоматизации, которая готовит ретроспективы инцидентов, собирая сообщения канала инцидента.",
+      "category": "automations",
+      "keywords": [
+        "incident",
+        "retrospective",
+        "postmortem",
+        "slack",
+        "linear",
+        "notion",
+        "automation"
+      ]
+    },
+    {
+      "name": "iterate",
+      "source": "./skills/iterate",
+      "description": "Итеративная работа с GitHub PR — проведение через CI, ревью кода и QA до готовности к слиянию.",
+      "category": "code-quality",
+      "keywords": [
+        "github",
+        "ci",
+        "review",
+        "qa",
+        "pull-request",
+        "iterate"
+      ]
+    },
+    {
+      "name": "jira-issue-to-pr",
+      "source": "./skills/jira-issue-to-pr",
+      "description": "Развёртывание cron-автоматизации OpenHands, которая следит за задачами Jira Cloud с меткой для автоматического создания PR.",
+      "category": "automations",
+      "keywords": [
+        "jira",
+        "atlassian"
       ]
     },
     {
@@ -376,6 +430,21 @@
         "issue",
         "project-management",
         "graphql"
+      ]
+    },
+    {
+      "name": "linear-triage",
+      "source": "./skills/linear-triage",
+      "description": "Создание автоматизации, которая триажирует новые задачи Linear, анализируя заголовок, описание и команду.",
+      "category": "automations",
+      "keywords": [
+        "linear",
+        "triage",
+        "issues",
+        "labels",
+        "priority",
+        "automation",
+        "integration"
       ]
     },
     {
@@ -456,6 +525,61 @@
       ]
     },
     {
+      "name": "openhands-automation",
+      "source": "./skills/openhands-automation",
+      "description": "Создание и управление автоматизациями OpenHands — запланированными задачами, выполняемыми в песочницах. Используй при настройке автоматизаций.",
+      "category": "automations",
+      "keywords": [
+        "automation",
+        "cron",
+        "scheduled-task",
+        "sandbox",
+        "openhands"
+      ]
+    },
+    {
+      "name": "openhands-sdk",
+      "source": "./skills/openhands-sdk",
+      "description": "Справочный навык по OpenHands Software Agent SDK — создание ИИ-агентов с собственными инструментами.",
+      "category": "agent-authoring",
+      "keywords": [
+        "sdk",
+        "agent",
+        "openhands",
+        "tools",
+        "llm",
+        "conversation"
+      ]
+    },
+    {
+      "name": "openscad",
+      "source": "./skills/openscad",
+      "description": "Создание деталей и конструкций OpenSCAD по изображению-цели с vision-циклом: рендер, сравнение с исходником и итеративная правка кода.",
+      "category": "design",
+      "keywords": [
+        "openscad",
+        "scad",
+        "3d",
+        "cad",
+        "render"
+      ]
+    },
+    {
+      "name": "pdf-bom-extract",
+      "source": "./skills/pdf-bom-extract",
+      "description": "Постраничный разбор PDF-спецификации (BOM) в иерархический JSON: разбивка PDF на страницы-картинки (pdftoppm) и извлечение структуры каждой страницы vision-моделью (inspect_image_with_vision).",
+      "category": "design",
+      "keywords": [
+        "bom",
+        "спецификация",
+        "ведомость материалов",
+        "pdf",
+        "json",
+        "vision",
+        "разобрать чертёж"
+      ]
+    },
+    {
       "name": "pdflatex",
       "source": "./skills/pdflatex",
       "description": "Установка и использование pdflatex для компиляции LaTeX-документов в PDF на Linux. Используй при генерации PDF.",
@@ -468,6 +592,15 @@
       ]
     },
     {
+      "name": "plain-english-content",
+      "source": "./skills/plain-english-content",
+      "description": "Написание и редактирование ясного, доступного текста в стиле plain English: активный залог, короткие предложения.",
+      "category": "writing",
+      "keywords": [
+        "plain-english"
+      ]
+    },
+    {
       "name": "pr-review",
       "source": "./plugins/pr-review",
       "description": "Автоматический ревью PR — анализ изменений и публикация инлайн-комментариев через GitHub API.",
@@ -476,19 +609,6 @@
         "pr-review",
         "code-review",
         "github",
-        "automation"
-      ]
-    },
-    {
-      "name": "qa-changes",
-      "source": "./plugins/qa-changes",
-      "description": "Проверка изменений пул-реквеста запуском кода — настройка окружения, выполнение тестов и валидация результата.",
-      "category": "quality-assurance",
-      "keywords": [
-        "qa",
-        "testing",
-        "pull-request",
-        "validation",
         "automation"
       ]
     },
@@ -506,6 +626,19 @@
       ]
     },
     {
+      "name": "qa-changes",
+      "source": "./plugins/qa-changes",
+      "description": "Проверка изменений пул-реквеста запуском кода — настройка окружения, выполнение тестов и валидация результата.",
+      "category": "quality-assurance",
+      "keywords": [
+        "qa",
+        "testing",
+        "pull-request",
+        "validation",
+        "automation"
+      ]
+    },
+    {
       "name": "release-notes",
       "source": "./plugins/release-notes",
       "description": "Генерация согласованных, хорошо структурированных заметок о релизе из git-истории с категоризацией изменений.",
@@ -515,6 +648,84 @@
         "changelog",
         "git",
         "semver"
+      ]
+    },
+    {
+      "name": "research-brief",
+      "source": "./skills/research-brief",
+      "description": "Создание регулярной автоматизации, которая исследует тему с помощью веб-поиска Tavily и публикует результат.",
+      "category": "automations",
+      "keywords": [
+        "research",
+        "brief",
+        "tavily",
+        "notion",
+        "web-search",
+        "automation"
+      ]
+    },
+    {
+      "name": "ru-code-cleanup",
+      "source": "./plugins/ru-code-cleanup",
+      "description": "Очистка и форматирование кода: линтеры, форматтеры, проверка типов.",
+      "category": "code-quality",
+      "keywords": [
+        "lint",
+        "format",
+        "cleanup",
+        "russian"
+      ]
+    },
+    {
+      "name": "ru-docker-helper",
+      "source": "./plugins/ru-docker-helper",
+      "description": "Русскоязычный помощник по Docker и Compose: сборка, логи, диагностика.",
+      "category": "productivity",
+      "keywords": [
+        "docker",
+        "compose",
+        "container",
+        "logs",
+        "russian"
+      ]
+    },
+    {
+      "name": "ru-env-checker",
+      "source": "./plugins/ru-env-checker",
+      "description": "Проверка .env и окружения: сравнение с .env.example, поиск секретов.",
+      "category": "productivity",
+      "keywords": [
+        "env",
+        "dotenv",
+        "security",
+        "russian"
+      ]
+    },
+    {
+      "name": "ru-git-helper",
+      "source": "./plugins/ru-git-helper",
+      "description": "Русскоязычный помощник по Git: ветки, коммиты, PR, история.",
+      "category": "productivity",
+      "keywords": [
+        "git",
+        "github",
+        "branch",
+        "commit",
+        "pr",
+        "russian"
+      ]
+    },
+    {
+      "name": "ru-test-runner",
+      "source": "./plugins/ru-test-runner",
+      "description": "Запуск тестов с русским отчётом: npm, pytest, cargo, go test.",
+      "category": "testing",
+      "keywords": [
+        "test",
+        "testing",
+        "pytest",
+        "jest",
+        "russian"
       ]
     },
     {
@@ -556,6 +767,21 @@
       ]
     },
     {
+      "name": "slack-standup-digest",
+      "source": "./skills/slack-standup-digest",
+      "description": "Создание автоматизации, которая генерирует асинхронную сводку стендапа из Slack. Ищет выбранные каналы.",
+      "category": "automations",
+      "keywords": [
+        "slack",
+        "standup",
+        "digest",
+        "summary",
+        "daily",
+        "cron",
+        "automation"
+      ]
+    },
+    {
       "name": "ssh",
       "source": "./skills/ssh",
       "description": "Настройка и управление SSH-подключениями к удалённым машинам: генерация ключей, конфигурация и подключение.",
@@ -579,6 +805,15 @@
       ]
     },
     {
+      "name": "technical-writing",
+      "source": "./skills/technical-writing",
+      "description": "Написание и правка технических объяснений живым, прямым, разговорным и лаконичным стилем.",
+      "category": "writing",
+      "keywords": [
+        "technical-writing"
+      ]
+    },
+    {
       "name": "theme-factory",
       "source": "./skills/theme-factory",
       "description": "Набор инструментов для стилизации артефактов темой: слайды, документы, отчёты и другие материалы.",
@@ -589,18 +824,6 @@
         "design",
         "slides",
         "documents"
-      ]
-    },
-    {
-      "name": "uv",
-      "source": "./skills/uv",
-      "description": "Типовые операции с проектом, зависимостями и окружением с помощью uv.",
-      "category": "environment",
-      "keywords": [
-        "uv",
-        "python",
-        "dependencies",
-        "venv"
       ]
     },
     {
@@ -615,6 +838,18 @@
         "sync",
         "automation",
         "long-lived-fork"
+      ]
+    },
+    {
+      "name": "uv",
+      "source": "./skills/uv",
+      "description": "Типовые операции с проектом, зависимостями и окружением с помощью uv.",
+      "category": "environment",
+      "keywords": [
+        "uv",
+        "python",
+        "dependencies",
+        "venv"
       ]
     },
     {
@@ -640,177 +875,6 @@
         "remediation",
         "scanning",
         "automation"
-      ]
-    },
-    {
-      "name": "iterate",
-      "source": "./skills/iterate",
-      "description": "Итеративная работа с GitHub PR — проведение через CI, ревью кода и QA до готовности к слиянию.",
-      "category": "code-quality",
-      "keywords": [
-        "github",
-        "ci",
-        "review",
-        "qa",
-        "pull-request",
-        "iterate"
-      ]
-    },
-    {
-      "name": "evidence-based-citations",
-      "source": "./skills/evidence-based-citations",
-      "description": "Подкрепление фактических утверждений и значений полей официальными проверяемыми источниками. Используй, когда пользователь запрашивает достоверность.",
-      "category": "writing",
-      "keywords": [
-        "evidence",
-        "citations",
-        "sources",
-        "verification",
-        "documentation",
-        "official"
-      ]
-    },
-    {
-      "name": "github-pr-reviewer",
-      "source": "./skills/github-pr-reviewer",
-      "description": "Создание автоматизации, которая ревьюит GitHub PR при их открытии или обновлении.",
-      "category": "automations",
-      "keywords": [
-        "github",
-        "pull-request",
-        "review",
-        "code-review",
-        "automation",
-        "integration"
-      ]
-    },
-    {
-      "name": "incident-retrospective",
-      "source": "./skills/incident-retrospective",
-      "description": "Создание автоматизации, которая готовит ретроспективы инцидентов, собирая сообщения канала инцидента.",
-      "category": "automations",
-      "keywords": [
-        "incident",
-        "retrospective",
-        "postmortem",
-        "slack",
-        "linear",
-        "notion",
-        "automation"
-      ]
-    },
-    {
-      "name": "linear-triage",
-      "source": "./skills/linear-triage",
-      "description": "Создание автоматизации, которая триажирует новые задачи Linear, анализируя заголовок, описание и команду.",
-      "category": "automations",
-      "keywords": [
-        "linear",
-        "triage",
-        "issues",
-        "labels",
-        "priority",
-        "automation",
-        "integration"
-      ]
-    },
-    {
-      "name": "research-brief",
-      "source": "./skills/research-brief",
-      "description": "Создание регулярной автоматизации, которая исследует тему с помощью веб-поиска Tavily и публикует результат.",
-      "category": "automations",
-      "keywords": [
-        "research",
-        "brief",
-        "tavily",
-        "notion",
-        "web-search",
-        "automation"
-      ]
-    },
-    {
-      "name": "slack-standup-digest",
-      "source": "./skills/slack-standup-digest",
-      "description": "Создание автоматизации, которая генерирует асинхронную сводку стендапа из Slack. Ищет выбранные каналы.",
-      "category": "automations",
-      "keywords": [
-        "slack",
-        "standup",
-        "digest",
-        "summary",
-        "daily",
-        "cron",
-        "automation"
-      ]
-    },
-    {
-      "name": "technical-writing",
-      "source": "./skills/technical-writing",
-      "description": "Написание и правка технических объяснений живым, прямым, разговорным и лаконичным стилем.",
-      "category": "writing",
-      "keywords": [
-        "technical-writing"
-      ]
-    },
-    {
-      "name": "plain-english-content",
-      "source": "./skills/plain-english-content",
-      "description": "Написание и редактирование ясного, доступного текста в стиле plain English: активный залог, короткие предложения.",
-      "category": "writing",
-      "keywords": [
-        "plain-english"
-      ]
-    },
-    {
-      "name": "jira-issue-to-pr",
-      "source": "./skills/jira-issue-to-pr",
-      "description": "Развёртывание cron-автоматизации OpenHands, которая следит за задачами Jira Cloud с меткой для автоматического создания PR.",
-      "category": "automations",
-      "keywords": [
-        "jira",
-        "atlassian"
-      ]
-    },
-    {
-      "name": "openscad",
-      "source": "./skills/openscad",
-      "description": "Создание деталей и конструкций OpenSCAD по изображению-цели с vision-циклом: рендер, сравнение с исходником и итеративная правка кода.",
-      "category": "design",
-      "keywords": [
-        "openscad",
-        "scad",
-        "3d",
-        "cad",
-        "render"
-      ]
-    },
-    {
-      "name": "debate",
-      "source": "./skills/debate",
-      "description": "Организация управляемой дискуссии нескольких агентов (2–3 профиля) на заданную тему с N раундов, ограничением контекста и суммаризацией, опционально с арбитром. Итог — сайт-стенограмма.",
-      "category": "other",
-      "keywords": [
-        "debate",
-        "дискуссия",
-        "агенты",
-        "арбитр",
-        "стенограмма",
-        "мнения"
-      ]
-    },
-    {
-      "name": "pdf-bom-extract",
-      "source": "./skills/pdf-bom-extract",
-      "description": "Постраничный разбор PDF-спецификации (BOM) в иерархический JSON: разбивка PDF на страницы-картинки (pdftoppm) и извлечение структуры каждой страницы vision-моделью (inspect_image_with_vision).",
-      "category": "design",
-      "keywords": [
-        "bom",
-        "спецификация",
-        "ведомость материалов",
-        "pdf",
-        "json",
-        "vision",
-        "разобрать чертёж"
       ]
     }
   ]

@@ -1,15 +1,15 @@
-# Generate AGENTS.md
+# Генерация AGENTS.md
 
-Generate a high-quality, repo-specific AGENTS.md file that tells AI agents how to work effectively in a repository.
+Сгенерируйте высококачественный, специфичный для репозитория файл AGENTS.md, который сообщает ИИ-агентам, как эффективно работать в репозитории.
 
-## Triggers
+## Триггеры
 
-This skill is activated by the following keywords:
+Этот навык активируется по ключевым словам:
 
 - `setup-agents-md`
 
-## What This Does
+## Что делает
 
-Reads the actual repository — Makefiles, CI configs, package.json scripts, linter configs, directory structure — and produces an AGENTS.md with real commands, real paths, and real conventions. Never generates generic boilerplate.
+Читает реальный репозиторий — Makefile, CI-конфиги, скрипты package.json, конфиги линтера, структуру каталогов — и выдаёт AGENTS.md с реальными командами, реальными путями и реальными конвенциями. Никогда не генерирует шаблонный бойлерплейт.
 
-Sections are included only when relevant: project overview, build/test/lint commands, project structure, coding standards, testing setup, and guardrails for things the agent must not do.
+Разделы включаются только когда релевантны: обзор проекта, команды сборки/тестов/линта, структура проекта, стандарты кодинга, настройка тестирования и ограничения для того, что агент не должен делать.

@@ -1,19 +1,19 @@
-# COBOL to Java Data Type Mappings
+# Сопоставление типов данных COBOL → Java
 
-| COBOL | Java | Notes |
+| COBOL | Java | Примечания |
 |-------|------|-------|
-| `PIC 9(n)V99` | `BigDecimal` | Decimal with implied decimal point |
-| `PIC X(n)` | `String` | Alphanumeric |
-| `PIC 9(n)` | `int` or `long` | Use `long` for n > 9 |
-| `COMP-3` (packed decimal) | `BigDecimal` | Preserve precision |
-| `OCCURS n TIMES` | `List<T>` or array | Prefer `List` for flexibility |
+| `PIC 9(n)V99` | `BigDecimal` | Десятичное с подразумеваемой десятичной точкой |
+| `PIC X(n)` | `String` | Буквенно-цифровой |
+| `PIC 9(n)` | `int` или `long` | Используйте `long` для n > 9 |
+| `COMP-3` (упакованное десятичное) | `BigDecimal` | Сохраняйте точность |
+| `OCCURS n TIMES` | `List<T>` или массив | Предпочитайте `List` для гибкости |
 
-## Control Flow Mappings
+## Сопоставление управляющих конструкций
 
 | COBOL | Java |
 |-------|------|
-| `PERFORM` | method call |
+| `PERFORM` | вызов метода |
 | `EVALUATE/WHEN` | `switch` |
 | `IF/ELSE` | `if/else` |
-| `PERFORM UNTIL` | `while` loop |
-| `PERFORM VARYING` | `for` loop |
+| `PERFORM UNTIL` | цикл `while` |
+| `PERFORM VARYING` | цикл `for` |

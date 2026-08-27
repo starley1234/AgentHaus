@@ -6,67 +6,53 @@ triggers:
 - set up pr review
 - add code review workflow
 - openhands pr review
+- настройка ревью pr
+- ревью пулл-реквестов
 ---
 
-# Set Up OpenHands PR Review
+# Настройка ревью PR от OpenHands
 
-Add the PR review workflow to a GitHub repository so an OpenHands agent can
-review pull requests and post inline comments.
+Добавьте workflow ревью PR в репозиторий GitHub, чтобы агент OpenHands мог ревьюить пулл-реквесты и оставлять inline-комментарии.
 
-**Docs**: https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review
+**Доки**: https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review
 
-## Step 1: Create the workflow file
+## Шаг 1: Создайте файл workflow
 
-Create `.github/workflows/pr-review.yml` in the target repo. Fetch the latest
-example from https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review
-and use it as the starting template. The workflow calls the
-`OpenHands/extensions/plugins/pr-review` composite action directly.
+Создайте `.github/workflows/pr-review.yml` в целевом репозитории. Заберите последний пример с https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review и используйте его как стартовый шаблон. Workflow вызывает композитный action `OpenHands/extensions/plugins/pr-review` напрямую.
 
-## Step 2: Configure the LLM
+## Шаг 2: Настройте LLM
 
-Ask the user whether they are using the **OpenHands app** (app.all-hands.dev)
-or their **own LLM provider** (e.g. Anthropic, OpenAI directly).
+Спросите пользователя, использует ли он **приложение OpenHands** (app.all-hands.dev) или **свой LLM-провайдер** (например, Anthropic, OpenAI напрямую).
 
-### OpenHands app (default)
+### Приложение OpenHands (по умолчанию)
 
-OpenHands app users already have access to an LLM API key through the
-OpenHands litellm proxy. Tell them:
+Пользователи приложения OpenHands уже имеют доступ к API-ключу LLM через прокси litellm OpenHands. Скажите им:
 
-> Go to https://app.all-hands.dev → Account → API Keys → OpenHands LLM Key, and copy your key.
-> Then add it as a GitHub repository secret:
+> Перейдите на https://app.all-hands.dev → Account → API Keys → OpenHands LLM Key и скопируйте ключ.
+> Затем добавьте его как секрет репозитория GitHub:
 > Settings → Secrets and variables → Actions → New repository secret.
-> Name it `LLM_API_KEY`.
+> Назовите его `LLM_API_KEY`.
 
-Set these inputs in the workflow `with:` block:
+Задайте эти входы в блоке `with:` workflow:
 - `llm-model: litellm_proxy/claude-sonnet-4-5-20250929`
 - `llm-base-url: https://llm-proxy.app.all-hands.dev`
 
-### Own LLM provider
+### Свой LLM-провайдер
 
-If the user has their own API key (e.g. from Anthropic or OpenAI), tell them
-to add it as a repository secret named `LLM_API_KEY` using the same path
-above. Leave `llm-base-url` unset and set `llm-model` to the provider-prefixed
-model name (e.g. `anthropic/claude-sonnet-4-5-20250929`).
+Если у пользователя есть свой API-ключ (например, от Anthropic или OpenAI), скажите ему добавить его как секрет репозитория с именем `LLM_API_KEY`, используя тот же путь выше. Оставьте `llm-base-url` незаданным и задайте `llm-model` в виде имени модели с префиксом провайдера (например, `anthropic/claude-sonnet-4-5-20250929`).
 
-**You cannot create secrets — the user must do it manually.** Do not ask for
-the key value. Just tell them where to put it.
+**Вы не можете создавать секреты — пользователь должен сделать это вручную.** Не спрашивайте значение ключа. Просто скажите, куда его положить.
 
-## Step 3: Ask the user for preferences
+## Шаг 3: Спросите пользователя о предпочтениях
 
-Present these options and apply any requested changes to the workflow file:
+Представьте эти опции и примените любые запрошенные изменения к файлу workflow:
 
-**Review style** (default: `roasted`)
-- `roasted` — Linus Torvalds-style, blunt, focuses on data structures and
-  simplicity.
-- `standard` — balanced, covers style/readability/security.
+**Стиль ревью** (по умолчанию: `roasted`)
+- `roasted` — в стиле Линуса Торвальдса, прямолинейный, фокус на структурах данных и простоте.
+- `standard` — сбалансированный, покрывает стиль/читаемость/безопасность.
 
-**When to trigger** (default: on-demand only)
-- On-demand: add `review-this` label or request `openhands-agent` as reviewer.
-- Automatic: review every new PR. Add `opened` and `ready_for_review` to
-  `on.pull_request.types` and matching conditions to the `if:` block.
+**Когда триггерить** (по умолчанию: только по требованию)
+- По требованию: добавьте метку `review-this` или запросите `openhands-agent` как ревьюера.
+- Автоматически: ревьюить каждый новый PR. Добавьте `opened` и `ready_for_review` в `on.pull_request.types` и соответствующие условия в блок `if:`.
 
-After applying these, ask the user if they want to explore additional options
-(model selection, evidence requirements, custom review skills, observability).
-If yes, walk them through it — use the docs as a reference:
-https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review
-If not, you're done.
+После применения спросите пользователя, хочет ли он изучить дополнительные опции (выбор модели, требования к доказательствам, пользовательские навыки ревью, наблюдаемость). Если да — проведите его через это, используя доки как справочник: https://docs.all-hands.dev/sdk/guides/github-workflows/pr-review Если нет — готово.

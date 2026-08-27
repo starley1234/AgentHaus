@@ -19,7 +19,7 @@
  * без перезапуска шлюза (hot mount).
  */
 import { createServer } from "node:http";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveUserFromRequest, authorize } from "./lib/auth.mjs";
@@ -56,9 +56,14 @@ async function loadConfig(name) {
 
 /** (Пере)импортировать createApp-хендлер сервиса. */
 async function importHandler(name) {
-  const mod = await import(
-    `${pathToFileURL(path.join(SERVICES_DIR, name, "server.mjs")).href}?t=${Date.now()}`
-  );
+  const modulePath = path.join(SERVICES_DIR, name, "server.mjs");
+  // ESM caches every distinct import URL forever. Date.now() made each admin
+  // refresh create a new module graph, slowly leaking memory in a long-lived
+  // gateway. Version the URL by file metadata instead: edits still hot-reload,
+  // while repeated refreshes of unchanged services reuse the cached module.
+  const metadata = await stat(modulePath);
+  const version = `${metadata.mtimeMs}-${metadata.size}`;
+  const mod = await import(`${pathToFileURL(modulePath).href}?v=${version}`);
   return mod.createApp({ basePath: `/${name}` });
 }
 
@@ -78,8 +83,10 @@ async function registerService(name) {
     dir: path.join(SERVICES_DIR, name),
     apiKey: fresh.api_key || cfg.api_key || "",
     icon: fresh.icon || cfg.icon || "",
+    price: fresh.price_per_page || fresh.price_per_tool || fresh.price_per_meeting || fresh.price || null,
+    priceLabel: fresh.price_per_page ? `€${fresh.price_per_page}/стр` : fresh.price_per_tool ? `€${fresh.price_per_tool}/инструмент` : fresh.price_per_meeting ? `€${fresh.price_per_meeting}/встреча` : fresh.price ? `€${fresh.price}` : null,
   });
-  console.log(`[gateway] смонтирован /${name}/ (${fresh.access || "public"})`);
+  console.log(`[gateway] смонтирован /${name}/ (${fresh.access || "public"}) ${fresh.price_per_page || fresh.price_per_tool || fresh.price_per_meeting || ""}`);
   return services.get(name);
 }
 
@@ -118,6 +125,8 @@ async function refreshService(name) {
     dir: path.join(SERVICES_DIR, name),
     apiKey: cfg.api_key || s.apiKey || "",
     icon: cfg.icon || s.icon || "",
+    price: cfg.price_per_page || cfg.price_per_tool || cfg.price_per_meeting || cfg.price || s.price || null,
+    priceLabel: cfg.price_per_page ? `€${cfg.price_per_page}/стр` : cfg.price_per_tool ? `€${cfg.price_per_tool}/инструмент` : cfg.price_per_meeting ? `€${cfg.price_per_meeting}/встреча` : cfg.price ? `€${cfg.price}` : s.priceLabel || null,
   };
   services.set(name, updated);
   return updated;
@@ -149,22 +158,35 @@ function accessLabel(a) {
 /* ── Страницы ────────────────────────────────────────────────────────────── */
 
 function landingPage(servicesList) {
-  const cards = servicesList
+  const commercial = servicesList.filter((s) => s.priceLabel);
+  const other = servicesList.filter((s) => !s.priceLabel);
+  const sorted = [...commercial, ...other];
+
+  const cards = sorted
     .map(
       (s) => `<a class="card" href="/${s.name}/">
-        <div class="t">${s.icon ? escapeHtml(s.icon) + " " : ""}${escapeHtml(s.title)}</div>
+        <div class="t">${s.icon ? escapeHtml(s.icon) + " " : ""}${escapeHtml(s.title)} ${s.priceLabel ? `<span class="price">${escapeHtml(s.priceLabel)}</span>` : ""}</div>
         <div class="d">${escapeHtml(s.description) || "—"}</div>
         <div class="meta"><span class="dot ${s.access}">${escapeHtml(accessLabel(s.access))}</span><span class="u">/${s.name}/</span></div>
       </a>`,
     )
     .join("\n");
+
+  const moneySection = commercial.length
+    ? `<div class="money"><h2>💰 Автономные денежные сервисы</h2><p>Эти сервисы производят коммерчески ценный продукт (JSON, Excel, STL, сайт, конспект) и продаются через Stripe с минимальным участием. Каждый — отдельный Node.js процесс на порту 8290+.</p></div>`
+    : "";
+
   const SITE_CSS = `
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;max-width:920px;margin:0 auto;padding:2.5rem 1.25rem 4rem;color:#1f2328;background:#faf9f7;line-height:1.55}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem;color:#1f2328;background:#faf9f7;line-height:1.55}
   h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:2rem;margin:.1rem 0 1.4rem}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem}
+  .money{background:#fff;border:1px solid #e7e3dc;border-radius:14px;padding:1.2rem 1.4rem;margin-bottom:1.5rem}
+  .money h2{margin:0 0 .5rem;font-size:1.2rem}
+  .money p{margin:0;color:#6b7280;font-size:.9rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
   .card{display:block;background:#fff;border:1px solid #e7e3dc;border-radius:14px;padding:1.1rem 1.2rem;color:inherit;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.03)}
   .card:hover{border-color:#c9c2b4}
   .card .t{font-weight:600;font-size:1.05rem;margin-bottom:.35rem}
+  .card .t .price{display:inline-block;margin-left:.5rem;padding:.15rem .5rem;border-radius:6px;background:#e0f2fe;color:#0369a1;font-size:.75rem;font-weight:600}
   .card .d{font-size:.9rem;color:#6b7280;margin-bottom:.7rem}
   .meta{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;color:#6b7280}
   .dot{background:#f0ede6;border:1px solid #e7e3dc;border-radius:999px;padding:.1rem .55rem}
@@ -178,8 +200,9 @@ function landingPage(servicesList) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>AgentHaus · сервисы</title><style>${SITE_CSS}</style></head><body>
 <div class="top"><h1>AgentHaus · сервисы</h1><a href="/admin/">Управление ↗</a></div>
+${moneySection}
 <div class="grid">${cards}</div>
-<div class="foot">Единый шлюз на порту ${PORT}. Добавь папку services/&lt;имя&gt;/ с server.mjs и config.json — появится здесь.</div>
+<div class="foot">Единый шлюз на порту ${PORT}. Добавь папку services/&lt;имя&gt;/ с server.mjs и config.json — появится здесь. Платные сервисы помечены ценой, биллинг через x-api-key + credits.json (для Stripe замени на DB).</div>
 </body></html>`;
 }
 
@@ -338,6 +361,63 @@ const server = createServer(async (req, res) => {
       return res.end(landingPage([...services.values()].sort((a, b) => a.name.localeCompare(b.name))));
     }
     if (p === "/health") return res.writeHead(200).end("ok");
+
+    // Прокси для agent-server API — чтобы simple-ui и другие сервисы могли
+    // работать через gateway :8290 без хардкода порта 8000/8300
+    // Это исправляет ERR_CONNECTION_REFUSED когда simple-ui пытается
+    // fetch http://localhost:8000/api/... а бэкенд на :8300
+    const apiPrefixes = ["/api/", "/api", "/server_info", "/alive", "/ready", "/health", "/docs", "/redoc", "/openapi.json", "/sockets"];
+    const isApi = apiPrefixes.some((prefix) => p === prefix || p.startsWith(prefix + "/") || p.startsWith(prefix + "?") || (prefix === "/api" && p.startsWith("/api/")));
+    if (isApi) {
+      const backendUrl = process.env.AGENT_SERVER_URL || "http://localhost:8300";
+      const targetUrl = `${backendUrl}${p}${url.search}`;
+      try {
+        const proxyRes = await fetch(targetUrl, {
+          method: req.method,
+          headers: {
+            "Content-Type": req.headers["content-type"] || "application/json",
+            "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
+            "Authorization": req.headers["authorization"] || "",
+          },
+          body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
+        });
+        // Копировать заголовки
+        const headers = {};
+        for (const [k, v] of proxyRes.headers.entries()) {
+          if (k.toLowerCase() === "content-encoding" || k.toLowerCase() === "content-length") continue;
+          headers[k] = v;
+        }
+        res.writeHead(proxyRes.status, headers);
+        const buf = Buffer.from(await proxyRes.arrayBuffer());
+        return res.end(buf);
+      } catch (e) {
+        // Пробуем альтернативный порт 8000 если 8300 не отвечает
+        const altUrl = targetUrl.replace(":8300", ":8000");
+        if (altUrl !== targetUrl) {
+          try {
+            const proxyRes = await fetch(altUrl, {
+              method: req.method,
+              headers: {
+                "Content-Type": req.headers["content-type"] || "application/json",
+                "X-Session-API-Key": process.env.AGENT_SERVER_API_KEY || "",
+              },
+              body: req.method !== "GET" && req.method !== "HEAD" ? await readBody(req) : undefined,
+            });
+            const headers = {};
+            for (const [k, v] of proxyRes.headers.entries()) {
+              if (k.toLowerCase() === "content-encoding" || k.toLowerCase() === "content-length") continue;
+              headers[k] = v;
+            }
+            res.writeHead(proxyRes.status, headers);
+            const buf = Buffer.from(await proxyRes.arrayBuffer());
+            return res.end(buf);
+          } catch {}
+        }
+        // Если оба не отвечают — возвращаем 502, а не 404, чтобы фронтенд показал понятную ошибку
+        res.writeHead(502, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: `Backend not reachable at ${backendUrl}: ${e.message}` }));
+      }
+    }
 
     // Админка
     if (p === "/admin" || p.startsWith("/admin/")) {

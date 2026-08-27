@@ -1,6 +1,6 @@
 ---
-name: OpenHands Issue Duplicate Checker
-description: Detect, comment on, and auto-close duplicate GitHub issues using OpenHands Cloud
+name: OpenHands Проверка дубликатов Issue
+description: Поиск, комментирование и автозакрытие дублирующихся GitHub issue с помощью OpenHands Cloud
 author: OpenHands
 
 branding:
@@ -9,92 +9,92 @@ branding:
 
 inputs:
     mode:
-        description: "Which operation to run: issue-check, auto-close, or remove-label."
+        description: "Какую операцию выполнить: issue-check, auto-close или remove-label."
         required: true
     repository:
-        description: Repository in owner/repo form. Required for issue-check and auto-close modes.
+        description: Репозиторий в формате owner/repo. Требуется для режимов issue-check и auto-close.
         required: false
         default: ''
     issue-number:
-        description: Issue number to inspect when mode is issue-check.
+        description: Номер issue для проверки в режиме issue-check.
         required: false
         default: ''
     close-after-days:
-        description: Days to wait before auto-closing duplicate candidates.
+        description: Сколько дней ждать перед автозакрытием кандидатов-дубликатов.
         required: false
         default: '3'
     dry-run:
-        description: Preview auto-close actions without mutating issues. Used only in auto-close mode.
+        description: Предпросмотр действий автозакрытия без изменения issue. Используется только в режиме auto-close.
         required: false
         default: 'false'
     openhands-api-key:
-        description: OpenHands Cloud API key. Required for issue-check mode.
+        description: API-ключ OpenHands Cloud. Требуется для режима issue-check.
         required: false
         default: ''
     github-token:
-        description: GitHub token with issues:write access.
+        description: GitHub токен с доступом issues:write.
         required: true
     openhands-base-url:
-        description: OpenHands Cloud base URL.
+        description: Базовый URL OpenHands Cloud.
         required: false
         default: https://app.all-hands.dev
     github-api-base-url:
-        description: GitHub API base URL.
+        description: Базовый URL GitHub API.
         required: false
         default: https://api.github.com
     github-base-url:
-        description: GitHub web base URL used in duplicate-check prompt examples.
+        description: Базовый веб-URL GitHub, используемый в примерах промпта проверки дубликатов.
         required: false
         default: https://github.com
     python-version:
-        description: Python version used for bundled helper scripts.
+        description: Версия Python для встроенных вспомогательных скриптов.
         required: false
         default: '3.x'
     poll-interval-seconds:
-        description: Polling interval while waiting for OpenHands conversations. Used only in issue-check mode.
+        description: Интервал опроса при ожидании бесед OpenHands. Используется только в режиме issue-check.
         required: false
         default: '5'
     max-wait-seconds:
-        description: Maximum seconds to wait for each OpenHands polling phase. Used only in issue-check mode.
+        description: Максимальное количество секунд ожидания каждой фазы опроса OpenHands. Используется только в режиме issue-check.
         required: false
         default: '900'
 
 outputs:
     should_comment:
-        description: Whether a duplicate/overlap notice should be posted.
+        description: Нужно ли публиковать уведомление о дубликате/пересечении.
         value: ${{ steps.parsed_result.outputs.should_comment }}
     is_duplicate:
-        description: Whether the analyzed issue is an exact or near-exact duplicate.
+        description: Является ли анализируемый issue точным или почти точным дубликатом.
         value: ${{ steps.parsed_result.outputs.is_duplicate }}
     auto_close_candidate:
-        description: Whether the analyzed issue should be labeled for delayed duplicate auto-close.
+        description: Следует ли пометить анализируемый issue для отложенного автозакрытия как дубликат.
         value: ${{ steps.parsed_result.outputs.auto_close_candidate }}
     confidence:
-        description: Duplicate-check confidence.
+        description: Уверенность проверки дубликатов.
         value: ${{ steps.parsed_result.outputs.confidence }}
     classification:
-        description: duplicate, overlapping-scope, related-but-distinct, or no-match.
+        description: duplicate, overlapping-scope, related-but-distinct или no-match.
         value: ${{ steps.parsed_result.outputs.classification }}
     canonical_issue_number:
-        description: Canonical issue number, when one was identified.
+        description: Номер канонического issue, если он был определён.
         value: ${{ steps.parsed_result.outputs.canonical_issue_number }}
     conversation_url:
-        description: OpenHands conversation URL used for the duplicate check.
+        description: URL беседы OpenHands, использованной для проверки дубликатов.
         value: ${{ steps.parsed_result.outputs.conversation_url }}
     app_conversation_id:
-        description: OpenHands app conversation id used for the duplicate check.
+        description: ID беседы приложения OpenHands, использованный для проверки дубликатов.
         value: ${{ steps.parsed_result.outputs.app_conversation_id }}
     summary:
-        description: Duplicate-check summary.
+        description: Краткое резюме проверки дубликатов.
         value: ${{ steps.parsed_result.outputs.summary }}
     candidate_issues_json:
-        description: JSON array of candidate duplicate issues.
+        description: JSON-массив кандидатов в дубликаты.
         value: ${{ steps.parsed_result.outputs.candidate_issues_json }}
 
 runs:
     using: composite
     steps:
-        - name: Validate mode
+        - name: Проверка режима
           shell: bash
           env:
               MODE: ${{ inputs.mode }}
@@ -103,24 +103,24 @@ runs:
               case "$MODE" in
                 issue-check|auto-close) 
                   if [ -z "$REPOSITORY" ]; then
-                    echo "Error: repository is required for $MODE mode" >&2
+                    echo "Ошибка: repository обязателен для режима $MODE" >&2
                     exit 1
                   fi
                   ;;
                 remove-label) ;;
                 *)
-                  echo "Error: mode must be one of: issue-check, auto-close, remove-label" >&2
+                  echo "Ошибка: mode должен быть одним из: issue-check, auto-close, remove-label" >&2
                   exit 1
                   ;;
               esac
 
-        - name: Set up Python
+        - name: Настройка Python
           if: inputs.mode == 'issue-check' || inputs.mode == 'auto-close'
           uses: actions/setup-python@v6
           with:
               python-version: ${{ inputs.python-version }}
 
-        - name: Validate duplicate check inputs
+        - name: Проверка входных данных проверки дубликатов
           if: inputs.mode == 'issue-check'
           shell: bash
           env:
@@ -129,19 +129,19 @@ runs:
               GITHUB_TOKEN: ${{ inputs.github-token }}
           run: |
               if [ -z "$OPENHANDS_API_KEY" ]; then
-                echo "Error: openhands-api-key is required for issue-check mode" >&2
+                echo "Ошибка: openhands-api-key обязателен для режима issue-check" >&2
                 exit 1
               fi
               if [ -z "$ISSUE_NUMBER" ]; then
-                echo "Error: issue-number is required for issue-check mode" >&2
+                echo "Ошибка: issue-number обязателен для режима issue-check" >&2
                 exit 1
               fi
               if [ -z "$GITHUB_TOKEN" ]; then
-                echo "Error: github-token is required" >&2
+                echo "Ошибка: github-token обязателен" >&2
                 exit 1
               fi
 
-        - name: Run OpenHands duplicate check conversation
+        - name: Запуск беседы проверки дубликатов OpenHands
           if: inputs.mode == 'issue-check'
           id: run_check
           shell: bash
@@ -165,12 +165,12 @@ runs:
                 --max-wait-seconds "$MAX_WAIT_SECONDS" \
                 --output "$OUTPUT_PATH"
               test -f "$OUTPUT_PATH" || {
-                echo "Error: Output file not created" >&2
+                echo "Ошибка: выходной файл не создан" >&2
                 exit 1
               }
               echo "result_path=$OUTPUT_PATH" >> "$GITHUB_OUTPUT"
 
-        - name: Parse duplicate check result
+        - name: Разбор результата проверки дубликатов
           if: inputs.mode == 'issue-check'
           id: parsed_result
           shell: bash
@@ -187,7 +187,7 @@ runs:
                   result = json.loads(Path(os.environ['RESULT_PATH']).read_text())
               except (FileNotFoundError, json.JSONDecodeError) as exc:
                   print(
-                      f"Error: Failed to read duplicate check result: {exc}",
+                      f"Ошибка: Не удалось прочитать результат проверки дубликатов: {exc}",
                       file=sys.stderr,
                   )
                   raise SystemExit(1) from exc
@@ -229,23 +229,23 @@ runs:
               summary_text = (
                   "\n".join(
                       [
-                          "## Duplicate check result",
+                          "## Результат проверки дубликатов",
                           "",
-                          f"- Repository: {result.get('repository')}",
+                          f"- Репозиторий: {result.get('repository')}",
                           f"- Issue: #{result.get('issue_number')}",
-                          f"- Should comment: {result.get('should_comment')}",
-                          f"- Exact duplicate: {result.get('is_duplicate')}",
-                          f"- Auto-close candidate: {result.get('auto_close_candidate')}",
-                          f"- Classification: {result.get('classification')}",
-                          f"- Confidence: {result.get('confidence')}",
-                          f"- Canonical issue: {canonical_issue_number}",
-                          f"- Conversation: {result.get('conversation_url')}",
+                          f"- Нужно комментировать: {result.get('should_comment')}",
+                          f"- Точный дубликат: {result.get('is_duplicate')}",
+                          f"- Кандидат на автозакрытие: {result.get('auto_close_candidate')}",
+                          f"- Классификация: {result.get('classification')}",
+                          f"- Уверенность: {result.get('confidence')}",
+                          f"- Канонический issue: {canonical_issue_number}",
+                          f"- Беседа: {result.get('conversation_url')}",
                           "",
-                          "### Summary",
+                          "### Резюме",
                           result.get('summary', ''),
                           "",
-                          "### Candidate issues",
-                          *(candidate_lines or ["- None"]),
+                          "### Кандидаты",
+                          *(candidate_lines or ["- Нет"]),
                       ]
                   )
                   + "\n"
@@ -254,7 +254,7 @@ runs:
                   fh.write(summary_text)
               PY
 
-        - name: Post duplicate overlap notice
+        - name: Публикация уведомления о дубликате/пересечении
           if: inputs.mode == 'issue-check' && steps.parsed_result.outputs.should_comment == 'true'
           uses: actions/github-script@v9
           env:
@@ -272,18 +272,18 @@ runs:
                   const run = require(process.env.ACTION_SCRIPT);
                   await run({ github, context, core });
 
-        - name: Validate auto-close inputs
+        - name: Проверка входных данных автозакрытия
           if: inputs.mode == 'auto-close'
           shell: bash
           env:
               GITHUB_TOKEN: ${{ inputs.github-token }}
           run: |
               if [ -z "$GITHUB_TOKEN" ]; then
-                echo "Error: github-token is required" >&2
+                echo "Ошибка: github-token обязателен" >&2
                 exit 1
               fi
 
-        - name: Auto-close aged duplicate candidates
+        - name: Автозакрытие старых кандидатов-дубликатов
           if: inputs.mode == 'auto-close'
           shell: bash
           env:
@@ -304,11 +304,11 @@ runs:
                 "${dry_run_arg[@]}" | tee "$RUNNER_TEMP/auto-close-summary.json"
               status=${PIPESTATUS[0]}
               if [ "$status" -ne 0 ]; then
-                echo "::error::Auto-close script failed with exit code $status"
+                echo "::error::Скрипт автозакрытия завершился с кодом $status"
                 exit "$status"
               fi
 
-        - name: Summarize auto-close run
+        - name: Сводка автозакрытия
           if: inputs.mode == 'auto-close'
           shell: bash
           run: |
@@ -318,11 +318,11 @@ runs:
               from pathlib import Path
 
               data = json.loads(Path(os.environ['RUNNER_TEMP'], 'auto-close-summary.json').read_text())
-              print('## Auto-close duplicate candidates')
+              print('## Автозакрытие кандидатов-дубликатов')
               print()
               results = data.get('results') if isinstance(data, dict) else []
               if not results:
-                  print('- No matching duplicate candidates.')
+                  print('- Нет подходящих кандидатов-дубликатов.')
               for result in results:
                   issue = result.get('issue_number', '?')
                   action = result.get('action', 'unknown')
@@ -330,14 +330,14 @@ runs:
                   canonical = result.get('canonical_issue_number')
                   details = []
                   if canonical is not None:
-                      details.append(f'canonical #{canonical}')
+                      details.append(f'канонический #{canonical}')
                   if reason:
                       details.append(str(reason))
                   suffix = f" ({'; '.join(details)})" if details else ''
                   print(f'- #{issue}: {action}{suffix}')
               PY
 
-        - name: Remove duplicate-candidate label
+        - name: Удаление метки duplicate-candidate
           if: inputs.mode == 'remove-label'
           uses: actions/github-script@v9
           env:

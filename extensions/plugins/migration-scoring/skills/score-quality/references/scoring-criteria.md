@@ -1,30 +1,30 @@
-# Migration Quality Scoring Criteria
+# Критерии оценки качества миграции
 
-## Coverage Scale (1-5)
+## Шкала покрытия (1-5)
 
-| Score | Description |
+| Оценка | Описание |
 |-------|-------------|
-| 1 | Very low coverage — most functionality missing |
-| 2 | Low coverage — significant functionality missing |
-| 3 | Moderate coverage — some functionality missing |
-| 4 | High coverage — minor functionality missing |
-| 5 | Very high coverage — all functionality present |
+| 1 | Очень низкое покрытие — большая часть функциональности отсутствует |
+| 2 | Низкое покрытие — значительная часть функциональности отсутствует |
+| 3 | Среднее покрытие — часть функциональности отсутствует |
+| 4 | Высокое покрытие — отсутствует незначительная функциональность |
+| 5 | Очень высокое покрытие — вся функциональность присутствует |
 
-## Correctness Scale (1-5)
+## Шкала корректности (1-5)
 
-| Score | Description |
+| Оценка | Описание |
 |-------|-------------|
-| 1 | Very low correctness — many inaccuracies |
-| 2 | Low correctness — significant inaccuracies |
-| 3 | Moderate correctness — some inaccuracies |
-| 4 | High correctness — minor inaccuracies |
-| 5 | Very high correctness — accurate representation |
+| 1 | Очень низкая корректность — много неточностей |
+| 2 | Низкая корректность — значительные неточности |
+| 3 | Средняя корректность — некоторые неточности |
+| 4 | Высокая корректность — незначительные неточности |
+| 5 | Очень высокая корректность — точное представление |
 
-## Common Issues to Flag
+## Частые проблемы для пометки
 
-- Missing error handling
-- Hardcoded values that were configurable
-- Lost precision in numeric conversions
-- Missing validation rules
-- Incomplete data transformations
-- UI logic that wasn't migrated (acceptable if documented)
+- Отсутствует обработка ошибок
+- Захардкоженные значения, которые были конфигурируемыми
+- Потеря точности в числовых конвертациях
+- Отсутствующие правила валидации
+- Неполные трансформации данных
+- UI-логика, которая не была мигрирована (допустимо, если задокументировано)

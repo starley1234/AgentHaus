@@ -1,52 +1,52 @@
-# OpenHands Plugin
+# Плагин OpenHands
 
-Unified plugin that bundles all OpenHands capabilities — CLI, REST API, Automations, and Software Agent SDK.
+Единый плагин, объединяющий все возможности OpenHands — CLI, REST API, Автоматизации и Software Agent SDK.
 
-## What's included
+## Что включено
 
-| Component | Source | Description |
-|---|---|---|
-| **CLI integration** | `scripts/run.sh` | Send tasks to Cloud via `openhands cloud` with automatic install and auth |
-| **Cloud REST API (V1)** | `skills/openhands-api` | Start/inspect conversations, delegate parallel work, access sandboxes |
-| **Automations API** | `skills/openhands-automation` | Create and manage scheduled cron tasks (prompt and plugin presets) |
-| **Software Agent SDK** | `skills/openhands-sdk` | Build agents with the Python SDK — custom tools, LLMs, conversations, delegation |
+| Компонент | Источник | Описание |
+|---|---|--- |
+| **Интеграция CLI** | `scripts/run.sh` | Отправка задач в Cloud через `openhands cloud` с автоустановкой и аутентификацией |
+| **Cloud REST API (V1)** | `skills/openhands-api` | Запуск/просмотр бесед, делегирование параллельной работы, доступ к песочницам |
+| **API автоматизаций** | `skills/openhands-automation` | Создание и управление запланированными cron-задачами (пресеты промптов и плагинов) |
+| **Software Agent SDK** | `skills/openhands-sdk` | Создание агентов с Python SDK — кастомные инструменты, LLM, беседы, делегирование |
 
-## Quick start
+## Быстрый старт
 
-### Via CLI (recommended)
+### Через CLI (рекомендуется)
 
 ```bash
-./scripts/run.sh "Fix the broken login page CSS"
+./scripts/run.sh "Исправь сломанный CSS страницы логина"
 ```
 
-The script checks for the `openhands` CLI, installs it if needed, authenticates, sends the task, and opens the resulting conversation URL.
+Скрипт проверяет наличие `openhands` CLI, устанавливает при необходимости, аутентифицирует, отправляет задачу и открывает URL полученной беседы.
 
-### Via REST API
+### Через REST API
 
-See `skills/openhands-api` for the full Cloud REST API reference.
+См. `skills/openhands-api` для полного справочника Cloud REST API.
 
-### Via Automations
+### Через автоматизации
 
-See `skills/openhands-automation` for the full Automations API reference.
+См. `skills/openhands-automation` для полного справочника API автоматизаций.
 
-## File structure
+## Структура файлов
 
 ```
 plugins/openhands/
-├── SKILL.md                          # Plugin entry point (agent-facing)
-├── README.md                         # This file (human-facing)
+├── SKILL.md                          # Точка входа плагина (для агента)
+├── README.md                         # Этот файл (для человека)
 ├── scripts/
-│   └── run.sh                        # CLI wrapper (install, auth, send, open)
+│   └── run.sh                        # Обёртка CLI (установка, аутентификация, отправка, открытие)
 └── skills/
-    ├── openhands-api -> skills/openhands-api         # Cloud REST API skill
-    ├── openhands-automation -> skills/openhands-automation  # Automations skill
-    └── openhands-sdk -> skills/openhands-sdk         # Software Agent SDK skill
+    ├── openhands-api -> skills/openhands-api         # Навык Cloud REST API
+    ├── openhands-automation -> skills/openhands-automation  # Навык автоматизаций
+    └── openhands-sdk -> skills/openhands-sdk         # Навык Software Agent SDK
 ```
 
-## Bundled skills
+## Встроенные навыки
 
-The individual skills are also usable standalone:
+Отдельные навыки также можно использовать автономно:
 
-- **`skills/openhands-api`** — Cloud REST API, Python/TypeScript clients, event debugging
-- **`skills/openhands-automation`** — Automations presets, CRUD, cron scheduling
-- **`skills/openhands-sdk`** — Software Agent SDK: building agents, custom tools, LLM config, sub-agents, MCP, security
+- **`skills/openhands-api`** — Cloud REST API, клиенты Python/TypeScript, отладка событий
+- **`skills/openhands-automation`** — Пресеты автоматизаций, CRUD, cron-расписание
+- **`skills/openhands-sdk`** — Software Agent SDK: создание агентов, кастомные инструменты, конфигурация LLM, под-агенты, MCP, безопасность

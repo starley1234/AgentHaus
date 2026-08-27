@@ -1,16 +1,16 @@
 ---
-name: PR Review by OpenHands
+name: Ревью PR от OpenHands
 
 on:
-    # Use pull_request_target to allow fork PRs to access secrets when triggered by maintainers
-    # Security: This workflow runs when:
-    #   1. A new PR is opened (non-draft), OR
-    #   2. A draft PR is marked as ready for review, OR
-    #   3. A maintainer adds the 'review-this' label, OR
-    #   4. A maintainer requests openhands-agent or all-hands-bot as a reviewer
-    # Adding labels and requesting reviewers requires write access.
-    # The PR code is explicitly checked out for review, but secrets are only accessible
-    # because the workflow runs in the base repository context.
+    # Используйте pull_request_target, чтобы разрешить PR из форков доступ к секретам при триггере мейнтейнерами
+    # Безопасность: Этот workflow запускается когда:
+    #   1. Новый PR открыт (не черновик), ИЛИ
+    #   2. Черновой PR помечен как готовый к ревью, ИЛИ
+    #   3. Мейнтейнер добавляет метку 'review-this', ИЛИ
+    #   4. Мейнтейнер запрашивает openhands-agent или all-hands-bot как ревьюера
+    # Добавление меток и запрос ревьюеров требует прав записи.
+    # Код PR явно чекаутится для ревью, но секреты доступны только
+    # потому что workflow работает в контексте базового репозитория.
     pull_request_target:
         types: [opened, ready_for_review, labeled, review_requested]
 
@@ -21,12 +21,12 @@ permissions:
 
 jobs:
     pr-review:
-        # Run when one of the following conditions is met:
-        #   1. A new non-draft PR is opened by a non-first-time contributor, OR
-        #   2. A draft PR is converted to ready for review by a non-first-time contributor, OR
-        #   3. 'review-this' label is added, OR
-        #   4. openhands-agent or all-hands-bot is requested as a reviewer
-        # Note: FIRST_TIME_CONTRIBUTOR and NONE PRs require manual trigger via label/reviewer request.
+        # Запускается когда выполняется одно из условий:
+        #   1. Новый не-черновой PR открыт не впервые контрибьютящим, ИЛИ
+        #   2. Черновой PR переведён в готовый к ревью не впервые контрибьютящим, ИЛИ
+        #   3. Добавлена метка 'review-this', ИЛИ
+        #   4. openhands-agent или all-hands-bot запрошен как ревьюер
+        # Примечание: PR от FIRST_TIME_CONTRIBUTOR и NONE требуют ручного триггера через метку/запрос ревьюера.
         if: |
             (github.event.action == 'opened' && github.event.pull_request.draft == false && github.event.pull_request.author_association != 'FIRST_TIME_CONTRIBUTOR' && github.event.pull_request.author_association != 'NONE') ||
             (github.event.action == 'ready_for_review' && github.event.pull_request.author_association != 'FIRST_TIME_CONTRIBUTOR' && github.event.pull_request.author_association != 'NONE') ||
@@ -38,14 +38,14 @@ jobs:
             cancel-in-progress: true
         runs-on: ubuntu-24.04
         steps:
-            - name: Run PR Review
+            - name: Запуск ревью PR
               uses: OpenHands/extensions/plugins/pr-review@main
               with:
                   llm-model: litellm_proxy/claude-sonnet-4-5-20250929
                   llm-base-url: https://llm-proxy.app.all-hands.dev
-                  # [DEPRECATED] review-style is no longer used; standard and roasted are merged
+                  # [УСТАРЕЛО] review-style больше не используется; standard и roasted объединены
                   # review-style: roasted
-                  use-sub-agents: 'false' # Disabled by default (issue #208: high cost / timeouts)
+                  use-sub-agents: 'false' # Отключено по умолчанию (issue #208: высокая стоимость / таймауты)
                   llm-api-key: ${{ secrets.LLM_API_KEY }}
                   github-token: ${{ secrets.OPENHANDS_BOT_GITHUB_PAT_PUBLIC }}
                   lmnr-api-key: ${{ secrets.LMNR_SKILLS_API_KEY }}

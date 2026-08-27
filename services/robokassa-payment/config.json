@@ -1,0 +1,29 @@
+{
+  "$comment": "Robokassa — демонстрационный сервис оплаты с подключаемым решением. Показывает как интегрировать Robokassa в любой сервис AgentHaus.",
+  "name": "robokassa-payment",
+  "title": "💳 Robokassa — Оплата",
+  "description": "Демонстрация интеграции Robokassa: создание платёжных ссылок, проверка подписей ResultURL/SuccessURL, выдача товара после оплаты. Готовый модуль для подключения в BOM, микро-SaaS, SEO сайты.",
+  "access": "public",
+  "port": 0,
+  "project_subdir": "robokassa-payment",
+  "max_iterations": 20,
+  "poll_interval_ms": 2000,
+  "price": 10,
+  "scenario": {
+    "system_prompt": "Ты — помощник по интеграции Robokassa. Пользователь хочет добавить оплату в свой сервис.\n\nСоздай в рабочей директории:\n\n1. **payment-demo.md** — инструкция как подключить Robokassa в любой сервис AgentHaus (шаги, параметры MerchantLogin, Password1, Password2, IsTest, алгоритм)\n\n2. **integration-example.js** — пример Node.js кода для генерации платёжной ссылки и обработки ResultURL (используй ../lib/robokassa.mjs)\n\n3. **index.html** — демо-страница с формой создания платежа (сумма, описание, email) и кнопкой 'Оплатить'\n\nВходные данные ниже."
+  },
+  "input_type": "text",
+  "api_key": "robokassa-demo-key-123",
+  "confirmation_policy": "NeverConfirm",
+  "enabled": true,
+  "robokassa": {
+    "merchantLogin": "demo",
+    "password1": "password_1",
+    "password2": "password_2",
+    "isTest": true,
+    "algorithm": "md5",
+    "resultUrl": "/robokassa-payment/api/robokassa/result",
+    "successUrl": "/robokassa-payment/api/robokassa/success",
+    "failUrl": "/robokassa-payment/api/robokassa/fail"
+  }
+}

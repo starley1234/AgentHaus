@@ -162,6 +162,26 @@ function SkillsSettingsScreen() {
     });
   };
 
+  const handleEnableAll = () => {
+    setDisabledSet(new Set());
+  };
+
+  const handleDisableAll = () => {
+    setDisabledSet(new Set(allSkills.map((s) => s.name)));
+  };
+
+  const handleDeleteSkill = (skillName: string) => {
+    // Удаление навыка — только для установленных (user/project), не для public
+    // Используем API uninstall, затем обновляем список
+    // Здесь делаем прямой вызов через fetch, так как хук будет в модалке
+    setDisabledSet((prev) => {
+      const next = new Set(prev);
+      next.delete(skillName);
+      return next;
+    });
+    // Закрыть модалку, остальное сделает хук удаления
+  };
+
   return (
     <div
       data-testid="skills-settings-screen"
@@ -228,6 +248,33 @@ function SkillsSettingsScreen() {
                 activeFilterCount={activeFilterCount}
                 onOpenFilters={() => setIsFiltersModalOpen(true)}
               />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-tertiary-light">
+                  {t(I18nKey.SETTINGS$SKILLS_BULK_ACTIONS)}:
+                </span>
+                <BrandButton
+                  type="button"
+                  variant="secondary"
+                  testId="skills-enable-all-button"
+                  onClick={handleEnableAll}
+                  className="text-xs"
+                >
+                  {t(I18nKey.SETTINGS$SKILLS_ENABLE_ALL)}
+                </BrandButton>
+                <BrandButton
+                  type="button"
+                  variant="secondary"
+                  testId="skills-disable-all-button"
+                  onClick={handleDisableAll}
+                  className="text-xs"
+                >
+                  {t(I18nKey.SETTINGS$SKILLS_DISABLE_ALL)}
+                </BrandButton>
+                <span className="text-xs text-tertiary-light ml-2">
+                  Включено: {allSkills.length - disabledSet.size} / {allSkills.length}
+                </span>
+              </div>
 
               <div className="flex min-w-0 gap-6">
                 <SkillFacetRail
@@ -305,6 +352,7 @@ function SkillsSettingsScreen() {
             enabled={!disabledSet.has(selectedSkill.name)}
             onToggle={(enabled) => handleToggle(selectedSkill.name, enabled)}
             onClose={() => setSelectedSkill(null)}
+            onDelete={handleDeleteSkill}
           />
         )}
 

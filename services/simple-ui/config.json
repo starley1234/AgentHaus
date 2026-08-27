@@ -1,0 +1,18 @@
+{
+  "$comment": "Простой альтернативный UI для AgentHaus — минималистичный чат, файлы, навыки, без лишнего. Для новичков и прода.",
+  "name": "simple-ui",
+  "title": "✨ Простой UI",
+  "description": "Альтернативный простой и удобный UI для AgentHaus: чат, файлы, навыки, запуск. Без сложностей основного интерфейса.",
+  "access": "public",
+  "port": 0,
+  "project_subdir": "simple-ui",
+  "max_iterations": 10,
+  "poll_interval_ms": 2000,
+  "scenario": {
+    "system_prompt": "Ты — помощник для простого UI. Просто отвечай на вопросы пользователя."
+  },
+  "input_type": "text",
+  "api_key": "simple-ui-key-123",
+  "confirmation_policy": "NeverConfirm",
+  "enabled": true
+}

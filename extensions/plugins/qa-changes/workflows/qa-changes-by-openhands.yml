@@ -1,12 +1,12 @@
 ---
-name: QA Changes by OpenHands
+name: QA изменений от OpenHands
 
 on:
-    # Use pull_request (not pull_request_target) so the workflow runs in the
-    # context of the PR head — this avoids executing untrusted fork code with
-    # the base repo's secrets.  The trade-off is that fork PRs won't have
-    # access to repository secrets; maintainers can run QA locally or via a
-    # separate trusted workflow for those cases.
+    # Используйте pull_request (не pull_request_target), чтобы workflow работал в
+    # контексте head PR — это избегает выполнения недоверенного кода форка с
+    # секретами базового репозитория. Компромисс в том, что PR из форков не получат
+    # доступ к секретам репозитория; мейнтейнеры могут запускать QA локально или через
+    # отдельный доверенный workflow для этих случаев.
     pull_request:
         types: [opened, ready_for_review, labeled, review_requested]
 
@@ -17,11 +17,11 @@ permissions:
 
 jobs:
     qa-changes:
-        # Run when:
-        #   1. A new non-draft PR is opened by a trusted contributor, OR
-        #   2. A draft PR is converted to ready for review, OR
-        #   3. 'qa-this' label is added, OR
-        #   4. openhands-agent is requested as a reviewer
+        # Запускается когда:
+        #   1. Новый не-черновой PR открыт доверенным контрибьютором, ИЛИ
+        #   2. Черновой PR переведён в готовый к ревью, ИЛИ
+        #   3. Добавлена метка 'qa-this', ИЛИ
+        #   4. openhands-agent запрошен как ревьюер
         if: >
             (github.event.action == 'opened'
             && github.event.pull_request.draft == false
@@ -38,7 +38,7 @@ jobs:
         runs-on: ubuntu-24.04
         timeout-minutes: 30
         steps:
-            - name: Run QA Changes
+            - name: Запуск QA изменений
               uses: OpenHands/extensions/plugins/qa-changes@main
               with:
                   llm-model: anthropic/claude-sonnet-4-5-20250929

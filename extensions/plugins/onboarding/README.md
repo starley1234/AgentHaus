@@ -1,30 +1,30 @@
-# Onboarding Plugin
+# Плагин онбординга
 
-Get a repository ready for OpenHands (and other AI agents) to start being productive. This plugin bundles the skills and documentation needed to take a codebase from zero to agent-ready.
+Подготовьте репозиторий к работе с OpenHands (и другими AI-агентами), чтобы он стал продуктивным. Этот плагин объединяет навыки и документацию, необходимые для доведения кодовой базы от нуля до готовности к работе с агентами.
 
-## Quick Start
+## Быстрый старт
 
-Run the `setup-openhands` skill on any repository. It walks through everything needed in one pass: generates an AGENTS.md, creates setup and pre-commit scripts, and adds a PR review workflow.
+Запустите навык `setup-openhands` в любом репозитории. Он проходит всё необходимое за один проход: генерирует AGENTS.md, создаёт скрипты setup и pre-commit и добавляет workflow для ревью PR.
 
-## Going Deeper
+## Углубление
 
-Once the basics are in place, you can harden your repo's agent readiness:
+После базовой настройки вы можете усилить готовность репозитория к агентам:
 
-1. **`agent-readiness-report`** — evaluates the repo across five pillars and produces a scored report
-2. **`improve-agent-readiness`** — reads that report and proposes the highest-impact fixes, then implements them on request
+1. **`agent-readiness-report`** — оценивает репозиторий по пяти направлениям и выдаёт отчёт с баллами
+2. **`improve-agent-readiness`** — читает этот отчёт, предлагает самые эффективные исправления и реализует их по запросу
 
-## Skills
+## Навыки
 
-| Skill | Description |
+| Навык | Описание |
 |-------|-------------|
-| [setup-openhands](skills/setup-openhands/) | One-pass setup: AGENTS.md, scripts, and PR review workflow |
-| [agent-readiness-report](skills/agent-readiness-report/) | Evaluate a repo's agent readiness across five pillars |
-| [improve-agent-readiness](skills/improve-agent-readiness/) | Propose and implement fixes from a readiness report |
-| [setup-agents-md](skills/setup-agents-md/) | Generate a repo-specific AGENTS.md |
-| [setup-pr-review](skills/setup-pr-review/) | Add automated AI code review to a repo |
+| [setup-openhands](skills/setup-openhands/) | Настройка за один проход: AGENTS.md, скрипты и workflow ревью PR |
+| [agent-readiness-report](skills/agent-readiness-report/) | Оценка готовности репозитория к агентам по пяти направлениям |
+| [improve-agent-readiness](skills/improve-agent-readiness/) | Предложение и реализация исправлений из отчёта готовности |
+| [setup-agents-md](skills/setup-agents-md/) | Генерация AGENTS.md, специфичного для репозитория |
+| [setup-pr-review](skills/setup-pr-review/) | Добавление автоматизированного AI-ревью кода в репозиторий |
 
-The last two skills (`setup-agents-md` and `setup-pr-review`) are called by `setup-openhands` — you typically won't need to run them directly.
+Последние два навыка (`setup-agents-md` и `setup-pr-review`) вызываются из `setup-openhands` — обычно их не нужно запускать напрямую.
 
-## Shared References
+## Общие справочные материалы
 
-The `agent-readiness-report` and `improve-agent-readiness` skills share the same evaluation criteria. The canonical file lives at `references/criteria.md` at the plugin root; each skill symlinks to it.
+Навыки `agent-readiness-report` и `improve-agent-readiness` используют одни и те же критерии оценки. Канонический файл находится в `references/criteria.md` в корне плагина; каждый навык ссылается на него.

@@ -8,52 +8,54 @@ triggers:
   - cobol migration
   - cobol modernization
   - migrate cobol
+  - cobol в java
+  - миграция cobol
 ---
 
-Migrate COBOL code to idiomatic Java, preserving all business logic.
+Мигрируйте код COBOL в идиоматичный Java, сохраняя всю бизнес-логику.
 
-## Code Style Requirements
+## Требования к стилю кода
 
-Write idiomatic Java, NOT literal COBOL translations:
-- Use Java conventions: camelCase names, standard collections (List, Map)
-- Use Java standard library instead of rolling your own
-- No god classes — split into cohesive, single-responsibility classes
-- No TODO comments or stub implementations — fully implement everything
+Пишите идиоматичный Java, А НЕ дословные переводы COBOL:
+- Используйте конвенции Java: имена camelCase, стандартные коллекции (List, Map)
+- Используйте стандартную библиотеку Java вместо самописных решений
+- Никаких god-классов — разбивайте на связные классы с единой ответственностью
+- Никаких комментариев TODO или заглушек — реализуйте всё полностью
 
-## Robustness Requirements
+## Требования к надёжности
 
-- Validate inputs at method entry (null checks, range validation)
-- Use try-catch for all I/O and external operations
-- Use try-with-resources for files, streams, connections
-- Handle errors gracefully with meaningful messages
+- Валидируйте входные данные на входе в метод (проверки null, диапазонов)
+- Используйте try-catch для всех операций ввода/вывода и внешних операций
+- Используйте try-with-resources для файлов, потоков, соединений
+- Обрабатывайте ошибки корректно с понятными сообщениями
 
-## Configuration Requirements
+## Требования к конфигурации
 
-- No hardcoded file paths or credentials — use environment variables
-- No magic numbers — use named constants
-- Make limits and timeouts configurable
+- Никаких захардкоженных путей к файлам или учётных данных — используйте переменные окружения
+- Никаких магических чисел — используйте именованные константы
+- Сделайте лимиты и таймауты конфигурируемыми
 
-## Documentation Requirements
+## Требования к документации
 
-- Add COBOL references: `// COBOL equivalent: BNK1CRA.cbl 145-167`
-- Document assumptions made during conversion
-- Add Javadoc to public methods
+- Добавляйте ссылки на COBOL: `// Эквивалент COBOL: BNK1CRA.cbl 145-167`
+- Документируйте предположения, сделанные при конвертации
+- Добавляйте Javadoc к публичным методам
 
-## Testing Requirements
+## Требования к тестированию
 
-If test fixtures exist (see `cobol-build-setup` skill):
-- Create a JUnit test class for each migrated program
-- Load inputs from fixtures, assert output matches expected (golden) output
-- All tests must pass before migration is complete
+Если существуют тестовые фикстуры (см. навык `cobol-build-setup`):
+- Создайте JUnit-класс тестов для каждой мигрированной программы
+- Загружайте входы из фикстур, проверяйте, что вывод совпадает с ожидаемым (эталонным)
+- Все тесты должны проходить до завершения миграции
 
-## References
+## Справочные материалы
 
-- See [references/cobol-to-java-example.md](references/cobol-to-java-example.md) for a complete transformation example
-- See [references/datatype-mappings.md](references/datatype-mappings.md) for COBOL→Java type mappings
+- См. [references/cobol-to-java-example.md](references/cobol-to-java-example.md) для полного примера трансформации
+- См. [references/datatype-mappings.md](references/datatype-mappings.md) для сопоставления типов COBOL→Java
 
-## Done When
+## Готово когда
 
-✓ Code compiles without errors
-✓ All JUnit tests pass (Java output matches COBOL golden output)
-✓ No TODO or stub implementations remain
-✓ COBOL references documented in comments
+✓ Код компилируется без ошибок
+✓ Все JUnit-тесты проходят (вывод Java совпадает с эталонным выводом COBOL)
+✓ Не осталось реализаций TODO или заглушек
+✓ Ссылки на COBOL задокументированы в комментариях

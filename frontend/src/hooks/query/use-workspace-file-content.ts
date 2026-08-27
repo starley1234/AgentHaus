@@ -4,7 +4,6 @@ import { readCloudConversationFile } from "#/api/cloud/conversation-service.api"
 import { getActiveBackend } from "#/api/backend-registry/active-store";
 import { getGitPath } from "#/utils/get-git-path";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
-import { useRuntimeIsReady } from "#/hooks/use-runtime-is-ready";
 import {
   joinWorkspaceUrl,
   useWorkspaceSession,
@@ -141,7 +140,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  */
 export function useWorkspaceFileContent(relativePath: string | null) {
   const { data: conversation } = useActiveConversation();
-  const runtimeIsReady = useRuntimeIsReady();
   const { data: workspaceSession } = useWorkspaceSession();
   // Bump on every agent-side file mutation so the query refetches the
   // currently-selected file's body even when the *path* hasn't changed.
@@ -290,11 +288,10 @@ export function useWorkspaceFileContent(relativePath: string | null) {
         mimeType,
       };
     },
-    enabled:
-      runtimeIsReady &&
-      !!conversationId &&
-      !!relativePath &&
-      (isCloud || !!baseUrl),
+    // File artifacts are useful after a run has finished or been stopped;
+    // availability is determined by the conversation/workspace, not whether
+    // the agent loop is currently executing.
+    enabled: !!conversationId && !!relativePath && (isCloud || !!baseUrl),
     retry: false,
     staleTime: 1000 * 5,
     gcTime: 1000 * 60,

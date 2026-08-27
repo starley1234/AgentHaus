@@ -8,72 +8,74 @@ triggers:
   - cobol test fixtures
   - migration build setup
   - gnucobol
+  - сборка cobol
+  - настройка сборки миграции
 ---
 
-Set up a build environment and create test fixtures for validating COBOL-to-Java migrations.
+Настройте окружение сборки и создайте тестовые фикстуры для валидации миграций COBOL → Java.
 
-To install GnuCOBOL, run: `./scripts/install-gnucobol.sh`
-On Windows, run that shell script from Git Bash/WSL (`bash scripts/install-gnucobol.sh`) or install GnuCOBOL with a Windows package manager and document the chosen command in `build_notes.md`.
+Чтобы установить GnuCOBOL, выполните: `./scripts/install-gnucobol.sh`
+В Windows запустите этот shell-скрипт из Git Bash/WSL (`bash scripts/install-gnucobol.sh`) или установите GnuCOBOL через пакетный менеджер Windows и задокументируйте выбранную команду в `build_notes.md`.
 
-## Phase 1: Build Setup
+## Фаза 1: Настройка сборки
 
-### COBOL Build
+### Сборка COBOL
 
-- Find a way to compile and run the COBOL code (e.g., GnuCOBOL)
-- Verify at least one program compiles and executes
-- Note any dependencies or setup required
+- Найдите способ компилировать и запускать код COBOL (например, GnuCOBOL)
+- Убедитесь, что хотя бы одна программа компилируется и выполняется
+- Зафиксируйте любые зависимости или требования к настройке
 
-### Java Build
+### Сборка Java
 
-- Initialize a Java project alongside the COBOL code (Maven or Gradle)
-- Set up standard directory structure: `src/main/java`, `src/test/java`
-- Include JUnit 5 as a test dependency
-- Verify the project builds (even if empty)
+- Инициализируйте Java-проект рядом с кодом COBOL (Maven или Gradle)
+- Настройте стандартную структуру каталогов: `src/main/java`, `src/test/java`
+- Подключите JUnit 5 как тестовую зависимость
+- Убедитесь, что проект собирается (даже если пустой)
 
-## Phase 2: Test Fixture Generation
+## Фаза 2: Генерация тестовых фикстур
 
-For each major COBOL program:
+Для каждой основной программы COBOL:
 
-### Create Synthetic Test Inputs
+### Создание синтетических тестовых входов
 
-- Save to: `test-fixtures/inputs/{PROGRAM_NAME}/`
-- Create 3-5 test cases per program covering:
-  - Normal/happy path (valid, typical data)
-  - Edge cases (empty input, maximum values, boundary conditions)
-  - Error cases (invalid formats, missing required fields)
+- Сохраняйте в: `test-fixtures/inputs/{PROGRAM_NAME}/`
+- Создайте 3-5 тестовых случаев на программу, покрывающих:
+  - Нормальный/счастливый путь (валидные, типичные данные)
+  - Граничные случаи (пустой ввод, максимальные значения, пограничные условия)
+  - Случаи ошибок (неверные форматы, отсутствие обязательных полей)
 
-### Generate Golden Outputs
+### Генерация эталонных выводов
 
-- Run each COBOL program with each test input
-- Save COBOL output to: `test-fixtures/expected_outputs/{PROGRAM_NAME}/`
-- These become the "golden" outputs that Java must match
+- Запустите каждую программу COBOL с каждым тестовым входом
+- Сохраните вывод COBOL в: `test-fixtures/expected_outputs/{PROGRAM_NAME}/`
+- Они становятся «эталонными» выводами, которым должен соответствовать Java
 
-### Create Test Manifest
+### Создание манифеста тестов
 
-Save to `test_manifest.json`:
+Сохраните в `test_manifest.json`:
 
 ```json
 {
   "PROGRAM1": {
-    "description": "Brief description of what this program does",
+    "description": "Краткое описание того, что делает эта программа",
     "test_cases": [
       {
         "name": "normal_invoice",
         "input": "inputs/PROGRAM1/test_001.dat",
         "expected": "expected_outputs/PROGRAM1/test_001.out",
-        "description": "Happy path"
+        "description": "Счастливый путь"
       }
     ]
   }
 }
 ```
 
-## Deliverables
+## Результаты
 
-1. **build_notes.md** — Build instructions for COBOL and Java
-2. **test-fixtures/** — Directory with `inputs/` and `expected_outputs/`
-3. **test_manifest.json** — JSON manifest of all test cases
+1. **build_notes.md** — Инструкции по сборке COBOL и Java
+2. **test-fixtures/** — Каталог с `inputs/` и `expected_outputs/`
+3. **test_manifest.json** — JSON-манифест всех тестовых случаев
 
-## Priority
+## Приоритет
 
-Focus on programs with core business logic (transactions, calculations, data processing). UI-heavy programs (menu screens, reports) are lower priority.
+Сфокусируйтесь на программах с ключевой бизнес-логикой (транзакции, расчёты, обработка данных). Программы с тяжёлым UI (экраны меню, отчёты) — более низкий приоритет.

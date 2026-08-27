@@ -1,0 +1,218 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Robokassa — Оплата</title><style>
+:root{--ink:#1f2328;--mut:#6b7280;--bg:#faf9f7;--card:#fff;--line:#e7e3dc;--accent:#5b5ff0;--green:#10b981;--red:#ef4444}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:800px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+h1{font-family:Georgia,serif;font-size:2rem;margin:.2rem 0 .5rem}
+.sub{color:var(--mut);margin:0 0 1.5rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.2rem 1.4rem;margin:1rem 0}
+.card h3{margin:0 0 .6rem}
+label{font-size:.85rem;color:var(--mut);display:block;margin:0 0 .35rem}
+input,textarea,select{width:100%;padding:.7rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--card);font:inherit;margin-bottom:1rem}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:.7rem 1.2rem;font:inherit;cursor:pointer;margin-right:.5rem}
+button:disabled{opacity:.6}
+.btn-green{background:var(--green)}
+.btn-gray{background:#6b7280}
+pre{background:#f0f2f7;padding:1rem;border-radius:10px;overflow:auto;font-size:.85rem;white-space:pre-wrap}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:6px;background:#e0e7ff;color:#3730a3;font-size:.75rem;margin-right:.4rem}
+.badge.test{background:#fef3c7;color:#92400e}
+.badge.live{background:#dcfce7;color:#166534}
+.job{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin:.8rem 0}
+.job a{color:var(--accent)}
+.err{color:var(--red);font-size:.9rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>💳 Robokassa — Подключаемое решение</h1>
+<p class="sub">Готовый модуль оплаты для AgentHaus. Подключается в любой сервис (BOM, микро-SaaS, SEO сайты) за 5 минут. Поддержка MD5/SHA256, ResultURL/SuccessURL/FailURL, фискализация ФЗ-54, Shp_ параметры.</p>
+
+<div class="card">
+<h3>⚙️ Текущая конфигурация</h3>
+<pre id="cfg">Загрузка...</pre>
+<p style="font-size:.85rem;color:#6b7280">Настройки берутся из env <code>ROBOKASSA_MERCHANT_LOGIN</code>, <code>ROBOKASSA_PASSWORD1</code>, <code>ROBOKASSA_PASSWORD2</code> или из <code>config.json</code> → <code>robokassa</code>. Для прода укажите боевые ключи в <code>.env</code>.</p>
+</div>
+
+<div class="card">
+<h3>🧪 Создать платёж (демо)</h3>
+<label for="amount">Сумма (OutSum)</label>
+<input type="number" id="amount" value="100.00" step="0.01">
+<label for="desc">Описание (Description)</label>
+<input type="text" id="desc" value="Оплата BOM-парсера, 50 страниц">
+<label for="email">Email покупателя (опционально)</label>
+<input type="email" id="email" placeholder="test@example.com">
+<label for="userId">ID пользователя (Shp_userId, для начисления кредитов)</label>
+<input type="text" id="userId" value="123">
+<label for="service">Сервис (Shp_service, для какого сервиса оплата)</label>
+<select id="service">
+<option value="bom-parse">bom-parse — BOM парсер</option>
+<option value="pdf-bom-api">pdf-bom-api — Production BOM API</option>
+<option value="micro-saas-factory">micro-saas-factory — Микро-SaaS</option>
+<option value="seo-affiliate-site">seo-affiliate-site — SEO сайт</option>
+<option value="meeting-notes-pro">meeting-notes-pro — Конспекты</option>
+<option value="custom">custom — Другое</option>
+</select>
+<button id="create">Создать ссылку на оплату</button>
+<div id="payOut" style="margin-top:1rem"></div>
+</div>
+
+<div class="card">
+<h3>📋 Заказы</h3>
+<button id="refreshOrders">Обновить список заказов</button>
+<div id="ordersOut" style="margin-top:1rem"></div>
+</div>
+
+<div class="card">
+<h3>📚 Как подключить в свой сервис</h3>
+<pre>
+// 1. Импорт модуля (уже в services/lib/robokassa.mjs)
+import { Robokassa } from "../lib/robokassa.mjs";
+
+const rk = new Robokassa({
+  merchantLogin: process.env.ROBOKASSA_MERCHANT_LOGIN,
+  password1: process.env.ROBOKASSA_PASSWORD1,
+  password2: process.env.ROBOKASSA_PASSWORD2,
+  isTest: true,
+  algorithm: "md5" // или sha256 — должен совпадать с настройками в ЛК Robokassa
+});
+
+// 2. Создание платежа (в любом сервисе)
+app.post("/api/create-payment", async (req, res) => {
+  const { amount, description, userId } = req.body;
+  const invId = Date.now(); // уникальный ID заказа
+
+  const paymentUrl = rk.generatePaymentUrl({
+    outSum: amount,
+    invId,
+    description,
+    userParams: {
+      Shp_userId: userId,
+      Shp_service: "bom-parse"
+    },
+    email: req.body.email
+  });
+
+  // Сохранить заказ в БД как pending
+  // await db.save({ invId, amount, status: "pending" });
+
+  res.json({ paymentUrl, invId });
+});
+
+// 3. Обработка ResultURL — серверное уведомление от Robokassa (обязательно!)
+app.post("/api/robokassa/result", (req, res) => {
+  const data = req.body; // OutSum, InvId, SignatureValue, Shp_...
+
+  if (!rk.validateResult(data)) {
+    return res.status(400).send("Invalid signature");
+  }
+
+  // Начислить кредиты / выдать товар
+  const userId = data.Shp_userId;
+  const service = data.Shp_service;
+  // await credits.add(userId, amount);
+
+  // Обязательно вернуть OK{InvId}
+  res.send(rk.getSuccessAnswer(data.InvId));
+});
+
+// 4. SuccessURL — куда попадает пользователь после оплаты
+app.get("/api/robokassa/success", (req, res) => {
+  if (!rk.validateSuccess(req.query)) {
+    // можно показать ошибку, но для демо показываем успех
+  }
+  res.send("✅ Оплата успешна! Кредиты начислены.");
+});
+
+// 5. FailURL
+app.get("/api/robokassa/fail", (req, res) => {
+  res.send("❌ Оплата не удалась");
+});
+</pre>
+<p style="font-size:.85rem;color:#6b7280">Полный модуль в <code>services/lib/robokassa.mjs</code> — скопируй в свой проект, укажи ключи из ЛК Robokassa (MerchantLogin, Password1, Password2, алгоритм).</p>
+</div>
+
+<div class="card">
+<h3>🔧 Настройка в ЛК Robokassa</h3>
+<ol style="font-size:.9rem">
+<li>Зарегистрируйся на <a href="https://robokassa.ru" target="_blank">robokassa.ru</a> → Создай магазин</li>
+<li>Технические настройки: Алгоритм — <code>MD5</code> (или SHA256), ResultURL — <code>https://твой-домен/robokassa-payment/api/robokassa/result</code>, метод POST, SuccessURL — <code>/api/robokassa/success</code>, FailURL — <code>/api/robokassa/fail</code></li>
+<li>Скопируй MerchantLogin, Password1, Password2 в <code>.env</code>:
+<pre>ROBOKASSA_MERCHANT_LOGIN=твой_логин
+ROBOKASSA_PASSWORD1=пароль1
+ROBOKASSA_PASSWORD2=пароль2
+ROBOKASSA_IS_TEST=true
+ROBOKASSA_ALGORITHM=md5</pre></li>
+<li>Включи тестовый режим в ЛК и сделай тестовую оплату</li>
+<li>ResultURL должен возвращать <code>OK{InvId}</code> и быть доступен из интернета (не localhost)</li>
+</ol>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function chip(s){return s==='pending'?'⏳ ожидает оплату':s==='paid'?'✅ оплачен':s==='error'?'⚠️ ошибка':s}
+
+async function loadCfg(){
+  const r=await fetch("api/config"); const j=await r.json();
+  $("cfg").textContent=JSON.stringify(j,null,2);
+}
+
+async function createPayment(){
+  const amount=$("amount").value;
+  const desc=$("desc").value;
+  const email=$("email").value;
+  const userId=$("userId").value;
+  const service=$("service").value;
+  const btn=$("create"); btn.disabled=true; btn.textContent="Создаю…";
+
+  const res=await fetch("api/create-payment",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      outSum: amount,
+      description: desc,
+      email: email,
+      userParams: {
+        Shp_userId: userId,
+        Shp_service: service
+      }
+    })
+  });
+
+  const data=await res.json();
+  btn.disabled=false; btn.textContent="Создать ссылку на оплату";
+
+  if(!data.ok){
+    $("payOut").innerHTML=`<div class="err">Ошибка: ${esc(data.error||"unknown")}</div>`;
+    return;
+  }
+
+  $("payOut").innerHTML=`
+    <div style="padding:1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px">
+      <p><strong>Заказ №${esc(data.invId)}</strong> на сумму ${esc(data.outSum)} создан</p>
+      <p>Статус: ⏳ ожидает оплату</p>
+      <p><a href="${esc(data.paymentUrl)}" target="_blank" style="display:inline-block;padding:.6rem 1.2rem;background:#10b981;color:#fff;border-radius:10px;text-decoration:none">💳 Оплатить через Robokassa →</a></p>
+      <p style="font-size:.8rem;color:#6b7280;margin-top:.6rem">Ссылка: <code style="word-break:break-all">${esc(data.paymentUrl)}</code></p>
+      <p style="font-size:.8rem;color:#6b7280">Тестовый режим: ${data.isTest?'да (IsTest=1)':'нет'} · Логин: ${esc(data.merchantLogin)}</p>
+    </div>
+  `;
+  refreshOrders();
+}
+
+async function refreshOrders(){
+  const r=await fetch("api/orders"); const j=await r.json();
+  if(!j.ok){$("ordersOut").innerHTML=`<div class="err">Ошибка</div>`;return}
+  const orders=j.orders||[];
+  if(orders.length===0){$("ordersOut").innerHTML=`<p style="color:#6b7280;font-size:.9rem">Заказов пока нет</p>`;return}
+  $("ordersOut").innerHTML=orders.map(o=>`
+    <div class="job">
+      <div><strong>№${esc(o.invId)}</strong> — ${esc(o.outSum)} — ${chip(o.status)} — ${esc(o.description||"")}</div>
+      <div style="font-size:.8rem;color:#6b7280">Создан: ${esc(o.createdAt)} ${o.paidAt?`· Оплачен: ${esc(o.paidAt)}`:""} · Email: ${esc(o.email||"—")} · Shp: ${esc(JSON.stringify(o.userParams||{}))}</div>
+    </div>
+  `).join("");
+}
+
+$("create").onclick=createPayment;
+$("refreshOrders").onclick=refreshOrders;
+loadCfg();
+refreshOrders();
+</script>
+</div></body></html>

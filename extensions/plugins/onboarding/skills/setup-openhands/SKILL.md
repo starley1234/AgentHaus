@@ -5,52 +5,46 @@ triggers:
 - setup-openhands
 - set up openhands
 - configure openhands for this repo
+- настройка openhands
+- настроить openhands
 ---
 
-# Set Up OpenHands for a Repository
+# Настройка OpenHands для репозитория
 
-Work through these steps in order.
+Пройдите эти шаги по порядку.
 
-## Step 1: Create AGENTS.md
+## Шаг 1: Создайте AGENTS.md
 
-Run `setup-agents-md` to generate a root-level `AGENTS.md` from the repo's actual
-CI workflows, build files, and documentation.
+Запустите `setup-agents-md`, чтобы сгенерировать корневой `AGENTS.md` из реальных CI-workflow, файлов сборки и документации репозитория.
 
-## Step 2: Create `.openhands/setup.sh`
+## Шаг 2: Создайте `.openhands/setup.sh`
 
-Create `.openhands/setup.sh` — a bootstrap script that runs at the start of
-every OpenHands session. Read the repo's CI workflows, AGENTS.md, and build
-files to determine the correct commands. The script should:
+Создайте `.openhands/setup.sh` — bootstrap-скрипт, который запускается в начале каждой сессии OpenHands. Прочитайте CI-workflow репозитория, AGENTS.md и файлы сборки, чтобы определить правильные команды. Скрипт должен:
 
-- Install dependencies (the project's actual install command)
-- Set required environment variables
-- Run any other bootstrap steps (e.g. copy `.env.example` to `.env`)
+- Устанавливать зависимости (реальная команда установки проекта)
+- Задавать требуемые переменные окружения
+- Выполнять любые другие шаги bootstrap (например, копировать `.env.example` в `.env`)
 
-Keep it idempotent and fast. Use the real commands from CI, not generic examples.
+Делайте его идемпотентным и быстрым. Используйте реальные команды из CI, а не общие примеры.
 
-**Docs**: https://docs.openhands.dev/openhands/usage/customization/repository#setup-script
+**Доки**: https://docs.openhands.dev/openhands/usage/customization/repository#setup-script
 
-## Step 3: Create `.openhands/pre-commit.sh`
+## Шаг 3: Создайте `.openhands/pre-commit.sh`
 
-Create `.openhands/pre-commit.sh` — runs before every commit OpenHands makes.
-Read the repo's CI workflows to find the lint and test commands, then mirror
-them in the script. Exit non-zero on failure so the agent gets immediate
-feedback instead of waiting for CI.
+Создайте `.openhands/pre-commit.sh` — запускается перед каждым коммитом, который делает OpenHands. Прочитайте CI-workflow репозитория, чтобы найти команды линта и тестов, затем зеркальте их в скрипте. Выход с ненулевым кодом при сбое, чтобы агент получал немедленную обратную связь вместо ожидания CI.
 
-The script should run the same checks CI runs — if CI runs `ruff check` and
-`pytest`, run those. If it runs `cargo clippy` and `cargo test`, run those.
+Скрипт должен запускать те же проверки, что и CI — если CI запускает `ruff check` и `pytest`, запускайте их. Если запускает `cargo clippy` и `cargo test`, запускайте их.
 
-**Docs**: https://docs.openhands.dev/openhands/usage/customization/repository#pre-commit-script
+**Доки**: https://docs.openhands.dev/openhands/usage/customization/repository#pre-commit-script
 
-## Step 4: Set up PR review
+## Шаг 4: Настройте ревью PR
 
-Run `setup-pr-review` to create the GitHub Actions workflow and walk the user
-through configuration.
+Запустите `setup-pr-review`, чтобы создать GitHub Actions workflow и провести пользователя через конфигурацию.
 
-## Step 5: Verify
+## Шаг 5: Проверьте
 
-Confirm all files exist and are correct:
-- `AGENTS.md` at repo root with real commands (not boilerplate)
-- `.openhands/setup.sh` with the project's actual install/bootstrap commands
-- `.openhands/pre-commit.sh` mirroring the CI lint/test checks
-- `.github/workflows/pr-review.yml` with valid YAML
+Убедитесь, что все файлы существуют и корректны:
+- `AGENTS.md` в корне репозитория с реальными командами (не шаблонный)
+- `.openhands/setup.sh` с реальными командами установки/bootstrap проекта
+- `.openhands/pre-commit.sh`, зеркалящий проверки линта/тестов из CI
+- `.github/workflows/pr-review.yml` с валидным YAML
