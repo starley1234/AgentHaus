@@ -82,6 +82,12 @@ services:
       # Значение 4 — безопасный дефолт для одного self-hosted инстанса; подними
       # его только если CPU/RAM и лимиты LLM-провайдера это позволяют.
       OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
+      # ── VNC/интерактивный браузер ──
+      # Включает VNC-сервер (TigerVNC + noVNC) внутри контейнера.
+      # Это позволяет использовать интерактивный просмотр браузера во вкладке
+      # «Browser» — кликать, вводить текст, проходить капчу за агента.
+      # Без этого работает только статичный скриншот.
+      OH_ENABLE_VNC: "${OH_ENABLE_VNC:-true}"
       # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
       GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
       GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID:-}"
