@@ -440,7 +440,6 @@ def _add_api_routes(app: FastAPI) -> None:
     api_router.include_router(file_router)
     api_router.include_router(vscode_router)
     api_router.include_router(desktop_router)
-    api_router.include_router(vnc_proxy_router)
     api_router.include_router(skills_router)
     api_router.include_router(sub_agents_router)
     api_router.include_router(plugins_router)
@@ -467,6 +466,7 @@ def _add_api_routes(app: FastAPI) -> None:
         prefix="/api", dependencies=[Depends(check_workspace_session)]
     )
     workspace_api_router.include_router(workspace_router)
+    workspace_api_router.include_router(vnc_proxy_router)
     app.include_router(workspace_api_router)
 
     app.include_router(sockets_router)

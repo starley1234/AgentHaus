@@ -16,6 +16,9 @@ class BrowserService {
    * The backend returns URLs like http://localhost:8002/vnc.html which aren't
    * accessible from the browser. This rewrites them to use the proxy endpoint
    * which is accessible through the same host as the agent server API.
+   *
+   * Also adds `path=websockify` so noVNC connects its WebSocket to the
+   * proxy endpoint (relative to the page URL) instead of /websockify at root.
    */
   private static rewriteVncUrl(
     vncUrl: string,
@@ -24,7 +27,15 @@ class BrowserService {
     try {
       const vncParsed = new URL(vncUrl);
       const path = vncParsed.pathname; // e.g., "/vnc.html"
-      const search = vncParsed.search; // e.g., "?autoconnect=1&resize=remote"
+
+      // Parse existing search params and ensure `path=websockify` is set
+      // so noVNC resolves its WebSocket relative to the page directory
+      // (i.e., /api/desktop/vnc-proxy/websockify) instead of /websockify.
+      const params = new URLSearchParams(vncParsed.search);
+      if (!params.has("path")) {
+        params.set("path", "websockify");
+      }
+      const search = params.toString() ? `?${params.toString()}` : "";
 
       // Rewrite to use the proxy endpoint
       // {agent_server}/api/desktop/vnc-proxy{path}{search}

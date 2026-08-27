@@ -5,12 +5,17 @@ import { BrowserChromeBar } from "./browser-chrome-bar";
 import { EmptyBrowserMessage } from "./empty-browser-message";
 import { useBrowserStore } from "#/stores/browser-store";
 import { useDesktopUrl } from "#/hooks/query/use-desktop-url";
+import { useWorkspaceSession } from "#/hooks/query/use-workspace-session";
 import type { BrowserViewMode } from "#/stores/browser-store";
 
 export function BrowserPanel() {
   const { url, screenshotSrc, viewMode, isLiveAvailable, setViewMode, setIsLiveAvailable } =
     useBrowserStore();
   const { data: vncUrl } = useDesktopUrl();
+
+  // Mint the workspace session cookie so the noVNC iframe can authenticate
+  // (browsers cannot attach custom headers to iframe requests).
+  useWorkspaceSession();
 
   const hasPage = Boolean(screenshotSrc);
 
