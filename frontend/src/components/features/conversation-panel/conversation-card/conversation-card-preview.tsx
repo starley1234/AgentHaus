@@ -20,6 +20,9 @@ interface ConversationCardPreviewProps {
   workspaceWorkingDir?: string | null;
   llmModel?: string | null;
   createdAt?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  cost?: number | null;
 }
 
 const providerIcon: Partial<Record<Provider, IconType>> = {
@@ -53,6 +56,9 @@ export function ConversationCardPreview({
   workspaceWorkingDir,
   llmModel,
   createdAt,
+  promptTokens = 0,
+  completionTokens = 0,
+  cost,
 }: ConversationCardPreviewProps) {
   const { t } = useTranslation("openhands");
 
@@ -124,10 +130,11 @@ export function ConversationCardPreview({
         ) : null}
 
         {createdLabel ? (
-          <PreviewRow label={t(I18nKey.CONVERSATION$CREATED)}>
-            {createdLabel}
-          </PreviewRow>
+          <PreviewRow label={t(I18nKey.CONVERSATION$CREATED)}>{createdLabel}</PreviewRow>
         ) : null}
+        <PreviewRow label="Токены">
+          <span title="Входные / выходные токены">↑ {promptTokens.toLocaleString("ru-RU")} · ↓ {completionTokens.toLocaleString("ru-RU")}{cost != null ? ` · $${cost.toFixed(4)}` : ""}</span>
+        </PreviewRow>
       </dl>
     </div>
   );
