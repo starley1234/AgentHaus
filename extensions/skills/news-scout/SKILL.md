@@ -55,45 +55,44 @@ mkdir -p /tmp/news-scout-build
 python3 -m py_compile /tmp/news-scout-build/main.py && echo "Syntax OK"
 ```
 
-## Шаг 3 — загрузи и создай автоматизацию
+## Шаг 3 — установи одной командой (НЕ вручную через curl)
 
-URL и ключ Automation backend возьми из блока `<RUNTIME_SERVICES>` контекста
-(auth: `X-Session-API-Key: $OPENHANDS_AUTOMATION_API_KEY`).
+Используй установщик из этого навыка — он сам найдёт бэкенд автоматизаций
+(по `$AUTOMATION_BASE_URL`, НЕ угадывай порт!), загрузит архив, создаст
+задачу и **проверит, что она реально появилась в списке**:
 
 ```bash
-tar -czf /tmp/news-scout.tar.gz -C /tmp/news-scout-build .
-OPENHANDS_HOST="<automation-url-from-runtime-services>"
-
-TARBALL_PATH=$(curl -s -X POST \
-  "${OPENHANDS_HOST}/api/automation/v1/uploads?name=news-scout" \
-  -H "X-Session-API-Key: $OPENHANDS_AUTOMATION_API_KEY" \
-  -H "Content-Type: application/gzip" \
-  --data-binary @/tmp/news-scout.tar.gz \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['tarball_path'])")
-
-curl -s -X POST "${OPENHANDS_HOST}/api/automation/v1" \
-  -H "X-Session-API-Key: $OPENHANDS_AUTOMATION_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"news-scout\",
-    \"trigger\": {\"type\": \"cron\", \"schedule\": \"0 */2 * * *\"},
-    \"tarball_path\": \"${TARBALL_PATH}\",
-    \"entrypoint\": \"main.py\"
-  }"
+python3 <путь-к-навыку>/scripts/install.py --install \
+  --script /tmp/news-scout-build/main.py \
+  --name news-scout --cron "0 */2 * * *"
 ```
 
-(Формат создания — тот же, что у slack-channel-monitor; если схема API
-отличается, посмотри рабочий пример в
-`skills/slack-channel-monitor/SKILL.md`, шаги 4–5.)
+Успех = JSON с `"ok": true` и полем `"проверено"`. Любой другой исход —
+ошибка с причиной (например, 403 = владелец выключил создание автоматизаций
+рубильником `AUTOMATION_ALLOW_CREATE=0`).
 
-## Шаг 4 — проверь
+Полезные команды того же установщика:
 
-1. Запусти автоматизацию вручную (кнопка Run в UI автоматизаций или дождись
-   cron) и посмотри лог: `[news-scout] новых статей: N` → `дайджест отправлен`.
-2. Убедись, что письмо пришло, а в `/projects/news-scout/` появились
-   `seen.json` и `digest-*.md`.
-3. Скажи пользователю, как поменять темы/ленты: правится в constants main.py
-   и перезаливается (шаги 2–3), расписание — в самой автоматизации.
+```bash
+python3 <путь-к-навыку>/scripts/install.py --list        # реальный список задач
+python3 <путь-к-навыку>/scripts/install.py --run news-scout  # пробный запуск сейчас
+```
+
+## Шаг 4 — проверь и честно отчитайся
+
+> **ЖЕЛЕЗНОЕ ПРАВИЛО: не сообщай пользователю об успехе, пока не увидел
+> `"ok": true` от install.py.** Если install.py упал — процитируй его ошибку
+> и предложи решение; НЕ пиши «настроил», «загрузил», «работает» на основании
+> предположений.
+
+1. `install.py --run news-scout` — пробный запуск; посмотри лог запуска в
+   UI (Canvas → Автоматизации → news-scout → runs) или дождись письма.
+2. Скажи пользователю: ID задачи, расписание, где смотреть
+   (`/canvas/automations`), и что первые письма появятся после того, как в
+   лентах будут новые статьи.
+3. Как поменять темы/ленты: правишь константы в main.py и повторяешь шаги
+   2–3 (install.py создаст задачу заново — старую сначала удали в UI или
+   через API).
 
 ## Почему это дёшево по токенам
 

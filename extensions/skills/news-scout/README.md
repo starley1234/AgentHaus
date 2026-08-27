@@ -30,3 +30,22 @@ tar.gz → загрузка в сервис автоматизаций).
 
 Требования: настроенный email в `.env` (`notify status` → email ✅)
 и работающий стек автоматизаций (`docker compose up -d`).
+
+## Установщик (scripts/install.py)
+
+Установка/проверка — одной командой, без ручных curl и угадывания портов
+(бэкенд ищется по `$AUTOMATION_BASE_URL`, успех подтверждается только после
+того, как задача реально появилась в списке):
+
+```bash
+python3 scripts/install.py --install --script /tmp/build/main.py   # создать и ПРОВЕРИТЬ
+python3 scripts/install.py --list                                  # реальный список задач
+python3 scripts/install.py --run news-scout                        # пробный запуск сейчас
+```
+
+Проверить из хоста, что автоматизация существует:
+
+```bash
+docker exec agenthaus python3 \
+  /opt/agent-canvas/extensions/skills/news-scout/scripts/install.py --list
+```
