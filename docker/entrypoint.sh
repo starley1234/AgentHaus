@@ -281,11 +281,17 @@ log "Starting frontend + proxy on port $PORT..."
 # from the sandbox-facing URLs the entrypoint already exports. static-server.mjs
 # appends it to /server_info as runtime_services and also injects the legacy
 # window global for older frontend bundles.
+#
+# ВАЖНО: url_from_agent должен быть достижим ИЗНУТРИ контейнера. AUTOMATION_BASE_URL
+# может указывать на хостовый порт (например http://localhost:8300 при
+# AGENT_CANVAS_PORT=8300) — внутри контейнера такого порта нет, и агент получает
+# connection refused. Поэтому агенту всегда отдаём внутренний адрес прокси.
+AUTOMATION_URL_FROM_AGENT="${AUTOMATION_URL_FROM_AGENT:-http://127.0.0.1:${PORT}}"
 RUNTIME_SERVICES_INFO="$(node /opt/agent-canvas/runtime-services-info.mjs \
   --mode docker \
   --agent-host-alias 127.0.0.1 \
   --agent-server-url "$AGENT_SERVER_URL" \
-  --automation-url "$AUTOMATION_BASE_URL")"
+  --automation-url "$AUTOMATION_URL_FROM_AGENT")"
 
 # EFFECTIVE_SESSION_KEY is set above from LOCAL_BACKEND_API_KEY or the persisted api-key.txt
 # Для продакшена также проксируем сервисы-деньги (services/*) через gateway на хосте,
