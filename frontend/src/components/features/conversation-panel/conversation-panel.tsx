@@ -638,6 +638,9 @@ export function ConversationPanel({
               }
               llmModel={conversation.llm_model}
               createdAt={conversation.created_at}
+              promptTokens={conversation.metrics?.accumulated_token_usage?.prompt_tokens ?? 0}
+              completionTokens={conversation.metrics?.accumulated_token_usage?.completion_tokens ?? 0}
+              cost={conversation.metrics?.accumulated_cost}
             />
           }
         >

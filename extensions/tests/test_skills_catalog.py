@@ -379,10 +379,10 @@ EXPECTED_CATEGORY_COUNTS = {
     "code-hosting": 8,
     "agent-authoring": 8,
     "code-quality": 6,
-    "integrations": 7,
+    "integrations": 8,
     "writing": 4,
-    "design": 2,
-    "other": 1,
+    "design": 4,
+    "other": 2,
 }
 
 
@@ -532,12 +532,14 @@ class TestGeneratedCategories:
         run_node(script)
 
     def test_uncovered_skills_land_in_other(self):
-        # flarglebargle is the one skill whose marketplace entry sets "other" on purpose: it is a trigger-testing skill, not a real category member.
+        # flarglebargle is a trigger-testing skill and debate is a demo skill;
+        # both intentionally map to "other" rather than a real category.
         script = textwrap.dedent(f"""\
             import {{ SKILLS_CATALOG }} from './skills/index.js';
             const expected = {json.dumps(sorted(SKILLS_WITHOUT_MARKETPLACE_ENTRY))};
+            const intentional_other = ['debate', 'flarglebargle'];
             const actual = SKILLS_CATALOG.filter(e => e.category === 'other').map(e => e.name).sort();
-            const extra = actual.filter(n => !expected.includes(n) && n !== 'flarglebargle');
+            const extra = actual.filter(n => !expected.includes(n) && !intentional_other.includes(n));
             if (extra.length) {{
               console.error('Unexpected uncategorized skills: ' + extra.join(', '));
               process.exit(1);

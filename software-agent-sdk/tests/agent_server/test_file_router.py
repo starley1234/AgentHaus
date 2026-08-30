@@ -1086,6 +1086,11 @@ def _tar_members(content: bytes) -> list[str]:
         return tar.getnames()
 
 
+def _zip_members(content: bytes) -> list[str]:
+    with zipfile.ZipFile(io.BytesIO(content)) as zf:
+        return zf.namelist()
+
+
 def test_tar_gz_on_non_git_directory_succeeds(client, workspace):
     # The key differentiator: git-delta 400s on a non-git dir, tar.gz captures
     # the whole tree.
@@ -1298,6 +1303,143 @@ def test_tar_gz_preserves_user_archive_manifest_file(client, tmp_path, caplog):
     assert any(ARCHIVE_MANIFEST_NAME in record.message for record in caplog.records), (
         "expected a warning about the archive_manifest.json collision"
     )
+
+
+# =============================================================================
+# Archive Tests - format=zip (full-workspace archive)
+# =============================================================================
+
+
+def test_zip_on_non_git_directory_succeeds(client, workspace):
+    resp = client.get(
+        "/api/file/archive", params={"path": str(workspace), "format": "zip"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("application/zip")
+    assert resp.headers["content-disposition"].endswith(".zip")
+    names = _zip_members(resp.content)
+    assert f"{workspace.name}/src/main.py" in names
+    assert f"{workspace.name}/README.md" in names
+    assert f"{workspace.name}/archive_manifest.json" in names
+    assert f"{workspace.name}/empty/" in names
+
+
+def test_zip_supports_the_exact_frontend_request(client, tmp_path):
+    """The UI calls format=zip&use_default_excludes=false; that must be accepted."""
+    root = tmp_path / "plain"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
+    (root / "node_modules" / "pkg").mkdir(parents=True)
+    (root / "node_modules" / "pkg" / "junk.js").write_text("// big\n", encoding="utf-8")
+
+    resp = client.get(
+        "/api/file/archive",
+        params={
+            "path": str(root),
+            "format": "zip",
+            "use_default_excludes": "false",
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    names = _zip_members(resp.content)
+    assert f"{root.name}/src/main.py" in names
+    assert f"{root.name}/node_modules/pkg/junk.js" in names
+
+
+def test_zip_default_excludes_drop_node_modules(client, tmp_path):
+    root = tmp_path / "plain"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "main.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "node_modules" / "pkg").mkdir(parents=True)
+    (root / "node_modules" / "pkg" / "junk.js").write_text("// big\n", encoding="utf-8")
+
+    resp = client.get(
+        "/api/file/archive", params={"path": str(root), "format": "zip"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    names = _zip_members(resp.content)
+    assert f"{root.name}/src/main.py" in names
+    assert not any("node_modules" in n for n in names)
+
+
+def test_zip_manifest_records_format_and_source(client, workspace):
+    resp = client.get(
+        "/api/file/archive", params={"path": str(workspace), "format": "zip"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+        manifest = json.loads(
+            zf.read(f"{workspace.name}/archive_manifest.json").decode("utf-8")
+        )
+    assert manifest["format"] == "zip"
+    assert manifest["source"] == workspace.name
+    assert manifest["file_count"] >= 2
+
+
+def test_zip_default_excludes_drop_dot_git(client, tmp_path):
+    root = tmp_path / "project"
+    _git(["init"], root)
+    (root / "README.md").write_text("# p\n", encoding="utf-8")
+    _git(
+        ["remote", "add", "origin", "https://x-access-token:ghs_SECRET@github.com/o/r"],
+        root,
+    )
+
+    resp = client.get(
+        "/api/file/archive", params={"path": str(root), "format": "zip"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    names = _zip_members(resp.content)
+    assert not any("/.git/" in n or n.endswith("/.git") for n in names)
+    assert b"ghs_SECRET" not in resp.content
+    assert f"{root.name}/README.md" in names
+
+
+def test_zip_full_capture_still_strips_git_credentials(client, tmp_path):
+    root = tmp_path / "repo"
+    git_dir = root / ".git"
+    (git_dir / "logs").mkdir(parents=True)
+    (root / "app.py").write_text("print('hi')\n", encoding="utf-8")
+    (git_dir / "config").write_text(
+        '[remote "origin"]\n'
+        "\turl = https://x-access-token:ghs_CONFIGTOK@github.com/o/r\n",
+        encoding="utf-8",
+    )
+    (git_dir / "credentials").write_text(
+        "https://x-access-token:ghs_CREDTOK@github.com\n", encoding="utf-8"
+    )
+    (git_dir / "logs" / "HEAD").write_text(
+        "0 1 t <t@t.dev> 0 +0000\tclone: from "
+        "https://x-access-token:ghs_LOGTOK@github.com/o/r\n",
+        encoding="utf-8",
+    )
+    # A non-credential .git internal must survive: proves the credential files
+    # are stripped specifically, not the whole .git tree.
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    resp = client.get(
+        "/api/file/archive",
+        params={
+            "path": str(root),
+            "format": "zip",
+            "use_default_excludes": "false",
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    names = _zip_members(resp.content)
+    assert f"{root.name}/app.py" in names
+    assert not any(n.endswith("/.git/config") for n in names)
+    assert not any(n.endswith("/.git/credentials") for n in names)
+    assert not any("/.git/logs/" in n for n in names)
+    assert any(n.endswith("/.git/HEAD") for n in names)
+    for token in (b"ghs_CONFIGTOK", b"ghs_CREDTOK", b"ghs_LOGTOK"):
+        assert token not in resp.content
 
 
 # =============================================================================

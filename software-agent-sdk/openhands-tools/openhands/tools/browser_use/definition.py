@@ -245,6 +245,107 @@ class BrowserClickTool(ToolDefinition[BrowserClickAction, BrowserObservation]):
 
 
 # ============================================
+# `browser_click_coordinates`
+# ============================================
+class BrowserClickCoordinatesAction(BrowserAction):
+    """Schema for clicking at viewport coordinates."""
+
+    x: int = Field(description="Viewport X coordinate (from browser_get_state center_x)")
+    y: int = Field(description="Viewport Y coordinate (from browser_get_state center_y)")
+    button: Literal["left", "right", "middle"] = Field(
+        default="left", description="Mouse button to press. Default: left"
+    )
+
+
+BROWSER_CLICK_COORDINATES_DESCRIPTION = """Click at specific viewport coordinates.
+
+Use this tool when the page uses CAPTCHA images, canvas/clipboard-based controls, or
+other elements that are not exposed as numbered interactive elements. Coordinates
+come from `browser_get_state` (center / viewport_position of each element or image).
+
+Parameters:
+- x: Viewport X coordinate (integer)
+- y: Viewport Y coordinate (integer)
+- button: Mouse button (optional, default: left)
+
+Examples:
+- Click the reCAPTCHA checkbox at its center: x=..., y=...
+- Click a traffic-light tile in an image challenge by its center coordinates.
+"""  # noqa: E501
+
+
+class BrowserClickCoordinatesTool(
+    ToolDefinition[BrowserClickCoordinatesAction, BrowserObservation]
+):
+    """Tool for clicking at viewport coordinates."""
+
+    @classmethod
+    def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
+        return [
+            cls(
+                description=BROWSER_CLICK_COORDINATES_DESCRIPTION,
+                action_type=BrowserClickCoordinatesAction,
+                observation_type=BrowserObservation,
+                annotations=ToolAnnotations(
+                    title="browser_click_coordinates",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                executor=executor,
+            )
+        ]
+
+
+# ============================================
+# `browser_move_mouse`
+# ============================================
+class BrowserMoveMouseAction(BrowserAction):
+    """Schema for moving the mouse to viewport coordinates."""
+
+    x: int = Field(description="Viewport X coordinate (integer)")
+    y: int = Field(description="Viewport Y coordinate (integer)")
+
+
+BROWSER_MOVE_MOUSE_DESCRIPTION = """Move the mouse to a specific viewport coordinate.
+
+Use this tool before `browser_click_coordinates` when a site expects realistic
+pointer movement (human-like interaction, hover effects, some CAPTCHA checks).
+Coordinates come from `browser_get_state` (viewport_position / center).
+
+Parameters:
+- x: Viewport X coordinate (integer)
+- y: Viewport Y coordinate (integer)
+
+Example:
+- Move the pointer over the CAPTCHA tile, wait, then click it.
+"""  # noqa: E501
+
+
+class BrowserMoveMouseTool(ToolDefinition[BrowserMoveMouseAction, BrowserObservation]):
+    """Tool for moving the mouse to viewport coordinates."""
+
+    @classmethod
+    def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
+        return [
+            cls(
+                description=BROWSER_MOVE_MOUSE_DESCRIPTION,
+                action_type=BrowserMoveMouseAction,
+                observation_type=BrowserObservation,
+                annotations=ToolAnnotations(
+                    title="browser_move_mouse",
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                executor=executor,
+            )
+        ]
+
+
+# ============================================
 # `browser_type`
 # ============================================
 class BrowserTypeAction(BrowserAction):
@@ -854,6 +955,8 @@ class BrowserToolSet(ToolDefinition[BrowserAction, BrowserObservation]):
         for tool_class in [
             BrowserNavigateTool,
             BrowserClickTool,
+            BrowserClickCoordinatesTool,
+            BrowserMoveMouseTool,
             BrowserGetStateTool,
             BrowserGetContentTool,
             BrowserTypeTool,

@@ -162,16 +162,18 @@ def _create_zip_from_directory(source_dir: Path, output_path: Path) -> None:
         raise
 
 
-ArchiveFormat = Literal["git-delta", "tar.gz"]
+ArchiveFormat = Literal["git-delta", "tar.gz", "zip"]
 
 _ARCHIVE_SUFFIX: dict[str, str] = {
     "git-delta": ".patch",
     "tar.gz": ".tar.gz",
+    "zip": ".zip",
 }
 
 _ARCHIVE_MEDIA_TYPE: dict[str, str] = {
     "git-delta": "text/x-patch",
     "tar.gz": "application/gzip",
+    "zip": "application/zip",
 }
 
 ARCHIVE_MANIFEST_NAME = "archive_manifest.json"
@@ -180,9 +182,9 @@ ARCHIVE_MANIFEST_NAME = "archive_manifest.json"
 # Heavy / generated directories that usually bloat an archive without helping
 # eval replay. These are the default excludes, not a minimum exclusion set:
 # callers can disable them with ``use_default_excludes=false`` when they need a
-# full workspace capture. Both formats apply the same set: git-delta as
-# ``:(exclude)`` pathspecs (dropping tracked *and* untracked copies, on top of
-# the repo's own .gitignore) and tar.gz by pruning the walk — so the two
+# full workspace capture. All full-capture formats apply the same set: git-delta
+# as ``:(exclude)`` pathspecs (dropping tracked *and* untracked copies, on top
+# of the repo's own .gitignore) and tar.gz/zip by pruning the walk — so the
 # archives capture the same files.
 _DEFAULT_ARCHIVE_EXCLUDES = (
     ".git/",
@@ -208,7 +210,7 @@ _DEFAULT_ARCHIVE_EXCLUDES = (
 # AND under ``.git/modules/<name>`` for submodules, so the match is by position
 # within any ``.git`` directory rather than a fixed top-level path. (git-delta
 # is a working-tree diff and never includes ``.git``, so this only matters for
-# tar.gz.)
+# tar.gz and zip full captures.)
 _SENSITIVE_GIT_INTERNALS = frozenset(
     {"config", "config.worktree", "credentials", ".git-credentials", "FETCH_HEAD"}
 )
@@ -494,11 +496,15 @@ def _path_is_excluded(rel: PurePosixPath, patterns: list[str], is_dir: bool) -> 
 
 
 def _build_archive_manifest(
-    source: str, file_count: int, total_bytes: int, excludes: list[str]
+    source: str,
+    file_count: int,
+    total_bytes: int,
+    excludes: list[str],
+    archive_format: str = "tar.gz",
 ) -> bytes:
-    """Deterministic (timestamp-free) JSON manifest embedded in a tar.gz."""
+    """Deterministic (timestamp-free) JSON manifest embedded in an archive."""
     manifest = {
-        "format": "tar.gz",
+        "format": archive_format,
         "source": source,
         "file_count": file_count,
         "total_bytes": total_bytes,
@@ -641,6 +647,122 @@ def _create_tar_gz_archive(root: Path, output_path: Path, excludes: list[str]) -
                 info = tarfile.TarInfo(manifest_arcname)
                 info.size = len(manifest)
                 tar.addfile(info, io.BytesIO(manifest))
+    except Exception:
+        output_path.unlink(missing_ok=True)
+        raise
+
+
+def _add_zip_file_member(
+    archive: zipfile.ZipFile, file_path: Path, arcname: str
+) -> int | None:
+    """Add a regular file to ``zip`` (best-effort, never follows symlinks).
+
+    Returns the byte count written, or ``None`` if the file is no longer a
+    regular file / cannot be read (skipped; the workspace may still be mutating).
+    ZIP member names are always POSIX-style and the archive is never held fully
+    in memory -- files are streamed into the archive.
+    """
+    try:
+        f = open(file_path, "rb")
+    except OSError as e:
+        logger.warning(f"Skipping unreadable file {file_path}: {e}")
+        return None
+    try:
+        st = os.fstat(f.fileno())
+        if not stat.S_ISREG(st.st_mode):
+            return None
+        # Fixed timestamp keeps ZIP output deterministic (like the manifest).
+        info = zipfile.ZipInfo(arcname, date_time=(1980, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.create_system = 3  # Unix: keep mode bits meaningful in external_attr
+        info.external_attr = (stat.S_IMODE(st.st_mode) << 16)
+        # Same race protection as the tar path: size the member from the open fd
+        # and pad a short read with NUL so a concurrent truncate cannot
+        # desynchronize the ZIP central directory.
+        reader = _ExactSizeReader(f, st.st_size)
+        with archive.open(info, "w") as dest:
+            while chunk := reader.read(1024 * 1024):
+                dest.write(chunk)
+        return st.st_size
+    except OSError as e:
+        logger.warning(f"Skipping unreadable file {file_path}: {e}")
+        return None
+    finally:
+        f.close()
+
+
+def _create_zip_archive(root: Path, output_path: Path, excludes: list[str]) -> None:
+    """Stream a ZIP archive of ``root`` to ``output_path``.
+
+    Mirrors ``_create_tar_gz_archive`` so the UI can offer a real ``.zip``
+    export: same excludes, no symlink following, empty directory round-trip,
+    credential-bearing git internals stripped, and a deterministic manifest
+    member (``ARCHIVE_MANIFEST_NAME``).
+    """
+    file_count = 0
+    total_bytes = 0
+    manifest_arcname = f"{root.name}/{ARCHIVE_MANIFEST_NAME}"
+    manifest_collision = False
+    try:
+        with zipfile.ZipFile(
+            output_path, "w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+                base = PurePosixPath(Path(dirpath).relative_to(root).as_posix())
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if not _path_is_excluded(base / d, excludes, is_dir=True)
+                    and not _is_sensitive_git_internal(base / d)
+                ]
+                dir_arcname = (
+                    root.name if base == PurePosixPath(".") else f"{root.name}/{base}"
+                )
+                if not Path(dirpath).is_symlink():
+                    try:
+                        directory_info = zipfile.ZipInfo(
+                            dir_arcname + "/", date_time=(1980, 1, 1, 0, 0, 0)
+                        )
+                        directory_info.compress_type = zipfile.ZIP_STORED
+                        directory_info.create_system = 3
+                        directory_info.external_attr = 0o40755 << 16
+                        archive.writestr(directory_info, b"")
+                    except OSError as e:
+                        logger.warning(f"Skipping unreadable directory {dirpath}: {e}")
+                for name in filenames:
+                    rel = base / name
+                    if _path_is_excluded(
+                        rel, excludes, is_dir=False
+                    ) or _is_sensitive_git_internal(rel):
+                        continue
+                    file_path = Path(dirpath) / name
+                    if file_path.is_symlink() or not file_path.is_file():
+                        continue
+                    arcname = f"{root.name}/{rel}"
+                    size = _add_zip_file_member(archive, file_path, arcname)
+                    if size is None:
+                        continue
+                    if arcname == manifest_arcname:
+                        manifest_collision = True
+                    file_count += 1
+                    total_bytes += size
+
+            if manifest_collision:
+                logger.warning(
+                    f"Workspace already contains {ARCHIVE_MANIFEST_NAME!r}; "
+                    "preserving the user's file and skipping the synthetic "
+                    "archive manifest."
+                )
+            else:
+                manifest = _build_archive_manifest(
+                    root.name, file_count, total_bytes, excludes, archive_format="zip"
+                )
+                manifest_info = zipfile.ZipInfo(
+                    manifest_arcname, date_time=(1980, 1, 1, 0, 0, 0)
+                )
+                manifest_info.compress_type = zipfile.ZIP_DEFLATED
+                manifest_info.create_system = 3
+                archive.writestr(manifest_info, manifest)
     except Exception:
         output_path.unlink(missing_ok=True)
         raise
@@ -857,8 +979,9 @@ async def archive_directory(
             description=(
                 "Archive format: 'git-delta' for a git patch of the working-tree "
                 "changes against a base ref (requires a git repository); 'tar.gz' "
-                "for a full gzip tarball of the entire directory (works on "
-                "non-git directories too)."
+                "for a full gzip tarball of the entire directory; 'zip' for a "
+                "full ZIP archive of the entire directory. Both tarball and ZIP "
+                "work on non-git directories too."
             ),
         ),
     ] = "git-delta",
@@ -869,7 +992,7 @@ async def archive_directory(
                 "Only for format='git-delta': base ref to diff against. "
                 "Defaults to the auto-detected comparison ref (origin branch, "
                 "merge-base, or the empty tree for a fresh repo). Ignored for "
-                "format='tar.gz'."
+                "format='tar.gz' and 'zip'."
             )
         ),
     ] = None,
@@ -947,9 +1070,10 @@ async def archive_directory(
     output_path = Path(tmp_name)
 
     # The caller passes the workspace base, but a repo-backed conversation clones
-    # into a subdirectory; resolve to the actual repo so both formats root the
-    # archive at the repo (consistent paths across git-delta, tar.gz, and the
-    # initial snapshot) and git-delta does not 400 on the non-repo parent.
+    # into a subdirectory; resolve to the actual repo so all full-capture formats
+    # root the archive at the repo (consistent paths across git-delta, tar.gz,
+    # zip, and the initial snapshot) and git-delta does not 400 on the non-repo
+    # parent.
     repo_root = await asyncio.to_thread(_resolve_git_repo_root, target)
     base_commit = ""
     try:
@@ -960,6 +1084,10 @@ async def archive_directory(
                 base_ref,
                 output_path,
                 effective_excludes,
+            )
+        elif archive_format == "zip":
+            await asyncio.to_thread(
+                _create_zip_archive, repo_root, output_path, effective_excludes
             )
         else:
             await asyncio.to_thread(

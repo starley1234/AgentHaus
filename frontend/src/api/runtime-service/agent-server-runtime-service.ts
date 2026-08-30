@@ -82,7 +82,7 @@ class AgentServerRuntimeService {
   }
 
   /**
-   * Create and download a full tar.gz snapshot of the active workspace.
+   * Create and download a full ZIP snapshot of the active workspace.
    * The server streams the archive to disk while it is built, so neither the
    * browser nor the agent process needs to hold the workspace in memory.
    */
@@ -94,7 +94,7 @@ class AgentServerRuntimeService {
     const active = getActiveBackend().backend;
     // Explicitly disable server-side convenience excludes: this control promises
     // a complete workspace export, including generated or dependency folders.
-    const archivePath = `/api/file/archive?path=${encodeURIComponent(path)}&format=tar.gz&use_default_excludes=false`;
+    const archivePath = `/api/file/archive?path=${encodeURIComponent(path)}&format=zip&use_default_excludes=false`;
 
     if (active.kind === "cloud" && conversationUrl) {
       const blob = await callCloudProxy<Blob>({
@@ -109,7 +109,7 @@ class AgentServerRuntimeService {
         // sizeable workspace; the server itself streams it without buffering.
         timeoutSeconds: 300,
       });
-      return { blob, filename: "workspace.tar.gz" };
+      return { blob, filename: "workspace.zip" };
     }
 
     const { host, apiKey } = getAgentServerClientOptions({
@@ -128,7 +128,7 @@ class AgentServerRuntimeService {
     const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1];
     return {
       blob: await response.blob(),
-      filename: filename || "workspace.tar.gz",
+      filename: filename || "workspace.zip",
     };
   }
 

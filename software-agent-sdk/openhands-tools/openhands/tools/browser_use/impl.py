@@ -485,12 +485,14 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         """Execute browser action asynchronously."""
         from openhands.tools.browser_use.definition import (
             BrowserClickAction,
+            BrowserClickCoordinatesAction,
             BrowserCloseTabAction,
             BrowserGetContentAction,
             BrowserGetStateAction,
             BrowserGetStorageAction,
             BrowserGoBackAction,
             BrowserListTabsAction,
+            BrowserMoveMouseAction,
             BrowserNavigateAction,
             BrowserObservation,
             BrowserScrollAction,
@@ -508,6 +510,12 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 result = await self.navigate(action.url, action.new_tab)
             elif isinstance(action, BrowserClickAction):
                 result = await self.click(action.index, action.new_tab)
+            elif isinstance(action, BrowserClickCoordinatesAction):
+                result = await self.click_coordinates(
+                    action.x, action.y, action.button
+                )
+            elif isinstance(action, BrowserMoveMouseAction):
+                result = await self.move_mouse(action.x, action.y)
             elif isinstance(action, BrowserTypeAction):
                 result = await self.type_text(action.index, action.text)
             elif isinstance(action, BrowserGetStateAction):
@@ -585,6 +593,20 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         """Click an element by index."""
         await self._ensure_initialized()
         return await self._server._click(index, new_tab)
+
+    @recording_aware
+    async def click_coordinates(
+        self, x: int, y: int, button: str = "left"
+    ) -> str:
+        """Click at viewport coordinates."""
+        await self._ensure_initialized()
+        return await self._server._click_coordinates(x, y, button)
+
+    @recording_aware
+    async def move_mouse(self, x: int, y: int) -> str:
+        """Move the mouse to viewport coordinates."""
+        await self._ensure_initialized()
+        return await self._server._move_mouse_to(x, y)
 
     async def type_text(self, index: int, text: str) -> str:
         """Type text into an element."""

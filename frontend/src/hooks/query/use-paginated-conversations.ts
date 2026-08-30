@@ -29,7 +29,23 @@ export const usePaginatedConversations = (limit: number = 20) => {
         pageParam,
       );
 
-      return result;
+      // Some agent-server versions omit metrics from the search response but
+      // expose them on the conversation endpoint. Hydrate missing metrics so
+      // Monitor and conversation management do not silently show zero usage.
+      const items = await Promise.all(result.items.map(async (conversation) => {
+        if (conversation.metrics?.accumulated_token_usage) return conversation;
+        try {
+          const runtime = await AgentServerConversationService.getRuntimeConversation(
+            conversation.id,
+            conversation.conversation_url,
+            conversation.session_api_key,
+          );
+          return runtime.metrics ? { ...conversation, metrics: runtime.metrics } : conversation;
+        } catch {
+          return conversation;
+        }
+      }));
+      return { ...result, items };
     },
     enabled: !!userIsAuthenticated && hasBackend,
     getNextPageParam: (lastPage: AppConversationPage) => lastPage.next_page_id,
