@@ -70,7 +70,7 @@ def test_browser_toolset_create_returns_list():
         tools = BrowserToolSet.create(conv_state=conv_state)
 
         assert isinstance(tools, list)
-        assert len(tools) == 14  # All browser tools (including recording tools)
+        assert len(tools) == 16  # All browser tools (including recording tools)
 
         # Verify all items are Tool instances
         for tool in tools:
@@ -90,6 +90,8 @@ def test_browser_toolset_create_includes_all_browser_tools():
         expected_names = [
             "browser_navigate",
             "browser_click",
+            "browser_click_coordinates",
+            "browser_move_mouse",
             "browser_get_state",
             "browser_get_content",
             "browser_type",

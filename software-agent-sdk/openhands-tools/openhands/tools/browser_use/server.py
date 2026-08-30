@@ -1,3 +1,5 @@
+import json
+
 from browser_use.dom.markdown_extractor import extract_clean_markdown
 
 from openhands.sdk import get_logger
@@ -252,6 +254,119 @@ class CustomBrowserUseServer(LogSafeBrowserUseServer):
         except Exception as e:
             logger.exception("Error setting storage state", exc_info=e)
             return f"Error setting storage state: {str(e)}"
+
+    async def _get_browser_state(self, include_screenshot: bool = False) -> str:
+        """Get browser state enriched with viewport coordinates.
+
+        Besides index/tag/text/placeholder/href, each interactive element gets:
+        - absolute_position: position relative to the page top-left
+        - viewport_position: position after subtracting current scroll
+        - center_x / center_y: viewport-space center of the element
+        These coordinates are needed by browser_click_coordinates and
+        browser_move_mouse (used for image CAPTCHA and other coordinate-based UIs).
+        """
+        if not self.browser_session:
+            return "Error: No browser session active"
+
+        state = await self.browser_session.get_browser_state_summary()
+        result: dict = {
+            "url": state.url,
+            "title": state.title,
+            "tabs": [{"url": tab.url, "title": tab.title} for tab in state.tabs],
+            "interactive_elements": [],
+        }
+
+        page_info = getattr(state, "page_info", None)
+        scroll_x = float(page_info.scroll_x) if page_info else 0.0
+        scroll_y = float(page_info.scroll_y) if page_info else 0.0
+        if page_info:
+            result["viewport"] = {
+                "width": page_info.viewport_width,
+                "height": page_info.viewport_height,
+            }
+            result["page"] = {
+                "width": page_info.page_width,
+                "height": page_info.page_height,
+            }
+            result["scroll"] = {"x": page_info.scroll_x, "y": page_info.scroll_y}
+        if include_screenshot and state.screenshot:
+            result["screenshot"] = state.screenshot
+
+        for index, element in state.dom_state.selector_map.items():
+            elem_info = {
+                "index": index,
+                "tag": element.tag_name,
+                "text": element.get_all_children_text(max_depth=2)[:100],
+            }
+            if element.attributes.get("placeholder"):
+                elem_info["placeholder"] = element.attributes["placeholder"]
+            if element.attributes.get("href"):
+                elem_info["href"] = element.attributes["href"]
+
+            pos = getattr(element, "absolute_position", None)
+            if pos is not None and getattr(pos, "x", None) is not None:
+                x, y = float(pos.x), float(pos.y)
+                width, height = float(pos.width or 0), float(pos.height or 0)
+                vx, vy = max(0, round(x - scroll_x)), max(0, round(y - scroll_y))
+                elem_info["absolute_position"] = {
+                    "x": round(x),
+                    "y": round(y),
+                    "width": round(width),
+                    "height": round(height),
+                }
+                elem_info["viewport_position"] = {
+                    "x": vx,
+                    "y": vy,
+                    "width": round(width),
+                    "height": round(height),
+                }
+                elem_info["center_x"] = round(vx + width / 2)
+                elem_info["center_y"] = round(vy + height / 2)
+
+            result["interactive_elements"].append(elem_info)
+
+        return json.dumps(result, indent=2)
+
+    async def _click_coordinates(
+        self, x: int, y: int, button: str = "left"
+    ) -> str:
+        """Click at viewport coordinates (for CAPTCHA / coordinate-based controls)."""
+        if not self.browser_session:
+            return "Error: No browser session active"
+        self._update_session_activity(self.browser_session.id)
+
+        from browser_use.browser.events import ClickCoordinateEvent
+
+        event = self.browser_session.event_bus.dispatch(
+            ClickCoordinateEvent(
+                coordinate_x=int(x),
+                coordinate_y=int(y),
+                button=button,
+                force=True,
+            )
+        )
+        await event
+        await event.event_result(raise_if_any=True, raise_if_none=False)
+        try:
+            await self.browser_session.highlight_coordinate_click(int(x), int(y))
+        except Exception:
+            pass
+        return f"Clicked at coordinates ({int(x)}, {int(y)})"
+
+    async def _move_mouse_to(self, x: int, y: int) -> str:
+        """Move the pointer to viewport coordinates without clicking."""
+        if not self.browser_session:
+            return "Error: No browser session active"
+        self._update_session_activity(self.browser_session.id)
+
+        cdp_session = await self.browser_session.get_or_create_cdp_session(
+            target_id=None, focus=False
+        )
+        await cdp_session.cdp_client.send.Input.dispatchMouseEvent(
+            params={"type": "mouseMoved", "x": int(x), "y": int(y)},
+            session_id=cdp_session.session_id,
+        )
+        return f"Mouse moved to ({int(x)}, {int(y)})"
 
     async def _get_content(self, extract_links=False, start_from_char: int = 0) -> str:
         MAX_CHAR_LIMIT = 30000

@@ -919,6 +919,24 @@
       ]
     },
     {
+      "name": "web-captcha",
+      "source": "./skills/web-captcha",
+      "description": "Аккуратное прохождение CAPTCHA в браузере: определить тип (reCAPTCHA, hCaptcha, Turnstile, текст, математика), посмотреть скриншот, подвести мышь и кликнуть по координатам. Ограничение: до 2–3 попыток, затем эскалация владельцу.",
+      "category": "integrations",
+      "keywords": [
+        "captcha",
+        "recaptcha",
+        "hcaptcha",
+        "turnstile",
+        "капча",
+        "докажи что ты человек",
+        "я не робот",
+        "человеческая проверка",
+        "browser",
+        "почта"
+      ]
+    },
+    {
       "name": "vulnerability-remediation",
       "source": "./plugins/vulnerability-remediation",
       "description": "Автоматическое сканирование уязвимостей безопасности и их устранение с помощью ИИ. Сканирует репозитории и создаёт исправления.",

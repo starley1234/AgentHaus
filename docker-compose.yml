@@ -92,6 +92,12 @@ services:
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM: "${SMTP_FROM:-}"
+      # Профиль агента: единое имя/email/роль/подпись для почты и регистраций.
+      # Ящик (SMTP_USER) принадлежит агенту, NOTIFY_EMAIL_TO — владельцу.
+      AGENT_PROFILE_NAME: "${AGENT_PROFILE_NAME:-}"
+      AGENT_PROFILE_EMAIL: "${AGENT_PROFILE_EMAIL:-}"
+      AGENT_PROFILE_ROLE: "${AGENT_PROFILE_ROLE:-}"
+      AGENT_PROFILE_SIGNATURE: "${AGENT_PROFILE_SIGNATURE:-}"
       NOTIFY_EMAIL_TO: "${NOTIFY_EMAIL_TO:-}"
       IMAP_HOST: "${IMAP_HOST:-}"
       IMAP_PORT: "${IMAP_PORT:-993}"

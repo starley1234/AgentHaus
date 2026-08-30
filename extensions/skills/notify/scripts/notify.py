@@ -5,15 +5,21 @@ Zero-dependency (только стандартная библиотека Python
 Вся конфигурация — через переменные окружения (задаются в `.env` проекта
 или в Settings → Secrets):
 
-  Email (SMTP):
+  Email (SMTP) — это ЯЩИК АГЕНТА, а не почта владельца:
     SMTP_HOST        — SMTP-сервер (напр. smtp.timeweb.ru, smtp.yandex.ru)
     SMTP_PORT        — порт (465 = SSL, 587 = STARTTLS; по умолчанию 465)
-    SMTP_USER        — логин (обычно полный email)
+    SMTP_USER        — логин, обычно полный email ящика агента
     SMTP_PASSWORD    — пароль (для Gmail/Yandex/Mail.ru — «пароль приложения»)
     SMTP_FROM        — адрес отправителя (по умолчанию = SMTP_USER)
     SMTP_SECURITY    — ssl | starttls | none (по умолчанию определяется по порту)
     NOTIFY_EMAIL_TO  — получатель ПО УМОЛЧАНИЮ (email владельца) — сюда агент
                        шлёт отчёты, когда пользователь говорит «отправь мне»
+
+  Профиль агента (чтобы агент представлялся ВСЕГДА одинаково):
+    AGENT_PROFILE_NAME      — отображаемое имя в поле From и в регистрациях
+    AGENT_PROFILE_EMAIL     — адрес ящика агента (по умолчанию = SMTP_USER)
+    AGENT_PROFILE_ROLE      — кем представляется (напр. «автономный ассистент»)
+    AGENT_PROFILE_SIGNATURE — подпись, добавляемая к исходящим письмам
 
   Приём почты (IMAP) — для реальной переписки:
     IMAP_HOST        — IMAP-сервер (напр. imap.timeweb.ru). Если не задан —
@@ -33,6 +39,8 @@ Zero-dependency (только стандартная библиотека Python
 
 Примеры:
   python3 notify.py status
+  python3 notify.py profile                # как агент представляется (профиль)
+  python3 notify.py profile --json         # то же, машиночитабельно (для форм)
   python3 notify.py email --subject "Отчёт" --body-file report.md --attach report.md
   python3 notify.py inbox --unseen                # непрочитанные письма
   python3 notify.py read --uid 42                 # прочитать письмо
@@ -89,6 +97,50 @@ def sanitize(text):
     return text
 
 
+# ── Профиль агента: единый синтезированный образ для почты и форм ─────────────
+
+def agent_email():
+    """Адрес почтового ящика агента (по умолчанию SMTP_USER)."""
+    return env("AGENT_PROFILE_EMAIL") or env("SMTP_USER")
+
+
+def agent_name():
+    """Отображаемое имя агента (поле From, подписи, регистрации)."""
+    return env("AGENT_PROFILE_NAME") or "Агент AgentHaus"
+
+
+def agent_role():
+    """Как агент представляет себя третьим лицам."""
+    return env("AGENT_PROFILE_ROLE") or "автономный ассистент"
+
+
+def agent_signature():
+    """Подпись, добавляемая к исходящим письмам."""
+    return env("AGENT_PROFILE_SIGNATURE").replace("\\n", "\n").strip()
+
+
+def agent_profile() -> dict:
+    """Синтезированный профиль агента — единый источник правды."""
+    return {
+        "name": agent_name(),
+        "email": agent_email(),
+        "role": agent_role(),
+        "signature": agent_signature(),
+        "mailbox": env("SMTP_USER") or "",
+        "owner_email": env("NOTIFY_EMAIL_TO") or "",
+    }
+
+
+def with_signature(body: str) -> str:
+    """Добавляет подпись агента к телу письма (если подпись задана)."""
+    sig = agent_signature()
+    if not sig:
+        return body
+    normalized = body.rstrip()
+    sep = "\n\n" if normalized else ""
+    return normalized + sep + sig
+
+
 def die(msg, code=1):
     print("ОШИБКА: " + sanitize(msg), file=sys.stderr)
     sys.exit(code)
@@ -134,15 +186,22 @@ def send_email(to, subject, body, attachments=(), extra_headers=None):
     security = env("SMTP_SECURITY").lower() or ("ssl" if port == 465 else "starttls")
     sender = env("SMTP_FROM") or user
 
+    # Письмо уходит ОТ АГЕНТА: From = синтезированный профиль, Reply-To = ящик
+    # агента. Так получатель видит одно и то же лицо, а владелец не путает
+    # «свою почту» с «почтой агента».
+    display_name = agent_name().replace("\r", " ").replace("\n", " ")
+    from_header = f"{display_name} <{sender}>" if display_name else sender
+
     msg = EmailMessage()
-    msg["From"] = sender
+    msg["From"] = from_header
     msg["To"] = to
-    msg["Subject"] = subject or "Отчёт агента AgentHaus"
+    msg["Reply-To"] = agent_email() or sender
+    msg["Subject"] = subject or f"Сообщение от {display_name or 'агента'}"
     msg["Message-ID"] = f"<{uuid.uuid4()}@agenthaus>"
     for name, value in (extra_headers or {}).items():
         if value:
             msg[name] = value
-    msg.set_content(body)
+    msg.set_content(with_signature(body))
 
     for path in attachments:
         try:
@@ -463,6 +522,7 @@ def cmd_inbox(args):
         print(f"Писем нет{suffix} (папка {args.folder}).")
         return
 
+    print(f"Ящик агента ({imap_host() or 'IMAP'}):")
     print(f"Показано {len(rows)} из {total} по фильтру{suffix} "
           f"(папка {args.folder}), новые сверху:\n")
     for uid, seen, sender, subject, date in rows:
@@ -880,9 +940,9 @@ def cmd_status(_args):
     rows = [
         ("email", email_configured(),
          f"SMTP_HOST={env('SMTP_HOST') or '<не задано>'}, "
-         f"SMTP_USER={env('SMTP_USER') or '<не задано>'}, "
+         f"ЯЩИК АГЕНТА (SMTP_USER)={env('SMTP_USER') or '<не задано>'}, "
          f"SMTP_PASSWORD={mask(env('SMTP_PASSWORD'))}, "
-         f"NOTIFY_EMAIL_TO={env('NOTIFY_EMAIL_TO') or '<не задано>'}"),
+         f"ПОЛУЧАТЕЛЬ ВЛАДЕЛЬЦА (NOTIFY_EMAIL_TO)={env('NOTIFY_EMAIL_TO') or '<не задано>'}"),
         ("imap", imap_configured(),
          f"IMAP_HOST={imap_host() or '<не задано>'}, "
          f"IMAP_USER={env('IMAP_USER') or env('SMTP_USER') or '<не задано>'}, "
@@ -892,6 +952,10 @@ def cmd_status(_args):
          f"TELEGRAM_CHAT_ID={env('TELEGRAM_CHAT_ID') or '<не задано>'}"),
         ("webhook", webhook_configured(),
          f"NOTIFY_WEBHOOK_URL={mask(env('NOTIFY_WEBHOOK_URL'))}"),
+        ("profile", email_configured(),
+         f"ИМЯ={agent_name()}, EMAIL={agent_email() or '<не задано>'}, "
+         f"РОЛЬ={agent_role() or '<не задано>'}, "
+         f"ПОДПИСЬ={'есть' if agent_signature() else 'нет'}"),
     ]
     any_ok = False
     for name, ok, detail in rows:
@@ -904,6 +968,23 @@ def cmd_status(_args):
             "(см. .env.example и docs/NOTIFICATIONS_RU.md) и перезапусти контейнер.",
         )
         sys.exit(2)
+
+
+def cmd_profile(args):
+    """Показать, как агент представляется — единый профиль для почты и форм."""
+    profile = agent_profile()
+    if getattr(args, "json", False):
+        print(json.dumps(profile, ensure_ascii=False, indent=2))
+        return
+    print("Профиль агента — используй ВСЕГДА одинаково (почта, регистрации, формы):")
+    print(f"  Имя:        {profile['name']}")
+    print(f"  Email:      {profile['email'] or '<не задано>'}")
+    print(f"  Роль:       {profile['role'] or '<не задано>'}")
+    print(f"  Ящик:       {profile['mailbox'] or '<не задано>'}")
+    print(f"  Владелец:   {profile['owner_email'] or '<не задано>'}")
+    print(f"  Подпись:    {profile['signature'] or '(не задана)'}")
+    print("\nЕсли для регистрации на сайте нужен email — вводи `email` из этого "
+          "профиля (это почта агента, а НЕ почта владельца).")
 
 
 def cmd_email(args):
@@ -950,6 +1031,10 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="какие каналы настроены").set_defaults(func=cmd_status)
+
+    p = sub.add_parser("profile", help="профиль агента: имя, email, роль, подпись")
+    p.add_argument("--json", action="store_true", help="вывести JSON для форм/регистраций")
+    p.set_defaults(func=cmd_profile)
 
     p = sub.add_parser("ask", help="задать вопрос владельцу в Telegram и дождаться ответа")
     p.add_argument("--text", required=True, help="текст вопроса")

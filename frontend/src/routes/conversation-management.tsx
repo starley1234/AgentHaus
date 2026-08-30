@@ -9,7 +9,7 @@ import type { AppConversation } from "#/api/conversation-service/agent-server-co
 const tokens = (c: AppConversation) => c.metrics?.accumulated_token_usage;
 const formatNumber = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 // Small dependency-free ZIP writer. Files are already compressed by the server
-// (trajectory JSON and tar.gz workspace), so STORE avoids double compression.
+// (trajectory JSON and zip workspace), so STORE avoids double compression.
 function crc32(data: Uint8Array) { let c=~0; for (const b of data) { c^=b; for(let k=0;k<8;k++) c=(c>>>1)^((c&1)?0xedb88320:0); } return (~c)>>>0; }
 function zip(files: {name:string; data:Uint8Array}[]) {
   const enc=new TextEncoder(), chunks:Uint8Array[]=[]; const central:Uint8Array[]=[]; let offset=0;
@@ -71,7 +71,7 @@ export default function ConversationManagement() {
       for (const c of chosen) {
         const trajectory = await AgentServerConversationService.downloadConversation(c.id);
         files.push({name:`conversations/${c.id}/trajectory.json`,data:new Uint8Array(await trajectory.arrayBuffer())});
-        if (c.workspace?.working_dir) { const archive=await AgentServerRuntimeService.downloadWorkspaceArchive(c.conversation_url,c.session_api_key,c.workspace.working_dir); files.push({name:`conversations/${c.id}/workspace.tar.gz`,data:new Uint8Array(await archive.blob.arrayBuffer())}); }
+        if (c.workspace?.working_dir) { const archive=await AgentServerRuntimeService.downloadWorkspaceArchive(c.conversation_url,c.session_api_key,c.workspace.working_dir); files.push({name:`conversations/${c.id}/workspace.zip`,data:new Uint8Array(await archive.blob.arrayBuffer())}); }
       }
       const blob=zip(files); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`agenthaus-export-${new Date().toISOString().slice(0,10)}.zip`; a.click(); URL.revokeObjectURL(a.href);
     } catch(e) { setError(e instanceof Error ? e.message : "Не удалось экспортировать диалоги"); } finally { setWorking(false); }
