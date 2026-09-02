@@ -70,6 +70,18 @@ const RELAY_PATH =
 const ASK_LOCK_FRESH_MS = 2 * 3600_000;
 const TELEGRAM_CHUNK = 4000;
 
+// ── Поведение при сбоях опроса Telegram ─────────────────────────────────────
+// Раньше любая ошибка сети (ETIMEDOUT, пропажа прокси, DNS) превращалась в
+// бесконечный лог «poll error: …» каждые 5 секунд: сотни одинаковых строк,
+// лишний трафик и нулевая информативность. Теперь — экспоненциальная задержка
+// с джиттером (не молотим API и провайдер), лог по смене состояния и редкое
+// напоминание, пока проблема не устранена. Фатальные ошибки конфигурации
+// (неверный токен → 401/404) определяются отдельно и не ретраятся агрессивно.
+const POLL_BACKOFF_MIN_MS = Number(process.env.TELEGRAM_POLL_BACKOFF_MIN_MS || 3_000);
+const POLL_BACKOFF_MAX_MS = Number(process.env.TELEGRAM_POLL_BACKOFF_MAX_MS || 300_000);
+const POLL_ERROR_REMINDER_MS = Number(process.env.TELEGRAM_POLL_ERROR_REMINDER_MS || 900_000);
+const POLL_NOT_CONFIGURED_RETRY_MS = Number(process.env.TELEGRAM_POLL_NOT_CONFIGURED_MS || 60_000);
+
 // ── Состояние ────────────────────────────────────────────────────────────────
 const state = {
   offset: null,
@@ -85,8 +97,89 @@ const runtime = {
   polling: false,
   lastPollOk: null,
   lastError: "",
+  lastErrorKind: "",
+  pollFailures: 0,
+  nextRetryAt: null,
   watching: new Set(), // conversationId в ожидании завершения
 };
+
+// Состояние деградации опроса: нужно, чтобы не логировать одну и ту же ошибку
+// каждые несколько секунд и чтобы /api/status показывал «мост деградирован».
+const pollHealth = {
+  failures: 0,
+  backoffMs: 0,
+  kind: "",
+  lastLoggedAt: 0,
+};
+
+/** Грубая классификация ошибки — по ней решаем, фатально ли это. */
+function classifyPollError(message) {
+  const text = String(message || "");
+  if (/-> (401|403|404)\b/.test(text)) return "auth";
+  if (/-> 429\b/.test(text)) return "rate-limited";
+  if (/-> 5\d\d\b/.test(text)) return "telegram-5xx";
+  if (/ETIMEDOUT|ESOCKETTIMEDOUT|timeout/i.test(text)) return "timeout";
+  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(text)) return "dns";
+  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|EPIPE/i.test(text)) return "network";
+  if (/proxy/i.test(text)) return "proxy";
+  return "other";
+}
+
+/** Задержка перед следующей попыткой: экспоненциальная, с джиттером. */
+function nextBackoffMs(failures, kind) {
+  // Фатальные ошибки конфигурации незачем долбить часто.
+  const floor = kind === "auth" ? POLL_BACKOFF_MAX_MS : POLL_BACKOFF_MIN_MS;
+  const growth = Math.min(failures, 6);
+  const base = Math.min(POLL_BACKOFF_MAX_MS, floor * 2 ** (growth - 1));
+  const jitter = base * 0.25 * Math.random();
+  return Math.round(Math.min(POLL_BACKOFF_MAX_MS, base + jitter));
+}
+
+/** Записать ошибку опроса; вернуть задержку в мс. Логируем редко. */
+function notePollFailure(error) {
+  const kind = classifyPollError(error?.message);
+  pollHealth.failures += 1;
+  pollHealth.backoffMs = nextBackoffMs(pollHealth.failures, kind);
+  runtime.lastError = maskToken(error?.message || String(error)).slice(0, 300);
+  runtime.lastErrorKind = kind;
+  runtime.nextRetryAt = Date.now() + pollHealth.backoffMs;
+
+  const now = Date.now();
+  const changed = kind !== pollHealth.kind;
+  if (changed || now - pollHealth.lastLoggedAt >= POLL_ERROR_REMINDER_MS) {
+    pollHealth.kind = kind;
+    pollHealth.lastLoggedAt = now;
+    const hint =
+      kind === "auth"
+        ? " — проверь TELEGRAM_BOT_TOKEN (401/403/404), повторять часто нет смысла"
+        : kind === "dns" || kind === "network" || kind === "proxy"
+          ? " — нет связи с api.telegram.org (прокси/VPN/сеть хоста)"
+          : kind === "timeout"
+            ? " — запрос не успел (сеть перегружена или CPU контейнера забит)"
+            : "";
+    log(
+      `poll error: ${error?.message} [${kind}] подряд=${pollHealth.failures}, ` +
+        `следующая попытка через ${Math.round(pollHealth.backoffMs / 1000)} с${hint}`,
+    );
+  }
+  return pollHealth.backoffMs;
+}
+
+/** Сбросить счётчики после успешного опроса. */
+function notePollSuccess() {
+  if (pollHealth.failures > 0) {
+    log(`связь с Telegram восстановлена после ${pollHealth.failures} ошибок`);
+  }
+  pollHealth.failures = 0;
+  pollHealth.backoffMs = 0;
+  pollHealth.kind = "";
+  runtime.lastError = "";
+  runtime.lastErrorKind = "";
+  runtime.nextRetryAt = null;
+  runtime.lastPollOk = Date.now();
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function loadState() {
   try {
@@ -343,14 +436,27 @@ async function watchConversation(conversationId, chatId) {
   runtime.watching.add(conversationId);
   const interval = config.watch_poll_interval_ms ?? 5000;
   const deadline = Date.now() + (config.watch_timeout_ms ?? 7_200_000);
+  let watchErrors = 0;
   try {
     for (;;) {
-      await new Promise((r) => setTimeout(r, interval));
+      await sleep(interval);
       let status;
       try {
         status = await getConversationStatus(conversationId);
+        watchErrors = 0;
       } catch (e) {
-        log(`watch ${conversationId}: статус недоступен: ${e.message}`);
+        // Если agent-server лежит (или задушен зависшим браузером), этот цикл
+        // раньше писал в лог каждые 5 секунд часами. Теперь — экспоненциальная
+        // пауза и лог только на первой ошибке и далее раз в ~5 минут.
+        watchErrors += 1;
+        const backoff = Math.min(interval * 2 ** Math.min(watchErrors, 5), 60_000);
+        if (watchErrors === 1 || watchErrors % 20 === 0) {
+          log(
+            `watch ${conversationId}: статус недоступен (${watchErrors} подряд): ` +
+              `${e.message}; следующая проверка через ${Math.round(backoff / 1000)} с`,
+          );
+        }
+        await sleep(backoff);
         continue;
       }
       if (TERMINAL.has(status.execution_status)) {
@@ -574,8 +680,12 @@ async function pollLoop() {
   for (;;) {
     if (!TG_TOKEN || ALLOWED_CHATS.size === 0) {
       runtime.polling = false;
-      runtime.lastError = "не настроено: TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID обязательны";
-      await new Promise((r) => setTimeout(r, 60_000));
+      const reason = "не настроено: TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID обязательны";
+      if (runtime.lastError !== reason) {
+        runtime.lastError = reason;
+        log(reason);
+      }
+      await sleep(POLL_NOT_CONFIGURED_RETRY_MS);
       continue;
     }
     runtime.polling = true;
@@ -584,8 +694,7 @@ async function pollLoop() {
       const payload = { timeout: 50, allowed_updates: ["message"] };
       if (state.offset !== null) payload.offset = state.offset;
       const data = await tg("getUpdates", payload);
-      runtime.lastPollOk = Date.now();
-      runtime.lastError = "";
+      notePollSuccess();
       // Heartbeat: notify ask по нему понимает, что мост владеет getUpdates,
       // и переключается на чтение relay-файла вместо собственного опроса.
       writeFile(HEARTBEAT_PATH, String(Date.now())).catch(() => {});
@@ -603,12 +712,10 @@ async function pollLoop() {
       // Telegram держит long poll ~50 с; если ответ пришёл мгновенно и пустой
       // (прокси/зеркало без long poll) — не молотим API, делаем паузу.
       if (!(data.result || []).length && Date.now() - t0 < 1000) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await sleep(2000);
       }
     } catch (e) {
-      runtime.lastError = maskToken(e.message).slice(0, 300);
-      log("poll error:", e.message);
-      await new Promise((r) => setTimeout(r, 5000));
+      await sleep(notePollFailure(e));
     }
   }
 }
@@ -624,11 +731,20 @@ export function createApp() {
     if (p === "/api/status") {
       pruneStarts();
       const body = JSON.stringify({
+        // ok = сам сервис жив; degraded = опрос Telegram сейчас не работает.
         ok: true,
         configured: Boolean(TG_TOKEN) && ALLOWED_CHATS.size > 0,
         polling: runtime.polling,
+        // degraded = мост жив, но связь с Telegram сейчас не работает.
+        degraded: pollHealth.failures > 0,
+        poll_failures: pollHealth.failures,
+        next_retry_in_s:
+          runtime.nextRetryAt === null
+            ? null
+            : Math.max(0, Math.round((runtime.nextRetryAt - Date.now()) / 1000)),
         last_poll_ok: runtime.lastPollOk,
         last_error: runtime.lastError,
+        last_error_kind: runtime.lastErrorKind,
         uptime_s: Math.floor((Date.now() - runtime.startedAt) / 1000),
         allowed_chats: ALLOWED_CHATS.size,
         active_watches: runtime.watching.size,

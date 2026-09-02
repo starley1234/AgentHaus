@@ -26,9 +26,19 @@ Reply продолжает диалог; команды: <code>/new</code>, <cod
 async function refresh() {
   try {
     const s = await (await fetch("api/status")).json();
+    const retry =
+      s.next_retry_in_s === null || s.next_retry_in_s === undefined
+        ? null
+        : `${s.next_retry_in_s} с`;
     const rows = [
       ["Настроен", s.configured ? "✅ да" : "❌ нет — заполни TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID в .env"],
       ["Опрос Telegram", s.polling ? "✅ идёт" : "⏸ не идёт"],
+      [
+        "Связь с Telegram",
+        s.degraded
+          ? `⚠️ деградировала: ${s.poll_failures} ошибок подряд (${s.last_error_kind || "?"}), повтор через ${retry ?? "—"}`
+          : "✅ работает",
+      ],
       ["Последний успешный опрос", s.last_poll_ok ? new Date(s.last_poll_ok).toLocaleTimeString() : "—"],
       ["Ошибка", s.last_error || "—"],
       ["Разрешённых чатов", s.allowed_chats],

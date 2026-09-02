@@ -276,6 +276,14 @@ COPY docker/entrypoint.sh /opt/agent-canvas/entrypoint.sh
 RUN sed -i 's/\r$//' /opt/agent-canvas/entrypoint.sh && \
     chmod +x /opt/agent-canvas/entrypoint.sh
 
+# Браузерный сторож (чистый stdlib, без импортов SDK): добивает зависшие и
+# осиротевшие процессы Chromium, даже когда agent-server мёртв или перезапускается.
+# Внутренний сторож живёт в SDK (openhands.tools.browser_use.process_guard) —
+# этот нужен как внешний контур, поэтому намеренно не зависит от venv/пакетов.
+COPY docker/browser-watchdog.py /opt/agent-canvas/browser-watchdog.py
+RUN sed -i 's/\r$//' /opt/agent-canvas/browser-watchdog.py && \
+    chmod +x /opt/agent-canvas/browser-watchdog.py
+
 # Pre-create persistence directories with correct ownership so the
 # openhands user can write to them even when Docker creates anonymous
 # volumes (which default to root).

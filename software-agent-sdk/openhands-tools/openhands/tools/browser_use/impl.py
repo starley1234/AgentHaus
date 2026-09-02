@@ -19,6 +19,9 @@ from typing import TYPE_CHECKING, Any, Final, TypeVar
 if TYPE_CHECKING:
     from openhands.sdk.conversation import LocalConversation
 
+import anyio
+
+from openhands.sdk.llm import TextContent
 from openhands.sdk.logger import DEBUG, get_logger
 from openhands.sdk.tool import ToolExecutor
 from openhands.sdk.utils import sanitized_env
@@ -27,6 +30,12 @@ from openhands.tools.browser_use.definition import (
     BROWSER_RECORDING_OUTPUT_DIR,
     BrowserAction,
     BrowserObservation,
+)
+from openhands.tools.browser_use.process_guard import (
+    BrowserProcessGuard,
+    GuardSettings,
+    build_launch_args,
+    sweep_orphaned_browsers,
 )
 from openhands.tools.browser_use.server import CustomBrowserUseServer
 from openhands.tools.utils.timeout import (
@@ -253,6 +262,24 @@ def _install_chromium() -> bool:
         return False
 
 
+def _default_extensions_enabled() -> bool:
+    """Whether browser-use may download its default extensions at launch.
+
+    Off by default: the download uses ``urllib.request.urlopen`` without a
+    timeout on the browser launch path and the cache directory is not on a
+    persisted volume, so a fresh container without direct internet access can
+    stall for minutes before Chromium even starts. Set
+    ``OH_BROWSER_DEFAULT_EXTENSIONS=1`` to opt in (uBlock Origin, cookie-banner
+    handling, ClearURLs).
+    """
+    return os.getenv("OH_BROWSER_DEFAULT_EXTENSIONS", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _get_chromium_error_message() -> str:
     """Get the error message for when Chromium is not available."""
     return (
@@ -353,6 +380,14 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
 
         self._close_lock = threading.Lock()
 
+        # Runaway/orphaned Chromium protection (see process_guard.py). Created
+        # before the browser exists so its unique marker can be baked into the
+        # Chromium command line — that marker is what lets us recognise *our*
+        # browser processes (and leftovers from previous runs) later on.
+        self._guard_settings = GuardSettings.from_env()
+        self._guard = BrowserProcessGuard(settings=self._guard_settings)
+        self._orphans_swept = False
+
         def init_logic():
             nonlocal headless
             executable_path = self._ensure_chromium_available()
@@ -381,11 +416,34 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                     "(required for root). This reduces security isolation."
                 )
 
+            # Container-hardened switches + the guard marker. Caller-supplied
+            # args (either spelling) are merged in, never silently dropped.
+            caller_args = [
+                *(config.pop("args", None) or []),
+                *(config.pop("extra_chromium_arguments", None) or []),
+            ]
+            launch_args = build_launch_args(
+                self._guard_settings, self._guard.token, caller_args
+            )
+
             self._config = {
                 "headless": headless,
                 "allowed_domains": allowed_domains or [],
                 "executable_path": executable_path,
                 "chromium_sandbox": not running_as_root,
+                # browser-use downloads its default extensions (uBlock, cookie
+                # banner, ClearURLs) with urlopen() and *no timeout* on the
+                # browser launch path, and re-downloads them whenever the
+                # container is recreated (the cache is not on a volume). In an
+                # offline/proxied deployment that stalls session start for
+                # minutes, so it is opt-in here.
+                "enable_default_extensions": _default_extensions_enabled(),
+                # `args` is the BrowserProfile field since browser-use 0.5;
+                # `extra_chromium_arguments` is kept for older releases. Both
+                # are deduplicated by BrowserProfile.get_args(), and unknown
+                # keys are ignored by the profile model.
+                "args": launch_args,
+                "extra_chromium_arguments": launch_args,
                 **config,
             }
 
@@ -406,12 +464,32 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         self._action_timeout_seconds = action_timeout_seconds
         self._consecutive_failures = 0
 
+    @property
+    def guard(self) -> BrowserProcessGuard:
+        """The Chromium process guard, created lazily.
+
+        Lazy creation keeps subclasses/tests that bypass ``__init__`` working
+        and guarantees the executor never touches the guard before it exists.
+        """
+        guard = getattr(self, "_guard", None)
+        if guard is None:
+            settings = getattr(self, "_guard_settings", None)
+            guard = BrowserProcessGuard(settings=settings or GuardSettings.from_env())
+            self._guard = guard
+        return guard
+
     def __call__(
         self,
         action: BrowserAction,
         conversation: LocalConversation | None = None,  # noqa: ARG002
     ):
         """Submit an action to run in the background loop and wait for result."""
+        # If the guard killed a wedged browser since the last action, the
+        # session is gone: reset it so this action starts a fresh Chromium, and
+        # tell the agent what happened instead of letting it see a mystery
+        # "browser closed" error.
+        guard_notice = self._consume_guard_violation()
+
         # Use a shorter timeout on the last retry before a reset would trigger,
         # to avoid long cascading waits against a dead browser.
         effective_timeout = (
@@ -420,6 +498,10 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             else self._action_timeout_seconds
         )
 
+        # While an action is in flight the browser is *expected* to use CPU, so
+        # the guard suspends its idle-spin detection (absolute budgets still
+        # apply). Without this a legitimately heavy page render could be killed.
+        self.guard.begin_action()
         try:
             result = self._async_executor.run_async(
                 self._execute_action,
@@ -431,14 +513,56 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             # for crash detection. Regular action errors (invalid selector,
             # missing element) are NOT counted since those are normal agent
             # mistakes, not browser crashes.
-            return self._handle_timeout_failure(
+            result = self._handle_timeout_failure(
                 _format_browser_operation_error(
                     error, timeout_seconds=effective_timeout
                 )
             )
+        else:
+            # The browser answered (even with an action error), so it is alive.
+            self._consecutive_failures = 0
+        finally:
+            self.guard.end_action()
 
-        self._consecutive_failures = 0
+        if guard_notice is not None:
+            result = self._with_guard_notice(result, guard_notice)
         return result
+
+    def _consume_guard_violation(self) -> str | None:
+        """Return a user-visible note when the guard killed the browser."""
+        violation = self.guard.consume_violation()
+        if violation is None:
+            return None
+
+        self._initialized = False
+        logger.warning(
+            "Browser session was reset: the process guard terminated it (%s)",
+            violation.message(),
+        )
+        return (
+            "[browser process guard] The previous browser session was "
+            f"terminated automatically ({violation.message()}). A fresh browser "
+            "is started for this action — page state, tabs and any logged-in "
+            "session of the previous browser are gone, so re-check the page "
+            "(for example with browser_get_state) before continuing a flow."
+        )
+
+    def _with_guard_notice(
+        self, observation: BrowserObservation, notice: str
+    ) -> BrowserObservation:
+        """Prepend the guard notice to an observation, keeping screenshots.
+
+        Observations are frozen pydantic models, so the annotated copy is built
+        with ``model_copy`` instead of mutating the instance.
+        """
+        try:
+            notice_content = TextContent(text=f"{notice}\n\n")
+            return observation.model_copy(
+                update={"content": [notice_content, *observation.content]}
+            )
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(f"Could not annotate observation with guard notice: {e}")
+            return observation
 
     def _handle_timeout_failure(self, error_text: str) -> BrowserObservation:
         """Track consecutive timeout failures and reset session if needed."""
@@ -566,13 +690,63 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
 
     async def _ensure_initialized(self):
         """Ensure browser session is initialized."""
-        if not self._initialized:
-            # Initialize browser session with our config
-            await self._server._init_browser_session(**self._config)
-            # Inject any configured user scripts after session is ready
-            # Note: rrweb scripts are injected lazily when recording starts
-            await self._server._inject_scripts_to_session()
-            self._initialized = True
+        if self._initialized:
+            return
+
+        # Remove leftovers from previous runs *before* launching a new browser.
+        # An orphaned Chromium helper (re-parented to PID 1 when its agent
+        # server went away) keeps burning CPU forever and starves every other
+        # service in the container.
+        await self._sweep_orphaned_browsers()
+
+        # Initialize browser session with our config
+        await self._server._init_browser_session(**self._config)
+        # Inject any configured user scripts after session is ready
+        # Note: rrweb scripts are injected lazily when recording starts
+        await self._server._inject_scripts_to_session()
+        self._initialized = True
+
+        # From here on the guard watches our browser processes: it deprioritises
+        # them (nice) and terminates the tree if it wedges or blows a budget.
+        self.guard.start()
+        self.guard.notify_activity()
+
+    async def _sweep_orphaned_browsers(self) -> None:
+        """Kill automation browsers orphaned by previous runs (once)."""
+        if getattr(self, "_orphans_swept", False):
+            return
+        self._orphans_swept = True
+
+        settings = getattr(self, "_guard_settings", None) or GuardSettings()
+        if not settings.enabled or not settings.sweep_orphans:
+            return
+
+        try:
+            # Runs in a worker thread: the sweep may wait out a SIGTERM grace
+            # period, which must never block the event loop.
+            swept = await anyio.to_thread.run_sync(
+                functools.partial(
+                    sweep_orphaned_browsers,
+                    exclude_token=self.guard.token,
+                    grace_seconds=settings.kill_grace_seconds,
+                )
+            )
+        except Exception as e:
+            logger.debug(f"Orphaned browser sweep skipped: {e}")
+            return
+
+        if swept:
+            summary = ", ".join(
+                f"pid={item['pid']} type={item['type']} "
+                f"cpu_minutes={item['cpu_minutes']}"
+                for item in swept
+            )
+            logger.warning(
+                "Swept %d orphaned browser process group(s) left behind by "
+                "previous runs: %s",
+                len(swept),
+                summary,
+            )
 
     # Navigation & Browser Control Methods
     @recording_aware
@@ -728,6 +902,30 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 await self.close_browser()
         except Exception as e:
             logger.warning(f"Error during browser cleanup: {e}")
+        finally:
+            # The graceful path only ever signals the browser *root* process, so
+            # helpers (gpu / renderer / utility) can survive it and keep burning
+            # CPU — that is how a wedged gpu-process accumulated 64h of CPU time
+            # in a container whose agent server was long gone. Make sure nothing
+            # carrying our marker is left running, then stop watching.
+            await self._force_kill_browser_tree()
+            self.guard.stop()
+
+    async def _force_kill_browser_tree(self) -> None:
+        """SIGTERM/SIGKILL any of our browser processes that are still alive."""
+        try:
+            killed = await anyio.to_thread.run_sync(
+                functools.partial(self.guard.kill_tree, "executor cleanup")
+            )
+        except Exception as e:
+            logger.debug(f"Force-kill of browser tree failed: {e}")
+            return
+        if killed:
+            logger.warning(
+                "Force-killed %d leftover browser process(es) during cleanup: %s",
+                len(killed),
+                killed,
+            )
 
     def close(self):
         """Close the browser executor and cleanup resources."""
@@ -744,6 +942,16 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             except Exception as e:
                 logger.warning(f"Error during browser cleanup: {e}")
             finally:
+                # Even if cleanup timed out or was skipped, stop the watchdog
+                # thread and make sure our Chromium processes are not left
+                # spinning behind us.
+                try:
+                    guard = getattr(self, "_guard", None)
+                    if guard is not None:
+                        guard.stop(timeout=1.0)
+                        guard.kill_tree("executor close", grace_seconds=2.0)
+                except Exception as e:
+                    logger.debug(f"Guard shutdown during close failed: {e}")
                 try:
                     # Always close the async executor
                     self._async_executor.close()

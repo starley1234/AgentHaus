@@ -35,19 +35,25 @@ services:
       retries: 3
       start_period: 60s
 
-    # tmpfs для временных файлов (ускоряет, не пишет на диск хоста)
+    # tmpfs для временных файлов (ускоряет, не пишет на диск хоста).
+    # ВАЖНО: Chromium с флагом --disable-dev-shm-usage использует /tmp вместо
+    # /dev/shm, поэтому 100 МБ было мало — на тяжёлых страницах браузер
+    # упирался в предел и зависал. 1 ГБ по умолчанию (регулируется через .env).
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=100m
+      - /tmp:rw,noexec,nosuid,size=${OH_TMP_SIZE:-1g}
 
-    # Опционально: ограничение ресурсов (раскомментируй, если нужно)
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "2"
-    #       memory: 4G
-    #     reservations:
-    #       cpus: "0.5"
-    #       memory: 1G
+    # Ограничение ресурсов: защита от «один процесс съел весь узел».
+    # Значения по умолчанию подобраны так, чтобы на небольших машинах лимит
+    # фактически не срабатывал (он выше доступных ресурсов), а на мощном узле
+    # не давал одному зависшему процессу (например Chromium) задушить хост.
+    # Переопределяй в .env: OH_CPU_LIMIT / OH_MEMORY_LIMIT.
+    deploy:
+      resources:
+        limits:
+          cpus: "${OH_CPU_LIMIT:-8}"
+          memory: ${OH_MEMORY_LIMIT:-12g}
+        reservations:
+          memory: ${OH_MEMORY_RESERVATION:-1g}
 
     # Дополнительные лейблы для мониторинга
     labels:

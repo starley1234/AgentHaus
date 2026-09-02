@@ -177,33 +177,85 @@ fi
 # Track child PIDs so we can clean up on exit.
 PIDS=()
 
+# ── Браузерный сторож (защита от зависшего Chromium) ─────────────────────────
+# Внешний контур защиты. Внутренний сторож живёт в agent-server
+# (openhands.tools.browser_use.process_guard), но именно «внешний» нужен, когда
+# agent-server уже мёртв или завис: осиротевшие процессы Chromium
+# (gpu-process/renderer) продолжают жечь CPU и душат остальные сервисы
+# контейнера (телеграм-мост, статический сервер). Реальный инцидент:
+# gpu-process намотал 64 часа CPU-времени при 98.6% одного ядра.
+BROWSER_WATCHDOG=/opt/agent-canvas/browser-watchdog.py
+
+sweep_orphan_browsers() {
+  # Добиваем осиротевшие Chromium от предыдущих запусков (родитель уже умер).
+  # Трогаем только «автоматизационные» браузеры: помеченные нашим флагом
+  # --oh-browser-guard=... или использующие профиль browser-use. Браузер,
+  # который человек открыл в VNC, не трогается.
+  if [ -f "$BROWSER_WATCHDOG" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$BROWSER_WATCHDOG" --sweep >/dev/null 2>&1 || true
+  elif command -v pkill >/dev/null 2>&1; then
+    pkill -f "oh-browser-guard" >/dev/null 2>&1 || true
+  fi
+}
+
+WATCHDOG_PID=""
+start_browser_watchdog() {
+  if [ "${OH_BROWSER_WATCHDOG:-1}" = "0" ]; then
+    log "Browser watchdog отключён (OH_BROWSER_WATCHDOG=0)"
+    return
+  fi
+  if [ ! -f "$BROWSER_WATCHDOG" ]; then
+    return
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    log "WARNING: python3 не найден — браузерный сторож не запущен"
+    return
+  fi
+  python3 "$BROWSER_WATCHDOG" &
+  WATCHDOG_PID=$!
+  PIDS+=("$WATCHDOG_PID")
+  log "Браузерный сторож запущен (pid $WATCHDOG_PID)"
+}
+
 cleanup() {
   log "Shutting down..."
-  for pid in "${PIDS[@]}"; do
+  for pid in "${PIDS[@]:-}"; do
+    [ -n "$pid" ] || continue
     kill "$pid" 2>/dev/null || true
   done
   wait 2>/dev/null || true
+  # Сервисы остановлены — теперь можно добить их браузеры, иначе помощники
+  # Chromium переживут родителя и останутся жечь CPU.
+  sweep_orphan_browsers
   exit 0
 }
 trap cleanup EXIT SIGINT SIGTERM
 
-# ── 1. Start Agent Server ────────────────────────────────────────────────────
-log "Starting agent-server on port $AGENT_SERVER_PORT..."
+# Первым делом убираем мусор от прошлых запусков контейнера/сервера.
+sweep_orphan_browsers
+start_browser_watchdog
 
-if [ -x /opt/agent-server-venv/bin/python ]; then
-  # Our locally-built agent-server (from software-agent-sdk with vision patch).
-  /opt/agent-server-venv/bin/python -m openhands.agent_server --port "$AGENT_SERVER_PORT" &
-elif [ -x /agent-server/.venv/bin/python ]; then
-  # Source build (development image)
-  /agent-server/.venv/bin/python -m openhands.agent_server --port "$AGENT_SERVER_PORT" &
-elif command -v openhands-agent-server >/dev/null 2>&1; then
-  # Binary build (production image)
-  openhands-agent-server --port "$AGENT_SERVER_PORT" &
-else
-  log_error "Cannot find agent-server binary or source venv."
-  exit 1
-fi
-PIDS+=($!)
+# ── 1. Start Agent Server ────────────────────────────────────────────────────
+start_agent_server() {
+  if [ -x /opt/agent-server-venv/bin/python ]; then
+    # Our locally-built agent-server (from software-agent-sdk with vision patch).
+    /opt/agent-server-venv/bin/python -m openhands.agent_server --port "$AGENT_SERVER_PORT" &
+  elif [ -x /agent-server/.venv/bin/python ]; then
+    # Source build (development image)
+    /agent-server/.venv/bin/python -m openhands.agent_server --port "$AGENT_SERVER_PORT" &
+  elif command -v openhands-agent-server >/dev/null 2>&1; then
+    # Binary build (production image)
+    openhands-agent-server --port "$AGENT_SERVER_PORT" &
+  else
+    log_error "Cannot find agent-server binary or source venv."
+    exit 1
+  fi
+  AGENT_SERVER_PID=$!
+  PIDS+=("$AGENT_SERVER_PID")
+}
+
+log "Starting agent-server on port $AGENT_SERVER_PORT..."
+start_agent_server
 
 # ── 2. Start Automation Server ───────────────────────────────────────────────
 log "Starting automation server on port $AUTOMATION_PORT..."
@@ -236,19 +288,26 @@ if [ -z "${AUTOMATION_DB_URL:-}" ]; then
 fi
 
 # The automation server uses uvicorn. Set AUTOMATION_PORT via its CLI.
-if command -v uvicorn >/dev/null 2>&1; then
-  uvicorn openhands.automation.app:app \
-    --host 0.0.0.0 \
-    --port "$AUTOMATION_PORT" &
-  PIDS+=($!)
-elif python -c "import openhands.automation" 2>/dev/null; then
-  python -m uvicorn openhands.automation.app:app \
-    --host 0.0.0.0 \
-    --port "$AUTOMATION_PORT" &
-  PIDS+=($!)
-else
-  log "WARNING: Automation server not found, skipping."
-fi
+start_automation_server() {
+  AUTOMATION_PID=""
+  if command -v uvicorn >/dev/null 2>&1; then
+    uvicorn openhands.automation.app:app \
+      --host 0.0.0.0 \
+      --port "$AUTOMATION_PORT" &
+    AUTOMATION_PID=$!
+    PIDS+=("$AUTOMATION_PID")
+  elif python -c "import openhands.automation" 2>/dev/null; then
+    python -m uvicorn openhands.automation.app:app \
+      --host 0.0.0.0 \
+      --port "$AUTOMATION_PORT" &
+    AUTOMATION_PID=$!
+    PIDS+=("$AUTOMATION_PID")
+  else
+    log "WARNING: Automation server not found, skipping."
+  fi
+}
+
+start_automation_server
 
 # ── 3. Wait for backends to be ready ─────────────────────────────────────────
 wait_for_port() {
@@ -335,15 +394,29 @@ PIDS+=("$STATIC_PID")
 # Стартует АВТОМАТИЧЕСКИ, если в .env заданы TELEGRAM_BOT_TOKEN и
 # TELEGRAM_CHAT_ID (или TELEGRAM_ALLOWED_CHAT_IDS) — ничего отдельно
 # запускать не нужно. Общается с agent-server через внутренний прокси.
-if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && { [ -n "${TELEGRAM_CHAT_ID:-}" ] || [ -n "${TELEGRAM_ALLOWED_CHAT_IDS:-}" ]; }; then
-  if [ -f /opt/agent-canvas/services/telegram-bridge/server.mjs ]; then
-    AGENT_SERVER_URL="http://127.0.0.1:${PORT}" \
-    AGENT_SERVER_API_KEY="$EFFECTIVE_SESSION_KEY" \
-    TELEGRAM_BRIDGE_STATE="${STATE_DIR}/telegram-bridge-state.json" \
-    node /opt/agent-canvas/services/telegram-bridge/server.mjs &
-    PIDS+=("$!")
-    log "Telegram-мост запущен (long polling; напиши своему боту — агент ответит)"
+TELEGRAM_PID=""
+start_telegram_bridge() {
+  TELEGRAM_PID=""
+  if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
+    return
   fi
+  if [ -z "${TELEGRAM_CHAT_ID:-}" ] && [ -z "${TELEGRAM_ALLOWED_CHAT_IDS:-}" ]; then
+    return
+  fi
+  if [ ! -f /opt/agent-canvas/services/telegram-bridge/server.mjs ]; then
+    return
+  fi
+  AGENT_SERVER_URL="http://127.0.0.1:${PORT}" \
+  AGENT_SERVER_API_KEY="$EFFECTIVE_SESSION_KEY" \
+  TELEGRAM_BRIDGE_STATE="${STATE_DIR}/telegram-bridge-state.json" \
+  node /opt/agent-canvas/services/telegram-bridge/server.mjs &
+  TELEGRAM_PID=$!
+  PIDS+=("$TELEGRAM_PID")
+}
+
+start_telegram_bridge
+if [ -n "$TELEGRAM_PID" ]; then
+  log "Telegram-мост запущен (long polling; напиши своему боту — агент ответит)"
 else
   log "Telegram-мост не запущен (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID пусты в .env)"
 fi
@@ -377,19 +450,96 @@ fi
 
 log "All services started. Unified entry point: http://0.0.0.0:${PORT}/"
 
+# ── 6. Супервизор сервисов ──────────────────────────────────────────────────
 # Keep the container alive while the static-server (ingress) is running.
 # Backend crashes (agent-server, automation) are tolerated — the proxy
 # returns 502 for downed routes, matching the non-Docker path where each
 # service is an independent host process.
 #
+# НО: раньше на этом всё и заканчивалось. Если agent-server падал (OOM,
+# необработанное исключение, задушенный зависшим Chromium event loop),
+# интерфейс продолжал отвечать, а агент — нет, и контейнер жил в таком
+# «полумёртвом» состоянии сутками. Поэтому падающие сервисы теперь
+# перезапускаются, а после OH_SERVICE_MAX_RESTARTS попыток подряд entrypoint
+# завершается — Docker поднимет контейнер заново (restart: unless-stopped),
+# заодно вычистив осиротевшие процессы.
+#
 # Pattern: `sleep & wait $!` makes `wait` (a bash builtin) the foreground
 # operation.  Unlike a bare `sleep`, the builtin `wait` is interrupted
 # immediately when a trapped signal (SIGTERM/SIGINT) arrives, so cleanup()
 # fires without delay.  cleanup() calls `exit 0` to terminate after the
-# trap returns.  The loop re-checks the static-server PID every 10 s so the
-# container exits promptly if the ingress process dies on its own.
+# trap returns.
+MAX_RESTARTS="${OH_SERVICE_MAX_RESTARTS:-5}"
+CHECK_INTERVAL="${OH_SUPERVISOR_INTERVAL:-10}"
+# Счётчик сбрасывается, если сервис проработал дольше STABLE_SECONDS —
+# иначе за месяцы аптайма наберётся «смертельная» квота из редких падений.
+STABLE_SECONDS="${OH_SERVICE_STABLE_SECONDS:-600}"
+agent_restarts=0
+automation_restarts=0
+telegram_restarts=0
+agent_up_since=$(date +%s)
+automation_up_since=$(date +%s)
+telegram_up_since=$(date +%s)
+
 while kill -0 "$STATIC_PID" 2>/dev/null; do
-  sleep 10 & wait $!
+  sleep "$CHECK_INTERVAL" & wait $!
+  now=$(date +%s)
+
+  # ── agent-server (критичный сервис) ──
+  if ! kill -0 "$AGENT_SERVER_PID" 2>/dev/null; then
+    agent_restarts=$((agent_restarts + 1))
+    if [ "$agent_restarts" -gt "$MAX_RESTARTS" ]; then
+      log_error "agent-server упал $agent_restarts раз за короткое время — перезапускаю контейнер"
+      exit 1
+    fi
+    log_error "agent-server (pid $AGENT_SERVER_PID) упал — перезапуск $agent_restarts/$MAX_RESTARTS"
+    # Перед новым запуском убираем браузеры, осиротевшие после падения:
+    # именно они продолжают жечь CPU и топят следующий запуск.
+    sweep_orphan_browsers
+    start_agent_server
+    agent_up_since=$(date +%s)
+    wait_for_port "$AGENT_SERVER_PORT" "Agent Server" 60
+  elif [ $((now - agent_up_since)) -ge "$STABLE_SECONDS" ]; then
+    agent_restarts=0
+  fi
+
+  # ── automation server ──
+  if [ -n "$AUTOMATION_PID" ]; then
+    if ! kill -0 "$AUTOMATION_PID" 2>/dev/null; then
+      automation_restarts=$((automation_restarts + 1))
+      if [ "$automation_restarts" -gt "$MAX_RESTARTS" ]; then
+        log_error "automation server не восстанавливается — перезапускаю контейнер"
+        exit 1
+      fi
+      log_error "automation server (pid $AUTOMATION_PID) упал — перезапуск $automation_restarts/$MAX_RESTARTS"
+      start_automation_server
+      automation_up_since=$(date +%s)
+    elif [ $((now - automation_up_since)) -ge "$STABLE_SECONDS" ]; then
+      automation_restarts=0
+    fi
+  fi
+
+  # ── telegram-мост ──
+  if [ -n "$TELEGRAM_PID" ]; then
+    if ! kill -0 "$TELEGRAM_PID" 2>/dev/null; then
+      telegram_restarts=$((telegram_restarts + 1))
+      if [ "$telegram_restarts" -gt "$MAX_RESTARTS" ]; then
+        log_error "telegram-мост не восстанавливается — перезапускаю контейнер"
+        exit 1
+      fi
+      log_error "telegram-мост (pid $TELEGRAM_PID) упал — перезапуск $telegram_restarts/$MAX_RESTARTS"
+      start_telegram_bridge
+      telegram_up_since=$(date +%s)
+    elif [ $((now - telegram_up_since)) -ge "$STABLE_SECONDS" ]; then
+      telegram_restarts=0
+    fi
+  fi
+
+  # ── браузерный сторож (дешёвый, перезапускаем всегда) ──
+  if [ -n "$WATCHDOG_PID" ] && ! kill -0 "$WATCHDOG_PID" 2>/dev/null; then
+    log "Браузерный сторож завершился — перезапускаю"
+    start_browser_watchdog
+  fi
 done
 log_error "Static server (PID $STATIC_PID) exited"
 exit 1

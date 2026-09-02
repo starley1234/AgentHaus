@@ -31,6 +31,18 @@ services:
     image: agenthaus:local
     container_name: agenthaus
     restart: unless-stopped
+    # Chromium в контейнере по умолчанию получает /dev/shm размером 64 МБ —
+    # из-за этого рендеры и gpu-процесс падают/зависают на тяжёлых страницах.
+    # 2 ГБ закрывают проблему; уменьши, если память хоста ограничена.
+    shm_size: "${OH_SHM_SIZE:-2gb}"
+    # Дать сервисам и браузерному сторожу время корректно завершиться.
+    stop_grace_period: "${OH_STOP_GRACE_PERIOD:-45s}"
+    # Защита от лавины процессов/потоков (Chromium плодит их десятками).
+    pids_limit: ${OH_PIDS_LIMIT:-2048}
+    ulimits:
+      nofile:
+        soft: ${OH_NOFILE_LIMIT:-65536}
+        hard: ${OH_NOFILE_LIMIT:-65536}
     ports:
       - "${AGENT_CANVAS_PORT:-8000}:8000"
       # ВНИМАНИЕ: сервисы-прослойки (services/…) запускаются на ХОСТЕ (node
@@ -108,6 +120,11 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
       TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
+      # Поведение моста при сбоях связи: экспоненциальная задержка вместо
+      # спама «poll error: ETIMEDOUT» каждые 5 секунд.
+      TELEGRAM_POLL_BACKOFF_MIN_MS: "${TELEGRAM_POLL_BACKOFF_MIN_MS:-3000}"
+      TELEGRAM_POLL_BACKOFF_MAX_MS: "${TELEGRAM_POLL_BACKOFF_MAX_MS:-300000}"
+      TELEGRAM_POLL_ERROR_REMINDER_MS: "${TELEGRAM_POLL_ERROR_REMINDER_MS:-900000}"
       NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
       # Рубильник создания автоматизаций (cron-задач): 0 = запретить создавать
       # новые (управление существующими остаётся доступным).
@@ -119,6 +136,55 @@ services:
       # «Browser» — кликать, вводить текст, проходить капчу за агента.
       # Без этого работает только статичный скриншот.
       OH_ENABLE_VNC: "${OH_ENABLE_VNC:-true}"
+
+      # ── Надёжность браузера: защита от зависшего Chromium ──
+      # Два контура: внутренний сторож в agent-server
+      # (openhands.tools.browser_use.process_guard) и внешний сторож контейнера
+      # (docker/browser-watchdog.py), который работает даже когда agent-server
+      # мёртв. Подробности и разбор инцидента: docs/BROWSER_STABILITY_RU.md
+      # Внутренний сторож (убивает wedged-браузер и сбрасывает сессию):
+      OH_BROWSER_GUARD: "${OH_BROWSER_GUARD:-1}"
+      OH_BROWSER_GUARD_INTERVAL_SECONDS: "${OH_BROWSER_GUARD_INTERVAL_SECONDS:-10}"
+      # Сколько % одного ядра и как долго может жечь процесс, пока агент НЕ
+      # пользуется браузером, прежде чем мы сочтём его зависшим.
+      OH_BROWSER_GUARD_CPU_PERCENT: "${OH_BROWSER_GUARD_CPU_PERCENT:-90}"
+      OH_BROWSER_GUARD_CPU_SECONDS: "${OH_BROWSER_GUARD_CPU_SECONDS:-180}"
+      OH_BROWSER_GUARD_IDLE_GRACE_SECONDS: "${OH_BROWSER_GUARD_IDLE_GRACE_SECONDS:-120}"
+      # Абсолютные бюджеты (действуют и во время активной работы; 0 = выключить):
+      OH_BROWSER_GUARD_MAX_CPU_MINUTES: "${OH_BROWSER_GUARD_MAX_CPU_MINUTES:-180}"
+      OH_BROWSER_GUARD_MAX_LIFETIME_MINUTES: "${OH_BROWSER_GUARD_MAX_LIFETIME_MINUTES:-360}"
+      OH_BROWSER_GUARD_MAX_RSS_MB: "${OH_BROWSER_GUARD_MAX_RSS_MB:-4096}"
+      # Пауза между SIGTERM и SIGKILL и период фоновой зачистки осиротевших
+      # браузеров внутри сторожа:
+      OH_BROWSER_GUARD_KILL_GRACE_SECONDS: "${OH_BROWSER_GUARD_KILL_GRACE_SECONDS:-5}"
+      OH_BROWSER_GUARD_SWEEP_INTERVAL_SECONDS: "${OH_BROWSER_GUARD_SWEEP_INTERVAL_SECONDS:-300}"
+      # Понижать приоритет процессов браузера (nice +N), чтобы даже зависший
+      # Chromium не отбирал CPU у agent-server, automation и телеграм-моста.
+      OH_BROWSER_NICE_LEVEL: "${OH_BROWSER_NICE_LEVEL:-10}"
+      # Добивать осиротевшие браузеры от предыдущих запусков:
+      OH_BROWSER_SWEEP_ORPHANS: "${OH_BROWSER_SWEEP_ORPHANS:-1}"
+      # Контейнерные флаги Chromium (--disable-gpu, лимит рендеров и т.п.):
+      OH_BROWSER_HARDENED_ARGS: "${OH_BROWSER_HARDENED_ARGS:-1}"
+      OH_BROWSER_RENDERER_LIMIT: "${OH_BROWSER_RENDERER_LIMIT:-4}"
+      OH_BROWSER_EXTRA_ARGS: "${OH_BROWSER_EXTRA_ARGS:-}"
+      # Расширения browser-use (uBlock и пр.) качаются при старте браузера БЕЗ
+      # таймаута и не кэшируются в volume — в офлайне это подвешивает запуск.
+      # По умолчанию выключено; включай, если нужен встроенный блокировщик.
+      OH_BROWSER_DEFAULT_EXTENSIONS: "${OH_BROWSER_DEFAULT_EXTENSIONS:-0}"
+      # Внешний сторож контейнера (docker/browser-watchdog.py):
+      OH_BROWSER_WATCHDOG: "${OH_BROWSER_WATCHDOG:-1}"
+      OH_BROWSER_WATCHDOG_INTERVAL_SECONDS: "${OH_BROWSER_WATCHDOG_INTERVAL_SECONDS:-20}"
+      OH_BROWSER_WATCHDOG_CPU_PERCENT: "${OH_BROWSER_WATCHDOG_CPU_PERCENT:-90}"
+      OH_BROWSER_WATCHDOG_CPU_SECONDS: "${OH_BROWSER_WATCHDOG_CPU_SECONDS:-600}"
+      OH_BROWSER_WATCHDOG_MAX_CPU_MINUTES: "${OH_BROWSER_WATCHDOG_MAX_CPU_MINUTES:-240}"
+      OH_BROWSER_WATCHDOG_MAX_AGE_MINUTES: "${OH_BROWSER_WATCHDOG_MAX_AGE_MINUTES:-720}"
+
+      # ── Супервизор сервисов в entrypoint ──
+      # Падающий agent-server/automation/телеграм-мост перезапускаются; после
+      # N попыток подряд контейнер завершается, и Docker поднимает его заново.
+      OH_SERVICE_MAX_RESTARTS: "${OH_SERVICE_MAX_RESTARTS:-5}"
+      OH_SUPERVISOR_INTERVAL: "${OH_SUPERVISOR_INTERVAL:-10}"
+      OH_SERVICE_STABLE_SECONDS: "${OH_SERVICE_STABLE_SECONDS:-600}"
 
       # ── Опциональный GitHub App (PR-only; старый git workflow не меняется) ──
       GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
