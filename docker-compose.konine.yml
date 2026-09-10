@@ -1,0 +1,131 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# agent-canvas KONINE runtime — PHP 8.4 + nginx + php-fpm + PostgreSQL
+# Наследник docker-compose.yml, собирается из docker/Dockerfile.konine
+# Canvas :8000 + Konine :8081 (nginx 8080 внутри) + Postgres :5432
+#
+# Запуск:
+#   docker compose -f docker-compose.konine.yml up -d --build
+#   # или классический compose с оверлеем:
+#   # docker compose -f docker-compose.yml -f docker-compose.konine.yml up -d --build
+#
+# Проверка:
+#   curl http://localhost:8000/canvas          # Canvas
+#   curl http://localhost:8081/nginx-health    # nginx OK
+#   curl http://localhost:8081/                # Konine (если /projects/konine склонирован)
+#   docker exec -it agenthaus-konine php -v
+#   docker exec -it agenthaus-konine psql -h postgres -U konine -d konine -c "select 1"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  agenthaus-konine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.konine
+      args:
+        AGENT_SERVER_IMAGE: "${AGENT_SERVER_IMAGE:-ghcr.io/openhands/agent-server:1.40.1-python}"
+        AUTOMATION_VERSION: "${AUTOMATION_VERSION:-1.6.0}"
+        VITE_BASE_PATH: "${VITE_BASE_PATH:-/canvas}"
+        VITE_WORKING_DIR: "${VITE_WORKING_DIR:-/projects}"
+    image: agenthaus:konine
+    container_name: agenthaus-konine
+    restart: unless-stopped
+    ports:
+      - "${AGENT_CANVAS_PORT:-8000}:8000"
+      - "${KONINE_PORT:-8081}:8080"
+      # Postgres пробрасывать наружу не обязательно (агент и Konine ходят через сеть docker),
+      # но для локального psql удобно. Отключи если не нужен:
+      # - "${POSTGRES_PORT:-5432}:5432"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # ── Canvas (как в базовом compose) ──
+      LLM_MODEL: "${LLM_MODEL:-}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_API_VERSION: "${LLM_API_VERSION:-}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-}"
+      OPENHANDS_VISION_MODELS: "${OPENHANDS_VISION_MODELS:-}"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-${HTTP_PROXY}}"
+      ALL_PROXY: "${ALL_PROXY:-${HTTP_PROXY}}"
+      NO_PROXY: "${NO_PROXY:-localhost,127.0.0.1}"
+      EXTENSIONS_REPO: "${EXTENSIONS_REPO:-/opt/agent-canvas/extensions}"
+      OH_MAX_CONCURRENT_RUNS: "${OH_MAX_CONCURRENT_RUNS:-4}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      AGENT_PROFILE_NAME: "${AGENT_PROFILE_NAME:-}"
+      AGENT_PROFILE_EMAIL: "${AGENT_PROFILE_EMAIL:-}"
+      AGENT_PROFILE_ROLE: "${AGENT_PROFILE_ROLE:-}"
+      AGENT_PROFILE_SIGNATURE: "${AGENT_PROFILE_SIGNATURE:-}"
+      NOTIFY_EMAIL_TO: "${NOTIFY_EMAIL_TO:-}"
+      IMAP_HOST: "${IMAP_HOST:-}"
+      IMAP_PORT: "${IMAP_PORT:-993}"
+      IMAP_USER: "${IMAP_USER:-}"
+      IMAP_PASSWORD: "${IMAP_PASSWORD:-}"
+      NOTIFY_SAVE_SENT: "${NOTIFY_SAVE_SENT:-1}"
+      IMAP_SENT_FOLDER: "${IMAP_SENT_FOLDER:-}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      TELEGRAM_ALLOWED_CHAT_IDS: "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
+      AUTOMATION_ALLOW_CREATE: "${AUTOMATION_ALLOW_CREATE:-1}"
+      OH_ENABLE_VNC: "${OH_ENABLE_VNC:-true}"
+      GITHUB_APP_ID: "${GITHUB_APP_ID:-}"
+      GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID:-}"
+      GITHUB_APP_PRIVATE_KEY: "${GITHUB_APP_PRIVATE_KEY:-}"
+      GITHUB_APP_PRIVATE_KEY_FILE: "${GITHUB_APP_PRIVATE_KEY_FILE:-}"
+      LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY:-}"
+      AUTOMATION_BASE_URL: "${AUTOMATION_BASE_URL:-}"
+      # ── Konine ──
+      KONINE_DOCROOT: "${KONINE_DOCROOT:-/projects/konine/public}"
+      KONINE_ENV: "${KONINE_ENV:-development}"
+      KOHANA_ENV: "${KOHANA_ENV:-development}"
+      # База по умолчанию — сервис postgres из этого compose (см. ниже)
+      KONINE_DB_HOST: "${KONINE_DB_HOST:-postgres}"
+      KONINE_DB_PORT: "${KONINE_DB_PORT:-5432}"
+      KONINE_DB_NAME: "${KONINE_DB_NAME:-konine}"
+      KONINE_DB_USER: "${KONINE_DB_USER:-konine}"
+      KONINE_DB_PASSWORD: "${KONINE_DB_PASSWORD:-konine}"
+      DATABASE_URL: "${DATABASE_URL:-pgsql://konine:konine@postgres:5432/konine}"
+      PGHOST: "${KONINE_DB_HOST:-postgres}"
+      PGPORT: "${KONINE_DB_PORT:-5432}"
+      PGDATABASE: "${KONINE_DB_NAME:-konine}"
+      PGUSER: "${KONINE_DB_USER:-konine}"
+      PGPASSWORD: "${KONINE_DB_PASSWORD:-konine}"
+    volumes:
+      - openhands_data_konine:/home/openhands/.openhands
+      - "${PROJECTS_PATH:-./projects}:/projects"
+      # Чтобы агент видел postgres из хоста как localhost (если нужно):
+      # - /var/run/postgresql:/var/run/postgresql
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: agenthaus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${KONINE_DB_NAME:-konine}"
+      POSTGRES_USER: "${KONINE_DB_USER:-konine}"
+      POSTGRES_PASSWORD: "${KONINE_DB_PASSWORD:-konine}"
+      # Для локальной разработки — простой пароль, в проде переопредели через .env
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_konine:/var/lib/postgresql/data
+      # Инициализация (опционально): положи .sql в ./docker/konine/initdb/
+      # - ./docker/konine/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KONINE_DB_USER:-konine} -d ${KONINE_DB_NAME:-konine}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  openhands_data_konine:
+  postgres_data_konine:

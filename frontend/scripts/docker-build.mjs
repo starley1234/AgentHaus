@@ -7,7 +7,8 @@
  * (or hardcode) version strings.
  *
  * Usage:
- *   node scripts/docker-build.mjs                      # defaults
+ *   node scripts/docker-build.mjs                      # defaults (agent-canvas:local)
+ *   node scripts/docker-build.mjs --konine             # Konine runtime (agenthaus:konine, PHP 8.4 + nginx + pgsql)
  *   node scripts/docker-build.mjs --tag my-tag          # custom tag
  *   node scripts/docker-build.mjs -- --no-cache         # extra docker args
  */
@@ -46,11 +47,20 @@ for (let i = 0; i < args.length; i++) {
 // copies and installs the local software-agent-sdk next to the frontend.
 const repoRoot = join(projectRoot, "..");
 
+const isKonine = args.includes("--konine") || args.includes("--php");
+const dockerfile = isKonine ? "docker/Dockerfile.konine" : "docker/Dockerfile";
+// Remove our custom flag from extraArgs so it doesn't reach docker
+const filteredExtra = extraArgs.filter((a) => a !== "--konine" && a !== "--php");
+// Default tag for Konine if not overridden
+if (isKonine && tag === "agent-canvas:local" && !args.includes("--tag")) {
+  tag = "agenthaus:konine";
+}
+
 const cmd = [
   "docker",
   "build",
   "-f",
-  "docker/Dockerfile",
+  dockerfile,
   "--build-arg",
   `AGENT_SERVER_IMAGE=${agentServerImage}`,
   "--build-arg",
@@ -59,10 +69,11 @@ const cmd = [
   `VITE_BASE_PATH=${canvasBasePath}`,
   "-t",
   tag,
-  ...extraArgs,
+  ...filteredExtra,
   repoRoot,
 ];
 
+console.log(`Dockerfile              : ${dockerfile}`);
 console.log(`Agent Server image      : ${agentServerImage}`);
 console.log(`Automation version      : ${automationVersion}`);
 console.log(`Canvas base path        : ${canvasBasePath}`);
