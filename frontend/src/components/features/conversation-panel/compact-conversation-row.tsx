@@ -36,7 +36,7 @@ interface CompactConversationRowProps {
  * sidebar. The row itself is just the agent status dot; hovering it shows a
  * floating preview with the conversation's title, repo and timestamp.
  */
-export function CompactConversationRow({
+function CompactConversationRowInner({
   conversationId,
   title,
   selectedRepository,
@@ -121,3 +121,5 @@ export function CompactConversationRow({
     </Tooltip>
   );
 }
+
+export const CompactConversationRow = React.memo(CompactConversationRowInner);

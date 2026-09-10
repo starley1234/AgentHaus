@@ -20,32 +20,32 @@ export function useScrollToBottom(scrollRef: RefObject<HTMLDivElement | null>) {
     return bottomPosition >= element.scrollHeight - bottomThreshold;
   }, []);
 
-  // Handle scroll events
+  // rAF throttle — scroll fires at 60fps, but we only need to sample once per frame.
+  const rafIdRef = useRef<number | null>(null);
+  const pendingElRef = useRef<HTMLElement | null>(null);
+
+  const flushScrollState = useCallback(() => {
+    const e = pendingElRef.current;
+    if (!e) return;
+    pendingElRef.current = null;
+    rafIdRef.current = null;
+    const isCurrentlyAtBottom = isAtBottom(e);
+    // Batch hitBottom/autoscroll updates together; React 18 batches setState inside rAF.
+    setHitBottom(isCurrentlyAtBottom);
+    const currentScrollTop = e.scrollTop;
+    const isScrollingUp = currentScrollTop < prevScrollTopRef.current;
+    prevScrollTopRef.current = currentScrollTop;
+    if (isScrollingUp) setAutoscroll(false);
+    if (isCurrentlyAtBottom) setAutoscroll(true);
+  }, [isAtBottom]);
+
   const onChatBodyScroll = useCallback(
     (e: HTMLElement) => {
-      const isCurrentlyAtBottom = isAtBottom(e);
-      setHitBottom(isCurrentlyAtBottom);
-
-      // Get current scroll position
-      const currentScrollTop = e.scrollTop;
-
-      // Detect scroll direction
-      const isScrollingUp = currentScrollTop < prevScrollTopRef.current;
-
-      // Update previous scroll position for next comparison
-      prevScrollTopRef.current = currentScrollTop;
-
-      // Turn off autoscroll only when scrolling up
-      if (isScrollingUp) {
-        setAutoscroll(false);
-      }
-
-      // Turn on autoscroll when scrolled to the bottom
-      if (isCurrentlyAtBottom) {
-        setAutoscroll(true);
-      }
+      pendingElRef.current = e;
+      if (rafIdRef.current !== null) return;
+      rafIdRef.current = requestAnimationFrame(flushScrollState);
     },
-    [isAtBottom],
+    [flushScrollState],
   );
 
   // Scroll to bottom on manual click only

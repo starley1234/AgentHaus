@@ -1,3 +1,4 @@
+import React from "react";
 import Markdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -139,31 +140,36 @@ export function MarkdownRenderer({
   includeHeadings = false,
   allowHtml = true,
 }: MarkdownRendererProps) {
-  // Build the components object with defaults and optional additions
-  const components: Components = {
-    code,
-    ul,
-    ol,
-    li,
-    hr,
-    table,
-    th,
-    td,
-    blockquote,
-    ...(includeStandard && {
-      a: anchor,
-      p: paragraph,
+  // Memoize to avoid recreating objects on every render; Markdown's
+  // internal memo compares by reference so new arrays/objects cause
+  // a full re-parse even when content is unchanged (expensive for long threads).
+  const components: Components = React.useMemo(
+    () => ({
+      code,
+      ul,
+      ol,
+      li,
+      hr,
+      table,
+      th,
+      td,
+      blockquote,
+      ...(includeStandard && {
+        a: anchor,
+        p: paragraph,
+      }),
+      ...(includeHeadings && {
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+      }),
+      ...customComponents, // Custom components override defaults
     }),
-    ...(includeHeadings && {
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6,
-    }),
-    ...customComponents, // Custom components override defaults
-  };
+    [customComponents, includeStandard, includeHeadings],
+  );
 
   const markdownContent = content ?? children ?? "";
 
@@ -171,15 +177,21 @@ export function MarkdownRenderer({
   // tree. `rehype-sanitize` then strips anything dangerous (scripts,
   // event handlers, `javascript:` URLs, etc.). The order matters: sanitize
   // must run *after* raw so it sees the parsed HTML nodes.
-  const rehypePlugins: PluggableList | undefined = allowHtml
-    ? [rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]]
-    : undefined;
+  const rehypePlugins: PluggableList | undefined = React.useMemo(
+    () =>
+      allowHtml ? [rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]] : undefined,
+    [allowHtml],
+  );
+  const remarkPlugins = React.useMemo(
+    () => [remarkGithubAlerts, remarkGfm, remarkBreaks] as PluggableList,
+    [],
+  );
 
   return (
     <div data-testid="markdown-renderer">
       <Markdown
         components={components}
-        remarkPlugins={[remarkGithubAlerts, remarkGfm, remarkBreaks]}
+        remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
       >
         {markdownContent}

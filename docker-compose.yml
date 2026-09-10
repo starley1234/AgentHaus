@@ -142,4 +142,7 @@ services:
       - "${PROJECTS_PATH:-./projects}:/projects"
 
 volumes:
+  # Stable name shared with docker-compose.konine.yml. Runtime switching must
+  # preserve chats, settings, secrets, and automation state.
   openhands_data:
+    name: "${OPENHANDS_DATA_VOLUME:-agenthaus_openhands_data}"

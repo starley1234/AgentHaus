@@ -63,5 +63,7 @@ export function useAutomationRuns(options: UseAutomationRunsOptions) {
       );
       return hasInFlightRun ? 3000 : false;
     },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
   });
 }

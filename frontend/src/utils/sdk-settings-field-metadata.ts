@@ -67,6 +67,8 @@ export function getSettingsFieldConstraints(fieldKey: string) {
   return FIELD_METADATA[fieldKey]?.constraints;
 }
 
+const warnedMissingKeys = new Set<string>();
+
 /**
  * Common resolver for schema field text (labels and descriptions).
  * Uses the i18n fallback chain:
@@ -74,7 +76,8 @@ export function getSettingsFieldConstraints(fieldKey: string) {
  * 2. Try the conventional key (SCHEMA$<PATH>$<ATTRIBUTE>)
  * 3. Fall back to the schema-provided value (untranslated)
  *
- * Logs a warning if no translation is found and falling back to schema value.
+ * Logs a warning once per missing key (deduplicated) to avoid console spam
+ * when the same field renders multiple times.
  */
 function resolveSchemaFieldText(
   t: TFunction,
@@ -96,8 +99,9 @@ function resolveSchemaFieldText(
     return translated;
   }
 
-  // Log warning when falling back to untranslated schema value
-  if (schemaValue) {
+  // Log warning once per key when falling back to untranslated schema value
+  if (schemaValue && !warnedMissingKeys.has(conventionalKey)) {
+    warnedMissingKeys.add(conventionalKey);
     console.warn(
       `[i18n] Missing translation for key "${conventionalKey}", falling back to: "${schemaValue}"`,
     );
@@ -169,11 +173,13 @@ export function resolveSchemaChoiceLabel(
     return translated;
   }
 
-  // Log warning when falling back to untranslated schema label
-
-  console.warn(
-    `[i18n] Missing translation for key "${conventionalKey}", falling back to: "${schemaLabel}"`,
-  );
+  // Log warning once per key when falling back to untranslated schema label
+  if (!warnedMissingKeys.has(conventionalKey)) {
+    warnedMissingKeys.add(conventionalKey);
+    console.warn(
+      `[i18n] Missing translation for key "${conventionalKey}", falling back to: "${schemaLabel}"`,
+    );
+  }
 
   return schemaLabel;
 }

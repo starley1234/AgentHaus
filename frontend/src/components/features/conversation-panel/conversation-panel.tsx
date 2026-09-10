@@ -162,6 +162,25 @@ export function ConversationPanel({
   );
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
   const [isListScrolled, setIsListScrolled] = React.useState(false);
+  // rAF throttle for scroll -> avoids setState on every pixel (60fps -> ~1 state update per frame)
+  const scrollRafRef = React.useRef<number | null>(null);
+  const handlePanelScroll = React.useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (scrollRafRef.current !== null) return;
+      const target = event.currentTarget;
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        setIsListScrolled(target.scrollTop > 0);
+      });
+    },
+    [],
+  );
+  React.useEffect(
+    () => () => {
+      if (scrollRafRef.current !== null) window.cancelAnimationFrame(scrollRafRef.current);
+    },
+    [],
+  );
   const filterMenuRef = useClickOutsideElement<HTMLDivElement>(() => {
     setFilterMenuOpen(false);
   });
@@ -795,9 +814,7 @@ export function ConversationPanel({
       <div
         ref={scrollContainerRef}
         data-testid="conversation-panel-list-scroll"
-        onScroll={(event) => {
-          setIsListScrolled(event.currentTarget.scrollTop > 0);
-        }}
+        onScroll={handlePanelScroll}
         className={cn(
           "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar-always",
           !compact && "conversation-panel-list-scroll",

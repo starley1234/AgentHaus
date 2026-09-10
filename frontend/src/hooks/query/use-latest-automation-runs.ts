@@ -64,6 +64,7 @@ export function useLatestAutomationRuns(
       // One request per automation already fans out on mount; refetching the
       // whole set again on every tab focus is not worth the run-health delta.
       refetchOnWindowFocus: false,
+      refetchIntervalInBackground: false,
       // Poll while the latest run is non-terminal so status and
       // conversation_id transitions appear without a manual refresh.
       refetchInterval: (query: {

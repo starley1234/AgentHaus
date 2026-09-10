@@ -30,7 +30,7 @@ export const useActiveConversation = () => {
       ) {
         return 3000;
       }
-      return 30000;
+      return 60000;
     },
   );
 

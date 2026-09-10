@@ -150,13 +150,13 @@ export const useLocalGitInfo = () => {
     },
     enabled: queryEnabled,
     retry: false,
-    // Re-probe the workspace every 10s so the UI reflects branch/repo
-    // changes (e.g. `git checkout`, adding a remote) without requiring a
-    // manual refresh when there is no `selected_repository` recorded on
-    // the conversation. Commands now run over the persistent WebSocket
-    // connection rather than individual REST calls.
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    // Re-probe the workspace every 30s so the UI reflects branch/repo
+    // changes without hammering the bash WebSocket while the conversation
+    // is idle. Paused in background to avoid waking the runtime.
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     gcTime: 1000 * 60 * 5,
     meta: { disableToast: true },
   });
