@@ -31,6 +31,12 @@ function shouldHydrateMetrics(
     });
     return false;
   }
+  // Don't waste runtime probes on stale/archived threads: metrics UX only matters for recent work.
+  // Conversations older than 24h are typically archived/read-only and their cost is already settled.
+  if (conversation.updated_at) {
+    const ageMs = Date.now() - Date.parse(conversation.updated_at);
+    if (Number.isFinite(ageMs) && ageMs > 24 * 60 * 60 * 1000) return false;
+  }
   const cached = hydratedMetricsCache.get(key);
   if (cached && cached.updatedAt === conversation.updated_at) {
     // Already attempted for this version — reuse cached result (null means previous hydrations failed).
@@ -142,14 +148,17 @@ export const usePaginatedConversations = (limit: number = 20) => {
     getNextPageParam: (lastPage: AppConversationPage) => lastPage.next_page_id,
     initialPageParam: undefined as string | undefined,
     // Poll so titles, execution status, and timestamps stay fresh without
-    // manual refresh. 30s (up from 10s) + background pause + cached hydration
+    // manual refresh. 60s (up from 30s) + background pause + cached hydration
     // cuts the previous flood: before, every 10s the query re-fetched each
     // loaded page and fired N parallel /api/conversations/{id} bursts.
+    // 60s keeps the panel fresh but avoids the 30s reflow/re-render storm
+    // reported as \"фронтенд всё-равно тормозит\" when many cards re-mount.
+    // starred/pinned and active conversation have their own faster probes.
     // Consumers must gate initial-load UI on `isLoading`, not `isFetching`.
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    staleTime: 30_000,
+    staleTime: 60_000,
     gcTime: 1000 * 60 * 5,
     // A successful fetch proves the backend is reachable. The global
     // QueryCache onSuccess handler reads this to clear any persisted

@@ -48,7 +48,7 @@ interface ConversationCardProps {
   alwaysShowPinIcon?: boolean;
 }
 
-export function ConversationCard({
+function ConversationCardInner({
   onClick,
   onDelete,
   onStop,
@@ -80,6 +80,12 @@ export function ConversationCard({
   const { trackDownloadVsCodeButtonClicked } = useTracking();
   const [titleMode, setTitleMode] = React.useState<"view" | "edit">("view");
   const { mutateAsync: downloadConversation } = useDownloadConversation();
+  // Memoize relative time so Date.now() isn't called on every parent re-render (panel polls every 30-60s).
+  // The value refreshes only when the underlying timestamp changes; a 60s tick is handled by panel refetch.
+  const timeDelta = React.useMemo(
+    () => formatTimeDelta(lastUpdatedAt ?? (createdAt as string) ?? new Date().toISOString()),
+    [lastUpdatedAt, createdAt],
+  );
 
   const onTitleSave = (newTitle: string) => {
     if (newTitle !== "" && newTitle !== title) {
@@ -235,7 +241,7 @@ export function ConversationCard({
                 contextMenuOpen && "opacity-0",
               )}
             >
-              <time>{formatTimeDelta(lastUpdatedAt ?? createdAt)}</time>
+              <time>{timeDelta}</time>
             </p>
           )}
 
@@ -285,7 +291,7 @@ export function ConversationCard({
                       contextMenuOpen && "hidden",
                     )}
                   >
-                    <time>{formatTimeDelta(lastUpdatedAt ?? createdAt)}</time>
+                    <time>{timeDelta}</time>
                   </p>
                 </div>
               ) : null}
@@ -328,3 +334,52 @@ export function ConversationCard({
     </div>
   );
 }
+
+function areConversationCardPropsEqual(
+  a: ConversationCardProps,
+  b: ConversationCardProps,
+): boolean {
+  // Data-equality only; function props are ignored (their closures are recreated each panel render).
+  if (
+    a.title !== b.title ||
+    a.lastUpdatedAt !== b.lastUpdatedAt ||
+    a.createdAt !== b.createdAt ||
+    a.executionStatus !== b.executionStatus ||
+    a.sandboxStatus !== b.sandboxStatus ||
+    a.conversationId !== b.conversationId ||
+    a.contextMenuOpen !== b.contextMenuOpen ||
+    a.isActive !== b.isActive ||
+    a.workspaceWorkingDir !== b.workspaceWorkingDir ||
+    a.showRepositoryMetadata !== b.showRepositoryMetadata ||
+    a.llmModel !== b.llmModel ||
+    a.showLlmProfiles !== b.showLlmProfiles ||
+    a.agentKind !== b.agentKind ||
+    a.acpServer !== b.acpServer ||
+    a.showTags !== b.showTags ||
+    a.isPinned !== b.isPinned ||
+    a.alwaysShowPinIcon !== b.alwaysShowPinIcon ||
+    a.showOptions !== b.showOptions
+  )
+    return false;
+  // Deep compare for repository triad and tags without JSON overhead.
+  const ar = a.selectedRepository;
+  const br = b.selectedRepository;
+  if (
+    (ar?.selected_repository ?? null) !== (br?.selected_repository ?? null) ||
+    (ar?.selected_branch ?? null) !== (br?.selected_branch ?? null) ||
+    (ar?.git_provider ?? null) !== (br?.git_provider ?? null)
+  )
+    return false;
+  const at = a.tags;
+  const bt = b.tags;
+  if (at !== bt) {
+    if (!at || !bt) return false;
+    const ak = Object.keys(at);
+    const bk = Object.keys(bt);
+    if (ak.length !== bk.length) return false;
+    for (const k of ak) if (at[k] !== bt[k]) return false;
+  }
+  return true;
+}
+
+export const ConversationCard = React.memo(ConversationCardInner, areConversationCardPropsEqual);

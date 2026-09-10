@@ -134,7 +134,7 @@ const renderUserMessageWithSkillReady = (
   }
 };
 
-export function EventMessage({
+function EventMessageInner({
   event,
   messages,
   isLastMessage,
@@ -143,7 +143,7 @@ export function EventMessage({
   suppressThought = false,
 }: EventMessageProps) {
   const { data: config } = useConfig();
-  const { planContent } = useConversationStore();
+  const planContent = useConversationStore((s) => s.planContent);
   const { curAgentState } = useAgentState();
 
   // Disable Build button while agent is running (streaming)
@@ -345,3 +345,22 @@ export function EventMessage({
     <GenericEventMessageWrapper event={event} isLastMessage={isLastMessage} />
   );
 }
+
+function areEventMessagePropsEqual(a: EventMessageProps, b: EventMessageProps): boolean {
+  // Event identity dominates; planPreview membership is set-sized small.
+  if (
+    a.event !== b.event ||
+    a.messages !== b.messages ||
+    a.isLastMessage !== b.isLastMessage ||
+    a.isInLast10Actions !== b.isInLast10Actions ||
+    a.suppressThought !== b.suppressThought
+  )
+    return false;
+  if (a.planPreviewEventIds === b.planPreviewEventIds) return true;
+  if (!a.planPreviewEventIds || !b.planPreviewEventIds) return false;
+  if (a.planPreviewEventIds.size !== b.planPreviewEventIds.size) return false;
+  // Containment check for the event's own id is sufficient; set equality for tiny sets.
+  for (const id of a.planPreviewEventIds) if (!b.planPreviewEventIds.has(id)) return false;
+  return true;
+}
+export const EventMessage = React.memo(EventMessageInner, areEventMessagePropsEqual);
