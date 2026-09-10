@@ -60,6 +60,8 @@ export const useUserConversation = (
     enabled: !!cid && !cid.startsWith("task-") && !backendChanged,
     retry: false,
     refetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     staleTime: FIVE_MINUTES,
     gcTime: FIFTEEN_MINUTES,
   });

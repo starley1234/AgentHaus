@@ -18,6 +18,8 @@ export const useProxyStatus = () => {
     queryKey: ["proxy-status", backend.id, backend.host],
     enabled: isLocal,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     queryFn: () => {
       const cached = getCachedAgentServerInfo({ host: backend.host });
       if (cached) {

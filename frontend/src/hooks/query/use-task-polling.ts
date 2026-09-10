@@ -86,6 +86,8 @@ export const useTaskPolling = () => {
       // Poll every 3 seconds while task is in progress
       return 3000;
     },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 

@@ -34,13 +34,29 @@ export default function ConversationManagement() {
     setLoading(true); setError(null);
     try {
       const result = await AgentServerConversationService.searchConversations(100);
-      const hydrated = await Promise.all(result.items.map(async (conversation) => {
-        if (conversation.metrics?.accumulated_token_usage) return conversation;
-        try {
-          const runtime = await AgentServerConversationService.getRuntimeConversation(conversation.id, conversation.conversation_url, conversation.session_api_key);
-          return runtime.metrics ? { ...conversation, metrics: runtime.metrics } : conversation;
-        } catch { return conversation; }
-      }));
+      // Hydrate missing metrics with limited concurrency to avoid flooding the
+      // agent server when many items lack token usage (older servers).
+      const CONCURRENCY = 3;
+      const hydrated: AppConversation[] = [];
+      for (let i = 0; i < result.items.length; i += CONCURRENCY) {
+        const chunk = result.items.slice(i, i + CONCURRENCY);
+        const chunkResults = await Promise.all(
+          chunk.map(async (conversation) => {
+            if (conversation.metrics?.accumulated_token_usage) return conversation;
+            try {
+              const runtime = await AgentServerConversationService.getRuntimeConversation(
+                conversation.id,
+                conversation.conversation_url,
+                conversation.session_api_key,
+              );
+              return runtime.metrics ? { ...conversation, metrics: runtime.metrics } : conversation;
+            } catch {
+              return conversation;
+            }
+          }),
+        );
+        hydrated.push(...chunkResults);
+      }
       setItems(hydrated);
     }
     catch (e) { setError(e instanceof Error ? e.message : "Не удалось загрузить диалоги"); }

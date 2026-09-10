@@ -34,6 +34,8 @@ export const useConversationMetrics = (
     staleTime: 1000 * 30,
     gcTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 30,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 
