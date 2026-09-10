@@ -17,7 +17,10 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  agenthaus-konine:
+  # Keep the same Compose service name as docker-compose.yml so this file can
+  # also be used as a runtime override (-f docker-compose.yml -f ...).
+  # container_name remains distinct so the selected runtime is obvious.
+  agenthaus:
     build:
       context: .
       dockerfile: docker/Dockerfile.konine
@@ -99,7 +102,9 @@ services:
       PGUSER: "${KONINE_DB_USER:-konine}"
       PGPASSWORD: "${KONINE_DB_PASSWORD:-konine}"
     volumes:
-      - openhands_data_konine:/home/openhands/.openhands
+      # Deliberately shared with docker-compose.yml: switching the runtime must
+      # not create a second empty Canvas history/settings store.
+      - openhands_data:/home/openhands/.openhands
       - "${PROJECTS_PATH:-./projects}:/projects"
       # Чтобы агент видел postgres из хоста как localhost (если нужно):
       # - /var/run/postgresql:/var/run/postgresql
@@ -127,5 +132,9 @@ services:
       start_period: 10s
 
 volumes:
-  openhands_data_konine:
+  # Same logical volume as docker-compose.yml (agenthaus_openhands_data by
+  # default), so chats, settings, API keys, and automation state survive a
+  # runtime switch.
+  openhands_data:
+    name: "${OPENHANDS_DATA_VOLUME:-agenthaus_openhands_data}"
   postgres_data_konine:

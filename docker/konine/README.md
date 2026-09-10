@@ -44,6 +44,41 @@ docker compose -f docker-compose.konine.yml up -d
 # Konine: http://localhost:8081/
 ```
 
+### Переключение runtime без потери чатов
+
+Обычный и Konine runtime используют один и тот же volume
+`openhands_data` (`agenthaus_openhands_data` по умолчанию). Поэтому меняется
+только образ и дополнительные PHP/nginx-сервисы; настройки, ключи, диалоги и
+база автоматизаций остаются общими.
+
+Запускай только один runtime за раз и **не используй `down -v`**:
+
+```bash
+# Обычный runtime
+docker compose -f docker-compose.konine.yml down --remove-orphans
+docker compose up -d --build
+# http://localhost:8000/canvas
+
+# Konine runtime
+docker compose down --remove-orphans
+docker compose -f docker-compose.konine.yml up -d --build
+# http://localhost:8000/canvas и http://localhost:8081/
+```
+
+Если базовый compose запускался с другим `COMPOSE_PROJECT_NAME`, укажи старый
+volume явно в `.env`, например:
+
+```bash
+OPENHANDS_DATA_VOLUME=myproject_openhands_data
+```
+
+Проверить, какой volume содержит старые чаты:
+
+```bash
+docker volume ls | grep openhands
+docker volume inspect agenthaus_openhands_data
+```
+
 ### Проверка внутри контейнера
 
 ```bash
