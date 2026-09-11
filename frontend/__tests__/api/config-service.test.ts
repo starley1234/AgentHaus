@@ -28,6 +28,45 @@ describe("ConfigService", () => {
   });
 
 
+
+  it("fetches the OpenRouter catalog from the local agent-server", async () => {
+    server.use(
+      http.get("/api/llm/openrouter/models", () =>
+        HttpResponse.json({
+          source: "live",
+          fetched_at: 1757500000,
+          models: [
+            {
+              id: "google/gemini-3.8-flash",
+              name: "Gemini 3.8 Flash",
+              context_length: 1000000,
+              prompt_price_per_token: "0.000001",
+              completion_price_per_token: "0.000004",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const catalog = await ConfigService.getOpenRouterCatalog();
+
+    expect(catalog.source).toBe("live");
+    expect(catalog.models[0].id).toBe("google/gemini-3.8-flash");
+    expect(catalog.models[0].context_length).toBe(1000000);
+  });
+
+  it("throws on a non-ok OpenRouter catalog response", async () => {
+    server.use(
+      http.get("/api/llm/openrouter/models", () =>
+        HttpResponse.json({ detail: "boom" }, { status: 503 }),
+      ),
+    );
+
+    await expect(ConfigService.getOpenRouterCatalog()).rejects.toThrow(
+      /503/,
+    );
+  });
+
   it("filters models server-side when provider__eq is set (no full-catalog fetch)", async () => {
     // The local agent-server supports ?provider= on /api/llm/models; the
     // client must use it instead of pulling the entire litellm catalog

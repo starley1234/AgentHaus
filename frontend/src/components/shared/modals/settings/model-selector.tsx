@@ -2,6 +2,7 @@ import {
   Autocomplete,
   AutocompleteItem,
   AutocompleteSection,
+  Checkbox,
 } from "@heroui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,16 @@ import { HelpLink } from "#/ui/help-link";
 import { PRODUCT_URL } from "#/utils/constants";
 import { useSearchProviders } from "#/hooks/query/use-search-providers";
 import { useProviderModels } from "#/hooks/query/use-provider-models";
+import { useOpenRouterCatalog } from "#/hooks/query/use-open-router-models";
+import type { OpenRouterModelInfo } from "#/api/config-service/config-service.types";
+import {
+  applyFloorSuffix,
+  buildOpenRouterExtraModels,
+  formatContextLength,
+  formatPricePair,
+  hasFloorSuffix,
+  stripFloorSuffix,
+} from "#/utils/openrouter-model-utils";
 
 interface ModelSelectorProps {
   isDisabled?: boolean;
@@ -49,6 +60,8 @@ export function ModelSelector({
     error: modelsError,
   } = useProviderModels(selectedProvider);
 
+  const { t } = useTranslation("openhands");
+
   const verifiedProviders = React.useMemo(
     () => providers.filter((p) => p.verified),
     [providers],
@@ -66,6 +79,56 @@ export function ModelSelector({
     () => providerModels.filter((m) => !m.verified),
     [providerModels],
   );
+
+  // OpenRouter: live catalog (context window + pricing + fresh models) served
+  // by the local agent-server. Only fetched when the provider is selected.
+  const isOpenRouter = selectedProvider === "openrouter";
+  const { data: openRouterCatalog } = useOpenRouterCatalog(isOpenRouter);
+
+  const openRouterInfoByName = React.useMemo(() => {
+    const map = new Map<string, OpenRouterModelInfo>();
+    for (const model of openRouterCatalog?.models ?? []) {
+      map.set(model.id, model);
+    }
+    return map;
+  }, [openRouterCatalog]);
+
+  const unverifiedWithLive = React.useMemo(() => {
+    const knownNames = new Set(
+      [...verifiedModels, ...unverifiedModels].map((model) => model.name),
+    );
+    return [
+      ...unverifiedModels,
+      ...buildOpenRouterExtraModels(openRouterCatalog?.models, knownNames),
+    ];
+  }, [unverifiedModels, verifiedModels, openRouterCatalog]);
+
+  const renderModelMeta = (modelName: string) => {
+    if (!isOpenRouter) return null;
+    const info = openRouterInfoByName.get(stripFloorSuffix(modelName));
+    if (!info) return null;
+    const parts: string[] = [];
+    if (info.context_length) {
+      parts.push(
+        t(I18nKey.MODEL_SELECTOR$MODEL_CONTEXT, {
+          context: formatContextLength(info.context_length),
+        }),
+      );
+    }
+    const pricing = formatPricePair(
+      info.prompt_price_per_token,
+      info.completion_price_per_token,
+    );
+    if (pricing) {
+      parts.push(t(I18nKey.MODEL_SELECTOR$MODEL_PRICING, { pricing }));
+    }
+    if (parts.length === 0) return null;
+    return (
+      <span className="block text-xs text-[var(--oh-muted)]">
+        {parts.join(" · ")}
+      </span>
+    );
+  };
 
   React.useEffect(() => {
     if (currentModel) {
@@ -100,7 +163,6 @@ export function ModelSelector({
     setLitellmId(null);
   };
 
-  const { t } = useTranslation("openhands");
 
   return (
     <div
@@ -213,7 +275,12 @@ export function ModelSelector({
             classNames={{ heading: "text-[var(--oh-muted)]" }}
           >
             {verifiedModels.map((model) => (
-              <AutocompleteItem key={model.name}>{model.name}</AutocompleteItem>
+              <AutocompleteItem key={model.name} textValue={model.name}>
+                <div className="flex flex-col">
+                  <span>{model.name}</span>
+                  {renderModelMeta(model.name)}
+                </div>
+              </AutocompleteItem>
             ))}
           </AutocompleteSection>
           {unverifiedModels.length > 0 ? (
@@ -221,17 +288,39 @@ export function ModelSelector({
               title={t(I18nKey.MODEL_SELECTOR$OTHERS)}
               classNames={{ heading: "text-[var(--oh-muted)]" }}
             >
-              {unverifiedModels.map((model) => (
+              {unverifiedWithLive.map((model) => (
                 <AutocompleteItem
                   data-testid={`model-item-${model.name}`}
                   key={model.name}
+                  textValue={model.name}
                 >
-                  {model.name}
+                  <div className="flex flex-col">
+                    <span>{model.name}</span>
+                    {renderModelMeta(model.name)}
+                  </div>
                 </AutocompleteItem>
               ))}
             </AutocompleteSection>
           ) : null}
         </Autocomplete>
+        {isOpenRouter && selectedModel ? (
+          <Checkbox
+            data-testid="openrouter-floor-toggle"
+            size="sm"
+            isSelected={hasFloorSuffix(selectedModel)}
+            onValueChange={(isSelected) => {
+              handleChangeModel(
+                applyFloorSuffix(
+                  stripFloorSuffix(selectedModel),
+                  Boolean(isSelected),
+                ),
+              );
+            }}
+            classNames={{ label: "text-sm text-[var(--oh-muted)]" }}
+          >
+            {t(I18nKey.MODEL_SELECTOR$OPENROUTER_FLOOR)}
+          </Checkbox>
+        ) : null}
         {modelsError && (
           <p data-testid="models-error" className="text-danger text-xs">
             {t(I18nKey.CONFIGURATION$ERROR_FETCH_MODELS)}

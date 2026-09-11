@@ -6,6 +6,7 @@ import type {
   LLMModel,
   LLMModelPage,
   LLMProvider,
+  OpenRouterCatalog,
   ProviderPage,
   SearchModelsParams,
   SearchProvidersParams,
@@ -188,6 +189,33 @@ class ConfigService {
     );
 
     return { items, next_page_id: null };
+  }
+
+  /**
+   * Live OpenRouter catalog (model ids, context windows, per-token pricing)
+   * served by the local agent-server (`/api/llm/openrouter/models`, cached
+   * server-side for an hour). Only local agent-servers expose it; cloud
+   * backends reject, so callers must treat errors as "no live catalog".
+   */
+  static async getOpenRouterCatalog(): Promise<OpenRouterCatalog> {
+    const active = getActiveBackend();
+    if (active.backend.kind === "cloud") {
+      throw new Error(
+        "OpenRouter catalog is only available on local backends.",
+      );
+    }
+    const options = getAgentServerClientOptions();
+    const response = await fetch(`${options.host}/api/llm/openrouter/models`, {
+      headers: options.apiKey
+        ? { "X-Session-API-Key": options.apiKey }
+        : undefined,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `OpenRouter catalog request failed: ${String(response.status)}`,
+      );
+    }
+    return (await response.json()) as OpenRouterCatalog;
   }
 }
 

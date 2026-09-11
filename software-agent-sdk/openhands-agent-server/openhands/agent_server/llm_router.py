@@ -6,6 +6,7 @@ import asyncio
 import secrets
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -22,6 +23,10 @@ from openhands.sdk.llm.utils.unverified_models import (
     get_supported_llm_models,
 )
 from openhands.sdk.llm.utils.verified_models import VERIFIED_MODELS
+from openhands.sdk.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 llm_router = APIRouter(prefix="/llm", tags=["LLM"])
@@ -132,13 +137,16 @@ async def list_models(
 
     Note: Bedrock models are excluded unless AWS credentials are configured.
     """
-    all_models = get_supported_llm_models()
+    # LiteLLM catalog work (import-time map access, sorting ~5.5k names) is
+    # synchronous — run it off the event loop so a slow first touch never
+    # stalls every other request the server is serving.
+    all_models = await asyncio.to_thread(get_supported_llm_models)
 
     if provider is None:
         models = sorted(set(all_models))
     else:
-        filtered_models = []
         verified_provider_models = set(VERIFIED_MODELS.get(provider, ()))
+        filtered_models = []
         for model in all_models:
             model_provider, _, _ = _extract_model_and_provider(model)
             if model_provider == provider or model in verified_provider_models:
@@ -156,6 +164,132 @@ async def list_verified_models() -> VerifiedModelsResponse:
     with OpenHands.
     """
     return VerifiedModelsResponse(models=VERIFIED_MODELS)
+
+
+# ── OpenRouter live catalog ──────────────────────────────────────────────
+
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+_OPENROUTER_CATALOG_TTL_SECONDS = 3600.0
+_OPENROUTER_CATALOG_FETCH_TIMEOUT_SECONDS = 10.0
+
+_OPENROUTER_CATALOG_LOCK = asyncio.Lock()
+_OPENROUTER_CATALOG: list[OpenRouterModelInfo] | None = None
+_OPENROUTER_CATALOG_FETCHED_AT_MONOTONIC = 0.0
+_OPENROUTER_CATALOG_FETCHED_AT_WALL: int | None = None
+
+
+class OpenRouterModelInfo(BaseModel):
+    """One entry of the live OpenRouter catalog."""
+
+    id: str
+    name: str | None = None
+    context_length: int | None = None
+    prompt_price_per_token: float | None = None
+    completion_price_per_token: float | None = None
+
+
+class OpenRouterCatalogResponse(BaseModel):
+    """Live OpenRouter catalog.
+
+    ``models`` is empty when the catalog has never been fetched successfully
+    (e.g. the server has no outbound access) — callers should fall back to the
+    static litellm-derived model list.
+    """
+
+    source: str = "cache"  # "live" | "cache" | "unavailable"
+    fetched_at: int | None = None
+    models: list[OpenRouterModelInfo] = []
+
+
+def _parse_optional_float(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _fetch_openrouter_catalog_sync() -> list[OpenRouterModelInfo]:
+    """Fetch https://openrouter.ai/api/v1/models (public, no auth)."""
+    import httpx
+
+    response = httpx.get(
+        OPENROUTER_MODELS_URL,
+        timeout=_OPENROUTER_CATALOG_FETCH_TIMEOUT_SECONDS,
+        headers={"Accept": "application/json"},
+    )
+    response.raise_for_status()
+    payload = response.json()
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+
+    models: list[OpenRouterModelInfo] = []
+    for item in items:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        pricing = item.get("pricing") or {}
+        context_length = item.get("context_length")
+        models.append(
+            OpenRouterModelInfo(
+                id=str(item["id"]),
+                name=str(item["name"]) if item.get("name") else None,
+                context_length=(
+                    int(context_length)
+                    if isinstance(context_length, int)
+                    else None
+                ),
+                prompt_price_per_token=_parse_optional_float(
+                    pricing.get("prompt")
+                ),
+                completion_price_per_token=_parse_optional_float(
+                    pricing.get("completion")
+                ),
+            )
+        )
+    models.sort(key=lambda m: m.id)
+    return models
+
+
+@llm_router.get(
+    "/openrouter/models", response_model=OpenRouterCatalogResponse
+)
+async def list_openrouter_models() -> OpenRouterCatalogResponse:
+    """Return the live OpenRouter model catalog.
+
+    Used by the settings UI to show OpenRouter models with their context
+    window and per-token pricing, including models that are newer than the
+    bundled litellm catalog. Cached in-memory for an hour; on failure the
+    last good copy is served, otherwise an empty list.
+    """
+    global _OPENROUTER_CATALOG
+    global _OPENROUTER_CATALOG_FETCHED_AT_MONOTONIC
+    global _OPENROUTER_CATALOG_FETCHED_AT_WALL
+
+    source = "cache"
+    async with _OPENROUTER_CATALOG_LOCK:
+        stale = (
+            _OPENROUTER_CATALOG is None
+            or time.monotonic() - _OPENROUTER_CATALOG_FETCHED_AT_MONOTONIC
+            >= _OPENROUTER_CATALOG_TTL_SECONDS
+        )
+        if stale:
+            try:
+                _OPENROUTER_CATALOG = await asyncio.to_thread(
+                    _fetch_openrouter_catalog_sync
+                )
+                _OPENROUTER_CATALOG_FETCHED_AT_MONOTONIC = time.monotonic()
+                _OPENROUTER_CATALOG_FETCHED_AT_WALL = int(time.time())
+                source = "live"
+            except Exception as e:
+                logger.warning("Failed to fetch OpenRouter catalog: %s", e)
+                if _OPENROUTER_CATALOG is None:
+                    return OpenRouterCatalogResponse(
+                        source="unavailable", fetched_at=None, models=[]
+                    )
+
+    return OpenRouterCatalogResponse(
+        source=source,
+        fetched_at=_OPENROUTER_CATALOG_FETCHED_AT_WALL,
+        models=_OPENROUTER_CATALOG or [],
+    )
 
 
 @llm_router.get(
