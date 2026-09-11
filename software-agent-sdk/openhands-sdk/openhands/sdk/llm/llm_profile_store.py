@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 
 _DEFAULT_PROFILE_DIR: Final[Path] = Path.home() / ".openhands" / "profiles"
 _LOCK_TIMEOUT_SECONDS: Final[float] = 30.0
+# Short ceiling for optional, best-effort profile reads (auto-titling,
+# condenser LLM resolution): waiting many seconds on the file lock on the
+# event-loop path is never worth it — fall back instead.
+_BEST_EFFORT_LOCK_TIMEOUT_SECONDS: Final[float] = 5.0
 
 # Profile names: 1-64 chars, must start with alphanumeric, then alphanumerics
 # or '.', '_', '-'. Blocks empty names, path separators, leading dots
@@ -199,13 +203,24 @@ class LLMProfileStore:
                 raise
             logger.info(f"[Profile Store] Saved profile `{name}` at {profile_path}")
 
-    def load(self, name: str, *, cipher: Cipher | None = None) -> LLM:
+    def load(
+        self,
+        name: str,
+        *,
+        cipher: Cipher | None = None,
+        lock_timeout: float | None = None,
+    ) -> LLM:
         """Load an LLM instance from the given profile name.
 
         Args:
             name: Name of the profile to load.
             cipher: Optional cipher for decrypting secrets stored at rest.
                 When provided, encrypted secrets are decrypted during load.
+            lock_timeout: Max seconds to wait for the profile file lock.
+                ``None`` uses the store default (30s). Best-effort callers
+                (auto-titling, condenser resolution) should pass a short
+                timeout so a contended lock degrades to a fallback instead
+                of stalling the caller.
 
         Returns:
             An LLM instance constructed from the profile configuration.
@@ -217,7 +232,11 @@ class LLMProfileStore:
         """
         profile_path = self._get_profile_path(name)
 
-        with self._acquire_lock():
+        with self._acquire_lock(
+            timeout=lock_timeout
+            if lock_timeout is not None
+            else _LOCK_TIMEOUT_SECONDS
+        ):
             if not profile_path.exists():
                 existing = [p.name for p in self.base_dir.glob("*.json")]
                 raise FileNotFoundError(
@@ -323,3 +342,22 @@ class LLMProfileStore:
                     }
                 )
         return summaries
+
+
+_DEFAULT_STORE: LLMProfileStore | None = None
+
+
+def get_default_profile_store() -> LLMProfileStore:
+    """Return a process-wide default ``LLMProfileStore``.
+
+    Reusing one instance matters: ``filelock`` locks are exclusive across
+    file descriptors, so two instances pointing at the same directory can
+    self-deadlock inside a single process (one waits while the other holds
+    the lock, until the timeout). A singleton makes nested/simultaneous
+    acquisitions reentrant-safe and keeps every default-dir caller on the
+    same lock.
+    """
+    global _DEFAULT_STORE
+    if _DEFAULT_STORE is None:
+        _DEFAULT_STORE = LLMProfileStore()
+    return _DEFAULT_STORE

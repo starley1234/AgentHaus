@@ -293,10 +293,21 @@ class CondenserSettings(BaseModel):
             condenser_llm.reset_metrics()
             return condenser_llm
 
-        from openhands.sdk.llm.llm_profile_store import LLMProfileStore
+        from openhands.sdk.llm.llm_profile_store import (
+            _BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            get_default_profile_store,
+        )
 
         try:
-            profile_llm = LLMProfileStore().load(self.llm_profile)
+            # The shared default store keeps one filelock instance per
+            # directory: a second LLMProfileStore() on the same dir can
+            # self-deadlock on flock until its timeout. The short lock
+            # timeout makes this best-effort read degrade to the
+            # conversation LLM instead of stalling agent construction.
+            profile_llm = get_default_profile_store().load(
+                self.llm_profile,
+                lock_timeout=_BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            )
         except FileNotFoundError:
             logger.warning(
                 "Condenser LLM profile '%s' not found; falling back to the "
@@ -308,6 +319,14 @@ class CondenserSettings(BaseModel):
             logger.warning(
                 "Condenser LLM profile '%s' is invalid (%s); falling back to "
                 "the conversation LLM.",
+                self.llm_profile,
+                e,
+            )
+            profile_llm = None
+        except TimeoutError as e:
+            logger.warning(
+                "Condenser LLM profile '%s' store lock timed out (%s); "
+                "falling back to the conversation LLM.",
                 self.llm_profile,
                 e,
             )
