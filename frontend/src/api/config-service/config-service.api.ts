@@ -6,6 +6,7 @@ import type {
   LLMModel,
   LLMModelPage,
   LLMProvider,
+  OpenRouterCatalog,
   ProviderPage,
   SearchModelsParams,
   SearchProvidersParams,
@@ -85,17 +86,20 @@ class ConfigService {
       });
     }
 
+    const provider = params.provider__eq ?? null;
     const llmClient = new LLMMetadataClient(getAgentServerClientOptions());
     const verifiedFetch =
       verifiedByProvider !== undefined
         ? Promise.resolve(verifiedByProvider)
         : llmClient.getVerifiedModels();
+    // Pass the provider to the server so it filters (~30 models for a
+    // provider) instead of shipping the full litellm catalog (~5.5k models,
+    // >100 KB) through the proxy on every cache miss.
     const [models, verifiedMap] = await Promise.all([
-      llmClient.getModels(),
+      provider ? llmClient.getModels(provider) : llmClient.getModels(),
       verifiedFetch,
     ]);
 
-    const provider = params.provider__eq ?? null;
     const verifiedNames = new Set(
       provider ? (verifiedMap?.[provider] ?? []) : [],
     );
@@ -105,6 +109,9 @@ class ConfigService {
       verified: true,
     }));
 
+    // When the provider filter was applied server-side, entries already come
+    // back prefixed (or as bare verified ids); strip prefixes the same way for
+    // both paths so the item names stay bare.
     const prefixedItems: LLMModel[] = provider
       ? (models ?? [])
           .filter((model) => model.startsWith(`${provider}/`))
@@ -182,6 +189,33 @@ class ConfigService {
     );
 
     return { items, next_page_id: null };
+  }
+
+  /**
+   * Live OpenRouter catalog (model ids, context windows, per-token pricing)
+   * served by the local agent-server (`/api/llm/openrouter/models`, cached
+   * server-side for an hour). Only local agent-servers expose it; cloud
+   * backends reject, so callers must treat errors as "no live catalog".
+   */
+  static async getOpenRouterCatalog(): Promise<OpenRouterCatalog> {
+    const active = getActiveBackend();
+    if (active.backend.kind === "cloud") {
+      throw new Error(
+        "OpenRouter catalog is only available on local backends.",
+      );
+    }
+    const options = getAgentServerClientOptions();
+    const response = await fetch(`${options.host}/api/llm/openrouter/models`, {
+      headers: options.apiKey
+        ? { "X-Session-API-Key": options.apiKey }
+        : undefined,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `OpenRouter catalog request failed: ${String(response.status)}`,
+      );
+    }
+    return (await response.json()) as OpenRouterCatalog;
   }
 }
 

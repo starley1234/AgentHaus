@@ -151,6 +151,10 @@ class CondenserSettings(BaseModel):
 
     Use :data:`CondenserSettingsConfig` for fields that may hold any supported
     condenser-settings variant.
+
+    The knobs shared by several variants live here so the exported schema has
+    exactly one field per dotted key (``condenser.max_size`` etc.); each field
+    declares which ``condenser_kind`` values it applies to via ``depends_on``.
     """
 
     enabled: bool = Field(
@@ -174,11 +178,172 @@ class CondenserSettings(BaseModel):
         json_schema_extra={
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Max size",
-                prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                prominence=SettingProminence.MAJOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,recent,pipeline",
+                ),
             ).model_dump()
         },
     )
+    keep_first: int = Field(
+        default=2,
+        ge=0,
+        description=(
+            "Minimum number of initial events (system prompt, task) that are "
+            "never condensed or dropped."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Keep first",
+                prominence=SettingProminence.MAJOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,recent,pipeline",
+                ),
+            ).model_dump()
+        },
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Also trim when the view exceeds this many tokens. When unset, "
+            "trimming is based on event count only."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Max tokens",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,recent",
+                ),
+            ).model_dump()
+        },
+    )
+    llm_profile: str | None = Field(
+        default=None,
+        description=(
+            "Name of a saved LLM profile used to generate condensation summaries. "
+            "When None (default), the conversation LLM is reused for summaries. "
+            "Point this at a cheap/fast profile to save tokens and latency."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser LLM profile",
+                prominence=SettingProminence.CRITICAL,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,pipeline",
+                ),
+            ).model_dump()
+        },
+    )
+    keep_latest: int = Field(
+        default=3,
+        ge=0,
+        description=(
+            "Number of most recent tool results to always keep unmasked. "
+            "0 masks every oversized result except the very last one."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Keep latest results",
+                prominence=SettingProminence.MAJOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=observation_masking,pipeline",
+                ),
+            ).model_dump()
+        },
+    )
+    max_chars: int = Field(
+        default=500,
+        gt=0,
+        description=(
+            "Tool results longer than this many characters are replaced with a "
+            "short placeholder (except the most recent ones)."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Mask results over (chars)",
+                prominence=SettingProminence.MAJOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=observation_masking,pipeline",
+                ),
+            ).model_dump()
+        },
+    )
+
+    def _resolve_condenser_llm(self, conversation_llm: LLM) -> LLM:
+        """Pick the LLM that generates summaries.
+
+        Precedence: the saved profile named by :attr:`llm_profile` (loaded via
+        :class:`LLMProfileStore`, the same store the ``switch_llm`` tool uses)
+        falling back to the conversation LLM when the profile is unset, missing,
+        or invalid. The fallback keeps conversations working when a profile was
+        deleted after being referenced.
+        """
+        if not self.llm_profile:
+            condenser_llm = conversation_llm.model_copy(
+                update={"usage_id": "condenser"}
+            )
+            condenser_llm.reset_metrics()
+            return condenser_llm
+
+        from openhands.sdk.llm.llm_profile_store import (
+            _BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            get_default_profile_store,
+        )
+
+        try:
+            # The shared default store keeps one filelock instance per
+            # directory: a second LLMProfileStore() on the same dir can
+            # self-deadlock on flock until its timeout. The short lock
+            # timeout makes this best-effort read degrade to the
+            # conversation LLM instead of stalling agent construction.
+            profile_llm = get_default_profile_store().load(
+                self.llm_profile,
+                lock_timeout=_BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            )
+        except FileNotFoundError:
+            logger.warning(
+                "Condenser LLM profile '%s' not found; falling back to the "
+                "conversation LLM.",
+                self.llm_profile,
+            )
+            profile_llm = None
+        except ValueError as e:
+            logger.warning(
+                "Condenser LLM profile '%s' is invalid (%s); falling back to "
+                "the conversation LLM.",
+                self.llm_profile,
+                e,
+            )
+            profile_llm = None
+        except TimeoutError as e:
+            logger.warning(
+                "Condenser LLM profile '%s' store lock timed out (%s); "
+                "falling back to the conversation LLM.",
+                self.llm_profile,
+                e,
+            )
+            profile_llm = None
+
+        if profile_llm is None:
+            condenser_llm = conversation_llm.model_copy(
+                update={"usage_id": "condenser"}
+            )
+            condenser_llm.reset_metrics()
+            return condenser_llm
+
+        condenser_llm = profile_llm.model_copy(
+            update={"usage_id": f"condenser:{self.llm_profile}"}
+        )
+        condenser_llm.reset_metrics()
+        return condenser_llm
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:
         """Create a condenser from these settings, or ``None`` if disabled."""
@@ -196,20 +361,10 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             "Discriminator for the condenser settings union. ``'llm_summarizing'`` "
             "selects the default LLM summarizing condenser."
         ),
-        json_schema_extra={SETTINGS_METADATA_KEY: SettingsFieldMetadata().model_dump()},
-    )
-    max_tokens: int | None = Field(
-        default=None,
-        gt=0,
-        description=(
-            "Maximum number of tokens allowed before the condenser runs. "
-            "When unset, condensation is only based on event count."
-        ),
         json_schema_extra={
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Max tokens",
-                prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
             ).model_dump()
         },
     )
@@ -227,22 +382,15 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Max tokens ratio",
                 prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
             ).model_dump()
         },
     )
-    keep_first: int = Field(
-        default=2,
-        ge=0,
-        description="Minimum number of initial events to preserve before condensation.",
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Keep first",
-                prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
-            ).model_dump()
-        },
-    )
+    # keep_first / max_tokens / llm_profile / keep_latest / max_chars are
+    # inherited from CondenserSettings (single schema keys, shared metadata).
     minimum_progress: float = Field(
         default=0.1,
         gt=0.0,
@@ -255,7 +403,10 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Minimum progress",
                 prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
             ).model_dump()
         },
     )
@@ -267,7 +418,10 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Hard reset retries",
                 prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
             ).model_dump()
         },
     )
@@ -283,7 +437,10 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Hard reset scaling",
                 prominence=SettingProminence.MINOR,
-                depends_on=("enabled",),
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
             ).model_dump()
         },
     )
@@ -295,10 +452,17 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
 
         from openhands.sdk.context.condenser import LLMSummarizingCondenser
 
-        condenser_llm = llm.model_copy(update={"usage_id": "condenser"})
-        condenser_llm.reset_metrics()
+        condenser_llm = self._resolve_condenser_llm(llm)
         condenser_kwargs = self.model_dump(
-            exclude={"enabled", "condenser_kind", "max_tokens_ratio"},
+            exclude={
+                "enabled",
+                "condenser_kind",
+                "max_tokens_ratio",
+                "llm_profile",
+                # Masking knobs — used by the masking / pipeline variants only.
+                "keep_latest",
+                "max_chars",
+            },
             exclude_none=True,
         )
         # Если max_tokens не задан явно — подставляем из эффективного окна
@@ -323,7 +487,12 @@ class NoOpCondenserSettings(CondenserSettings):
             "Discriminator for the condenser settings union. ``'no_op'`` selects "
             "a condenser that leaves conversation views unchanged."
         ),
-        json_schema_extra={SETTINGS_METADATA_KEY: SettingsFieldMetadata().model_dump()},
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
     )
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
@@ -334,6 +503,148 @@ class NoOpCondenserSettings(CondenserSettings):
         from openhands.sdk.context.condenser import NoOpCondenser
 
         return NoOpCondenser()
+
+
+class RecentEventsCondenserSettings(CondenserSettings):
+    """Settings for the no-LLM condenser that drops older events.
+
+    Mirrors the classic OpenHands ``[condenser] type = "recent"`` (a.k.a.
+    ``amortized``) mode: when the view grows past ``max_size`` events, the
+    middle of the history is dropped and only the first ``keep_first`` events
+    plus the most recent ones are exposed to the LLM. No summarization call is
+    made, so it is free and instant, at the cost of losing dropped details.
+    """
+
+    condenser_kind: Literal["recent"] = Field(
+        default="recent",
+        description=(
+            "Discriminator for the condenser settings union. ``'recent'`` "
+            "selects the no-LLM condenser that keeps only recent events."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
+    )
+    # keep_first / max_size / max_tokens are inherited from CondenserSettings.
+
+    def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
+        """Create a condenser from these settings, or ``None`` if disabled."""
+        if not self.enabled:
+            return None
+
+        from openhands.sdk.context.condenser import RecentEventsCondenser
+
+        return RecentEventsCondenser(
+            keep_first=self.keep_first,
+            max_size=self.max_size,
+            max_tokens=self.max_tokens,
+        )
+
+
+class ObservationMaskingCondenserSettings(CondenserSettings):
+    """Settings for the no-LLM condenser that masks old long tool outputs.
+
+    Mirrors the classic OpenHands ``[condenser] type = "observation_masking"``
+    mode: old tool results are replaced with a short placeholder while the
+    action/tool-call events remain fully visible, so no step disappears from
+    the conversation structure.
+    """
+
+    max_size: ClassVar[int] = 240  # type: ignore[reportIncompatibleVariableOverride]
+    condenser_kind: Literal["observation_masking"] = Field(
+        default="observation_masking",
+        description=(
+            "Discriminator for the condenser settings union. "
+            "``'observation_masking'`` selects the no-LLM condenser that masks "
+            "long tool outputs of older steps."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
+    )
+    # keep_latest / max_chars are inherited from CondenserSettings.
+
+    def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
+        """Create a condenser from these settings, or ``None`` if disabled."""
+        if not self.enabled:
+            return None
+
+        from openhands.sdk.context.condenser import ObservationMaskingCondenser
+
+        return ObservationMaskingCondenser(
+            keep_latest=self.keep_latest,
+            max_chars=self.max_chars,
+        )
+
+
+class PipelineCondenserSettings(CondenserSettings):
+    """Hybrid settings: mask old tool outputs first, summarize what's left.
+
+    Mirrors the classic OpenHands ``[condenser] type = "pipeline"`` idea built
+    from an ``observation_masking`` stage followed by an ``llm`` summarizing
+    stage. Masking is free, so most of the bulk (long tool outputs) is
+    reclaimed without any LLM calls; the summarizer only fires when the view
+    is still too large, which keeps the summarization cost low.
+    """
+
+    condenser_kind: Literal["pipeline"] = Field(
+        default="pipeline",
+        description=(
+            "Discriminator for the condenser settings union. ``'pipeline'`` "
+            "selects the hybrid mask-then-summarize condenser."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
+    )
+
+    # keep_latest / max_chars (masking stage) and max_size / keep_first /
+    # max_tokens / llm_profile (summarizing stage) are inherited from
+    # CondenserSettings.
+
+    def build_condenser(self, llm: LLM) -> CondenserBase | None:
+        """Create a condenser from these settings, or ``None`` if disabled."""
+        if not self.enabled:
+            return None
+
+        from openhands.sdk.context.condenser import (
+            LLMSummarizingCondenser,
+            ObservationMaskingCondenser,
+            PipelineCondenser,
+        )
+
+        condenser_llm = self._resolve_condenser_llm(llm)
+
+        summarizer_kwargs: dict[str, Any] = {
+            "max_size": self.max_size,
+            "keep_first": self.keep_first,
+        }
+        # Auto-derive the summarizer token budget from the effective input
+        # window, same as the standalone LLM summarizer default.
+        ctx = getattr(llm, "effective_max_input_tokens", None)
+        if self.max_tokens is not None:
+            summarizer_kwargs["max_tokens"] = self.max_tokens
+        elif ctx:
+            summarizer_kwargs["max_tokens"] = int(ctx * 0.8)
+
+        masking = ObservationMaskingCondenser(
+            keep_latest=self.keep_latest,
+            max_chars=self.max_chars,
+        )
+        summarizer = LLMSummarizingCondenser(
+            llm=condenser_llm,
+            **summarizer_kwargs,
+        )
+        return PipelineCondenser(condensers=[masking, summarizer])
 
 
 def _condenser_settings_discriminator(value: Any) -> str:
@@ -352,6 +663,9 @@ def _condenser_settings_discriminator(value: Any) -> str:
 
 CondenserSettingsConfig = Annotated[
     Annotated[LLMSummarizingCondenserSettings, Tag("llm_summarizing")]
+    | Annotated[RecentEventsCondenserSettings, Tag("recent")]
+    | Annotated[ObservationMaskingCondenserSettings, Tag("observation_masking")]
+    | Annotated[PipelineCondenserSettings, Tag("pipeline")]
     | Annotated[NoOpCondenserSettings, Tag("no_op")],
     Discriminator(_condenser_settings_discriminator),
 ]

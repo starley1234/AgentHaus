@@ -1,11 +1,24 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SchemaField } from "#/components/features/settings/sdk-settings/schema-field";
 import { SettingsFieldSchema } from "#/types/settings";
 
+vi.mock("#/hooks/query/use-llm-profiles", () => ({
+  useLlmProfiles: () => ({
+    data: {
+      profiles: [
+        { name: "cheap", model: "gpt-4o-mini" },
+        { name: "fancy", model: "claude-opus-4" },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) =>
+    t: (key: string, options?: Record<string, string>) =>
       ({
         SETTINGS$TOP_P_LABEL: "Top P",
         SETTINGS$TOP_P_DESCRIPTION: "Controls nucleus sampling.",
@@ -14,6 +27,12 @@ vi.mock("react-i18next", () => ({
         SCHEMA$VERIFICATION$CRITIC_API_KEY$HELP_SUFFIX:
           "tab of OpenHands Cloud; otherwise, enter a Critic API Key from that page.",
         SETTINGS$NAV_API_KEYS: "API Keys",
+        SETTINGS$CONDENSER_LLM_PROFILE_USE_CONVERSATION:
+          "Conversation LLM (default)",
+        SCHEMA$CONDENSER$LLM_PROFILE$LABEL: "Condenser LLM profile",
+        SCHEMA$CONDENSER$LLM_PROFILE$DESCRIPTION:
+          "Saved LLM profile that generates the summaries.",
+        SETTINGS$TITLE_GENERATION_PROFILE_OPTION: `${options?.name} \u00b7 ${options?.model}`,
       })[key] ?? key,
   }),
 }));
@@ -100,5 +119,47 @@ describe("SchemaField", () => {
     expect(
       screen.queryByText("Server schema description should be replaced."),
     ).not.toBeInTheDocument();
+  });
+  it("renders the condenser LLM profile as a dropdown of saved profiles", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SchemaField
+        field={buildField({
+          key: "condenser.llm_profile",
+          label: "Condenser LLM profile",
+          value_type: "string",
+        })}
+        value=""
+        isDisabled={false}
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByLabelText("Condenser LLM profile");
+    expect(input).toHaveValue("Conversation LLM (default)");
+
+    await user.click(input);
+    await user.click(await screen.findByText("cheap \u00b7 gpt-4o-mini"));
+
+    expect(onChange).toHaveBeenCalledWith("cheap");
+  });
+
+  it("shows a dangling condenser profile as the current selection", () => {
+    render(
+      <SchemaField
+        field={buildField({
+          key: "condenser.llm_profile",
+          label: "Condenser LLM profile",
+          value_type: "string",
+        })}
+        value="deleted-profile"
+        isDisabled={false}
+        onChange={() => {}}
+      />,
+    );
+
+    const input = screen.getByLabelText("Condenser LLM profile");
+    expect(input).toHaveValue("deleted-profile");
   });
 });
