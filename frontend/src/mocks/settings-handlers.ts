@@ -355,6 +355,7 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
             { label: "llm_summarizing", value: "llm_summarizing" },
             { label: "recent", value: "recent" },
             { label: "observation_masking", value: "observation_masking" },
+            { label: "pipeline", value: "pipeline" },
             { label: "no_op", value: "no_op" },
           ],
           depends_on: [],
@@ -374,9 +375,27 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
           choices: [],
           depends_on: [
             "condenser.enabled",
-            "condenser.condenser_kind=llm_summarizing",
+            "condenser.condenser_kind=llm_summarizing,pipeline",
           ],
           prominence: "critical",
+          secret: false,
+          required: false,
+        },
+        {
+          description:
+            "Also trim when the view exceeds this many tokens. Empty = event count only.",
+          key: "condenser.max_tokens",
+          label: "Max tokens",
+          section: "condenser",
+          section_label: "Condenser",
+          value_type: "integer",
+          default: null,
+          choices: [],
+          depends_on: [
+            "condenser.enabled",
+            "condenser.condenser_kind=llm_summarizing,recent",
+          ],
+          prominence: "minor",
           secret: false,
           required: false,
         },
@@ -392,7 +411,7 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
           choices: [],
           depends_on: [
             "condenser.enabled",
-            "condenser.condenser_kind=llm_summarizing,recent",
+            "condenser.condenser_kind=llm_summarizing,recent,pipeline",
           ],
           prominence: "major",
           secret: false,
@@ -410,7 +429,7 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
           choices: [],
           depends_on: [
             "condenser.enabled",
-            "condenser.condenser_kind=llm_summarizing,recent",
+            "condenser.condenser_kind=llm_summarizing,recent,pipeline",
           ],
           prominence: "major",
           secret: false,
@@ -428,7 +447,7 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
           choices: [],
           depends_on: [
             "condenser.enabled",
-            "condenser.condenser_kind=observation_masking",
+            "condenser.condenser_kind=observation_masking,pipeline",
           ],
           prominence: "major",
           secret: false,
@@ -446,7 +465,7 @@ const MOCK_AGENT_SETTINGS_SCHEMA: NonNullable<
           choices: [],
           depends_on: [
             "condenser.enabled",
-            "condenser.condenser_kind=observation_masking",
+            "condenser.condenser_kind=observation_masking,pipeline",
           ],
           prominence: "major",
           secret: false,

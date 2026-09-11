@@ -30,6 +30,12 @@ class ObservationMaskingCondenser(CondenserBase):
     Like :class:`RecentEventsCondenser` this never calls an LLM, and the
     original event history is never modified: masking is recomputed on every
     step from the intact history.
+
+    Explicit condensation requests are *not* handled here: masking is a
+    view-local transform, so it cannot persistently answer a request (the
+    unhandled-request flag only clears via a ``Condensation`` event). In a
+    pipeline the downstream LLM summarizer answers instead; in standalone
+    masking mode the flag is passed through untouched.
     """
 
     keep_latest: int = Field(
@@ -105,4 +111,9 @@ class ObservationMaskingCondenser(CondenserBase):
             self.keep_latest,
             self.max_chars,
         )
-        return View(events=events)
+        return View(
+            events=events,
+            # Pass the flag through: in a pipeline the downstream condenser
+            # (e.g. the LLM summarizer) must still see pending requests.
+            unhandled_condensation_request=view.unhandled_condensation_request,
+        )

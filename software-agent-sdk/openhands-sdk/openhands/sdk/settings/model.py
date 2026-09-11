@@ -151,6 +151,10 @@ class CondenserSettings(BaseModel):
 
     Use :data:`CondenserSettingsConfig` for fields that may hold any supported
     condenser-settings variant.
+
+    The knobs shared by several variants live here so the exported schema has
+    exactly one field per dotted key (``condenser.max_size`` etc.); each field
+    declares which ``condenser_kind`` values it applies to via ``depends_on``.
     """
 
     enabled: bool = Field(
@@ -177,32 +181,44 @@ class CondenserSettings(BaseModel):
                 prominence=SettingProminence.MAJOR,
                 depends_on=(
                     "enabled",
-                    "condenser_kind=llm_summarizing,recent",
+                    "condenser_kind=llm_summarizing,recent,pipeline",
                 ),
             ).model_dump()
         },
     )
-
-    def build_condenser(self, llm: LLM) -> CondenserBase | None:
-        """Create a condenser from these settings, or ``None`` if disabled."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement build_condenser()"
-        )
-
-
-class LLMSummarizingCondenserSettings(CondenserSettings):
-    """Settings for the default LLM summarizing condenser."""
-
-    condenser_kind: Literal["llm_summarizing"] = Field(
-        default="llm_summarizing",
+    keep_first: int = Field(
+        default=2,
+        ge=0,
         description=(
-            "Discriminator for the condenser settings union. ``'llm_summarizing'`` "
-            "selects the default LLM summarizing condenser."
+            "Minimum number of initial events (system prompt, task) that are "
+            "never condensed or dropped."
         ),
         json_schema_extra={
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Condenser type",
-                prominence=SettingProminence.CRITICAL,
+                label="Keep first",
+                prominence=SettingProminence.MAJOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,recent,pipeline",
+                ),
+            ).model_dump()
+        },
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Also trim when the view exceeds this many tokens. When unset, "
+            "trimming is based on event count only."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Max tokens",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing,recent",
+                ),
             ).model_dump()
         },
     )
@@ -217,113 +233,45 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="Condenser LLM profile",
                 prominence=SettingProminence.CRITICAL,
-                depends_on=("enabled", "condenser_kind=llm_summarizing"),
-            ).model_dump()
-        },
-    )
-    max_tokens: int | None = Field(
-        default=None,
-        gt=0,
-        description=(
-            "Maximum number of tokens allowed before the condenser runs. "
-            "When unset, condensation is only based on event count."
-        ),
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Max tokens",
-                prominence=SettingProminence.MINOR,
                 depends_on=(
                     "enabled",
-                    "condenser_kind=llm_summarizing",
+                    "condenser_kind=llm_summarizing,pipeline",
                 ),
             ).model_dump()
         },
     )
-    max_tokens_ratio: float = Field(
-        default=0.8,
-        gt=0.0,
-        lt=1.0,
-        description=(
-            "When `max_tokens` is unset, the condenser auto-derives its token "
-            "budget as this fraction of the model's effective input window. "
-            "Lower = condense earlier (more safety margin), higher = use more "
-            "of the window before condensing."
-        ),
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Max tokens ratio",
-                prominence=SettingProminence.MINOR,
-                depends_on=(
-                    "enabled",
-                    "condenser_kind=llm_summarizing",
-                ),
-            ).model_dump()
-        },
-    )
-    keep_first: int = Field(
-        default=2,
+    keep_latest: int = Field(
+        default=3,
         ge=0,
-        description="Minimum number of initial events to preserve before condensation.",
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Keep first",
-                prominence=SettingProminence.MINOR,
-                depends_on=(
-                    "enabled",
-                    "condenser_kind=llm_summarizing,recent",
-                ),
-            ).model_dump()
-        },
-    )
-    minimum_progress: float = Field(
-        default=0.1,
-        gt=0.0,
-        lt=1.0,
         description=(
-            "Minimum fraction of events that must be condensed for condensation "
-            "to be considered successful."
+            "Number of most recent tool results to always keep unmasked. "
+            "0 masks every oversized result except the very last one."
         ),
         json_schema_extra={
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Minimum progress",
-                prominence=SettingProminence.MINOR,
+                label="Keep latest results",
+                prominence=SettingProminence.MAJOR,
                 depends_on=(
                     "enabled",
-                    "condenser_kind=llm_summarizing",
+                    "condenser_kind=observation_masking,pipeline",
                 ),
             ).model_dump()
         },
     )
-    hard_context_reset_max_retries: int = Field(
-        default=5,
+    max_chars: int = Field(
+        default=500,
         gt=0,
-        description="Number of hard context reset attempts before raising an error.",
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Hard reset retries",
-                prominence=SettingProminence.MINOR,
-                depends_on=(
-                    "enabled",
-                    "condenser_kind=llm_summarizing",
-                ),
-            ).model_dump()
-        },
-    )
-    hard_context_reset_context_scaling: float = Field(
-        default=0.8,
-        gt=0.0,
-        lt=1.0,
         description=(
-            "Factor used to reduce event string size after a hard context reset "
-            "summarization failure."
+            "Tool results longer than this many characters are replaced with a "
+            "short placeholder (except the most recent ones)."
         ),
         json_schema_extra={
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Hard reset scaling",
-                prominence=SettingProminence.MINOR,
+                label="Mask results over (chars)",
+                prominence=SettingProminence.MAJOR,
                 depends_on=(
                     "enabled",
-                    "condenser_kind=llm_summarizing",
+                    "condenser_kind=observation_masking,pipeline",
                 ),
             ).model_dump()
         },
@@ -378,6 +326,106 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
         condenser_llm.reset_metrics()
         return condenser_llm
 
+    def build_condenser(self, llm: LLM) -> CondenserBase | None:
+        """Create a condenser from these settings, or ``None`` if disabled."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement build_condenser()"
+        )
+
+
+class LLMSummarizingCondenserSettings(CondenserSettings):
+    """Settings for the default LLM summarizing condenser."""
+
+    condenser_kind: Literal["llm_summarizing"] = Field(
+        default="llm_summarizing",
+        description=(
+            "Discriminator for the condenser settings union. ``'llm_summarizing'`` "
+            "selects the default LLM summarizing condenser."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
+    )
+    max_tokens_ratio: float = Field(
+        default=0.8,
+        gt=0.0,
+        lt=1.0,
+        description=(
+            "When `max_tokens` is unset, the condenser auto-derives its token "
+            "budget as this fraction of the model's effective input window. "
+            "Lower = condense earlier (more safety margin), higher = use more "
+            "of the window before condensing."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Max tokens ratio",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
+            ).model_dump()
+        },
+    )
+    # keep_first / max_tokens / llm_profile / keep_latest / max_chars are
+    # inherited from CondenserSettings (single schema keys, shared metadata).
+    minimum_progress: float = Field(
+        default=0.1,
+        gt=0.0,
+        lt=1.0,
+        description=(
+            "Minimum fraction of events that must be condensed for condensation "
+            "to be considered successful."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Minimum progress",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
+            ).model_dump()
+        },
+    )
+    hard_context_reset_max_retries: int = Field(
+        default=5,
+        gt=0,
+        description="Number of hard context reset attempts before raising an error.",
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Hard reset retries",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
+            ).model_dump()
+        },
+    )
+    hard_context_reset_context_scaling: float = Field(
+        default=0.8,
+        gt=0.0,
+        lt=1.0,
+        description=(
+            "Factor used to reduce event string size after a hard context reset "
+            "summarization failure."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Hard reset scaling",
+                prominence=SettingProminence.MINOR,
+                depends_on=(
+                    "enabled",
+                    "condenser_kind=llm_summarizing",
+                ),
+            ).model_dump()
+        },
+    )
+
     def build_condenser(self, llm: LLM) -> LLMSummarizingCondenser | None:
         """Create a condenser from these settings, or ``None`` if disabled."""
         if not self.enabled:
@@ -392,6 +440,9 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
                 "condenser_kind",
                 "max_tokens_ratio",
                 "llm_profile",
+                # Masking knobs — used by the masking / pipeline variants only.
+                "keep_latest",
+                "max_chars",
             },
             exclude_none=True,
         )
@@ -458,24 +509,7 @@ class RecentEventsCondenserSettings(CondenserSettings):
             ).model_dump()
         },
     )
-    keep_first: int = Field(
-        default=2,
-        ge=0,
-        description=(
-            "Minimum number of initial events (system prompt, task) preserved "
-            "when old events are dropped."
-        ),
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Keep first",
-                prominence=SettingProminence.MAJOR,
-                depends_on=(
-                    "enabled",
-                    "condenser_kind=llm_summarizing,recent",
-                ),
-            ).model_dump()
-        },
-    )
+    # keep_first / max_size / max_tokens are inherited from CondenserSettings.
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
         """Create a condenser from these settings, or ``None`` if disabled."""
@@ -484,7 +518,11 @@ class RecentEventsCondenserSettings(CondenserSettings):
 
         from openhands.sdk.context.condenser import RecentEventsCondenser
 
-        return RecentEventsCondenser(keep_first=self.keep_first, max_size=self.max_size)
+        return RecentEventsCondenser(
+            keep_first=self.keep_first,
+            max_size=self.max_size,
+            max_tokens=self.max_tokens,
+        )
 
 
 class ObservationMaskingCondenserSettings(CondenserSettings):
@@ -511,35 +549,7 @@ class ObservationMaskingCondenserSettings(CondenserSettings):
             ).model_dump()
         },
     )
-    keep_latest: int = Field(
-        default=3,
-        ge=0,
-        description=(
-            "Number of most recent tool results to always keep unmasked."
-        ),
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Keep latest results",
-                prominence=SettingProminence.MAJOR,
-                depends_on=("enabled", "condenser_kind=observation_masking"),
-            ).model_dump()
-        },
-    )
-    max_chars: int = Field(
-        default=500,
-        gt=0,
-        description=(
-            "Tool results longer than this many characters are replaced with a "
-            "short placeholder (except the most recent ones)."
-        ),
-        json_schema_extra={
-            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
-                label="Mask results over (chars)",
-                prominence=SettingProminence.MAJOR,
-                depends_on=("enabled", "condenser_kind=observation_masking"),
-            ).model_dump()
-        },
-    )
+    # keep_latest / max_chars are inherited from CondenserSettings.
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
         """Create a condenser from these settings, or ``None`` if disabled."""
@@ -552,6 +562,70 @@ class ObservationMaskingCondenserSettings(CondenserSettings):
             keep_latest=self.keep_latest,
             max_chars=self.max_chars,
         )
+
+
+class PipelineCondenserSettings(CondenserSettings):
+    """Hybrid settings: mask old tool outputs first, summarize what's left.
+
+    Mirrors the classic OpenHands ``[condenser] type = "pipeline"`` idea built
+    from an ``observation_masking`` stage followed by an ``llm`` summarizing
+    stage. Masking is free, so most of the bulk (long tool outputs) is
+    reclaimed without any LLM calls; the summarizer only fires when the view
+    is still too large, which keeps the summarization cost low.
+    """
+
+    condenser_kind: Literal["pipeline"] = Field(
+        default="pipeline",
+        description=(
+            "Discriminator for the condenser settings union. ``'pipeline'`` "
+            "selects the hybrid mask-then-summarize condenser."
+        ),
+        json_schema_extra={
+            SETTINGS_METADATA_KEY: SettingsFieldMetadata(
+                label="Condenser type",
+                prominence=SettingProminence.CRITICAL,
+            ).model_dump()
+        },
+    )
+
+    # keep_latest / max_chars (masking stage) and max_size / keep_first /
+    # max_tokens / llm_profile (summarizing stage) are inherited from
+    # CondenserSettings.
+
+    def build_condenser(self, llm: LLM) -> CondenserBase | None:
+        """Create a condenser from these settings, or ``None`` if disabled."""
+        if not self.enabled:
+            return None
+
+        from openhands.sdk.context.condenser import (
+            LLMSummarizingCondenser,
+            ObservationMaskingCondenser,
+            PipelineCondenser,
+        )
+
+        condenser_llm = self._resolve_condenser_llm(llm)
+
+        summarizer_kwargs: dict[str, Any] = {
+            "max_size": self.max_size,
+            "keep_first": self.keep_first,
+        }
+        # Auto-derive the summarizer token budget from the effective input
+        # window, same as the standalone LLM summarizer default.
+        ctx = getattr(llm, "effective_max_input_tokens", None)
+        if self.max_tokens is not None:
+            summarizer_kwargs["max_tokens"] = self.max_tokens
+        elif ctx:
+            summarizer_kwargs["max_tokens"] = int(ctx * 0.8)
+
+        masking = ObservationMaskingCondenser(
+            keep_latest=self.keep_latest,
+            max_chars=self.max_chars,
+        )
+        summarizer = LLMSummarizingCondenser(
+            llm=condenser_llm,
+            **summarizer_kwargs,
+        )
+        return PipelineCondenser(condensers=[masking, summarizer])
 
 
 def _condenser_settings_discriminator(value: Any) -> str:
@@ -572,6 +646,7 @@ CondenserSettingsConfig = Annotated[
     Annotated[LLMSummarizingCondenserSettings, Tag("llm_summarizing")]
     | Annotated[RecentEventsCondenserSettings, Tag("recent")]
     | Annotated[ObservationMaskingCondenserSettings, Tag("observation_masking")]
+    | Annotated[PipelineCondenserSettings, Tag("pipeline")]
     | Annotated[NoOpCondenserSettings, Tag("no_op")],
     Discriminator(_condenser_settings_discriminator),
 ]

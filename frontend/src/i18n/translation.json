@@ -40948,5 +40948,23 @@
     "tr": "Bu uzunluğu aşan araç sonuçları kısa bir notla değiştirilir; araç çağrısının kendisi görünür kalır.",
     "uk": "Результати інструментів довші за це значення замінюються короткою приміткою; сам виклик інструменту залишається видимим.",
     "ru": "Результаты инструментов длиннее этого значения заменяются краткой пометкой; сам вызов инструмента остаётся видимым."
+  },
+  "SCHEMA$CONDENSER$CONDENSER_KIND$CHOICE$PIPELINE": {
+    "en": "Mask old outputs, then summarize (hybrid)",
+    "ja": "出力をマスクしてから要約（ハイブリッド）",
+    "zh-CN": "先遮蔽输出再摘要（混合）",
+    "zh-TW": "先遮蔽輸出再摘要（混合）",
+    "ko-KR": "출력 마스크 후 요약 (하이브리드)",
+    "no": "Masker utdata, oppsummer deretter (hybrid)",
+    "ar": "إخفاء المخرجات ثم التلخيص (هجين)",
+    "de": "Ausgaben maskieren, dann zusammenfassen (hybrid)",
+    "fr": "Masquer les sorties puis résumer (hybride)",
+    "it": "Maschera gli output, poi riassume (ibrido)",
+    "pt": "Mascarar saídas e depois resumir (híbrido)",
+    "es": "Enmascarar salidas y luego resumir (híbrido)",
+    "ca": "Emmascara les sortides i després resumeix (híbrid)",
+    "tr": "Çıktıları maskele, sonra özetle (melez)",
+    "uk": "Маскувати виводи + сумаризація (гібрид)",
+    "ru": "Маскировать выводы + суммаризация (гибрид)"
   }
 }
