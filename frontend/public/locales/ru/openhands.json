@@ -1154,6 +1154,8 @@
   "EXIT_PROJECT$WARNING": "Вы уверены, что хотите выйти из этого проекта? Все несохранённые изменения будут потеряны.",
   "MODEL_SELECTOR$VERIFIED": "Проверенные модели",
   "MODEL_SELECTOR$OTHERS": "Другие модели",
+  "MODEL_SELECTOR$VERIFIED_PROVIDERS": "Проверенные провайдеры",
+  "MODEL_SELECTOR$OTHER_PROVIDERS": "Другие провайдеры",
   "MODEL_SELECTOR$MODEL_CONTEXT": "{{context}} контекст",
   "MODEL_SELECTOR$MODEL_PRICING": "{{pricing}} за 1M токенов",
   "MODEL_SELECTOR$OPENROUTER_FLOOR": "Выбирать самого дешёвого провайдера (:floor)",

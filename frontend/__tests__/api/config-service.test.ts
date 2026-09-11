@@ -29,6 +29,28 @@ describe("ConfigService", () => {
 
 
 
+
+  it("does not cut providers beyond the old 100-item cap (openrouter stays visible)", async () => {
+    // litellm ships ~150 providers; with the old limit of 100 entries like
+    // openrouter were silently truncated out of the picker.
+    const manyProviders = Array.from({ length: 150 }, (_, i) => `prov_${i}`);
+    manyProviders.push("openrouter");
+    server.use(
+      http.get("/api/llm/providers", () =>
+        HttpResponse.json({ providers: manyProviders }),
+      ),
+      http.get("/api/llm/models/verified", () =>
+        HttpResponse.json({ models: { anthropic: ["claude-opus-4-5-20251101"] } }),
+      ),
+    );
+
+    const page = await ConfigService.searchProviders({ limit: 500 });
+
+    expect(page.items.some((p) => p.name === "openrouter")).toBe(true);
+    // 150 litellm + openrouter + verified "anthropic" from the union.
+    expect(page.items.length).toBe(152);
+  });
+
   it("fetches the OpenRouter catalog from the local agent-server", async () => {
     server.use(
       http.get("/api/llm/openrouter/models", () =>

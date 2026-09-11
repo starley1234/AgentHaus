@@ -62,12 +62,16 @@ export function ModelSelector({
 
   const { t } = useTranslation("openhands");
 
+  // Sort alphabetically by display name so long lists (150+ providers) stay
+  // scannable; typing still filters via the Autocomplete input.
+  const byDisplayName = (a: { name: string }, b: { name: string }) =>
+    mapProvider(a.name).localeCompare(mapProvider(b.name));
   const verifiedProviders = React.useMemo(
-    () => providers.filter((p) => p.verified),
+    () => providers.filter((p) => p.verified).sort(byDisplayName),
     [providers],
   );
   const unverifiedProviders = React.useMemo(
-    () => providers.filter((p) => !p.verified),
+    () => providers.filter((p) => !p.verified).sort(byDisplayName),
     [providers],
   );
 
@@ -191,18 +195,20 @@ export function ModelSelector({
           selectedKey={selectedProvider}
           classNames={{
             popoverContent:
-              "bg-content1 rounded-xl border border-[var(--oh-border)]",
+              "bg-content1 rounded-xl border border-[var(--oh-border)] max-h-[320px] overflow-y-auto",
             selectorButton: heroUiAutocompleteSelectorButtonClassName,
           }}
           selectorButtonProps={{ disableRipple: true }}
           inputProps={{
+            id: "llm-provider-input-field",
+            autoComplete: "off",
             classNames: {
               inputWrapper: formControlSettingsFieldClassName,
             },
           }}
         >
           <AutocompleteSection
-            title={t(I18nKey.MODEL_SELECTOR$VERIFIED)}
+            title={t(I18nKey.MODEL_SELECTOR$VERIFIED_PROVIDERS)}
             classNames={{ heading: "text-[var(--oh-muted)]" }}
           >
             {verifiedProviders.map((provider) => (
@@ -216,7 +222,7 @@ export function ModelSelector({
           </AutocompleteSection>
           {unverifiedProviders.length > 0 ? (
             <AutocompleteSection
-              title={t(I18nKey.MODEL_SELECTOR$OTHERS)}
+              title={t(I18nKey.MODEL_SELECTOR$OTHER_PROVIDERS)}
               classNames={{ heading: "text-[var(--oh-muted)]" }}
             >
               {unverifiedProviders.map((provider) => (
@@ -260,11 +266,13 @@ export function ModelSelector({
           defaultSelectedKey={selectedModel ?? undefined}
           classNames={{
             popoverContent:
-              "bg-content1 rounded-xl border border-[var(--oh-border)]",
+              "bg-content1 rounded-xl border border-[var(--oh-border)] max-h-[320px] overflow-y-auto",
             selectorButton: heroUiAutocompleteSelectorButtonClassName,
           }}
           selectorButtonProps={{ disableRipple: true }}
           inputProps={{
+            id: "llm-model-input-field",
+            autoComplete: "off",
             classNames: {
               inputWrapper: formControlSettingsFieldClassName,
             },
