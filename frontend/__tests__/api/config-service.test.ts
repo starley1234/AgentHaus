@@ -27,6 +27,38 @@ describe("ConfigService", () => {
     expect(page.items.every((model) => model.provider === "anthropic")).toBe(true);
   });
 
+
+  it("filters models server-side when provider__eq is set (no full-catalog fetch)", async () => {
+    // The local agent-server supports ?provider= on /api/llm/models; the
+    // client must use it instead of pulling the entire litellm catalog
+    // (~5.5k models, >100 KB) on every provider selection.
+    let requestedUrl = "";
+    server.use(
+      http.get("/api/llm/models", ({ request }) => {
+        requestedUrl = new URL(request.url).searchParams.toString();
+        return HttpResponse.json({
+          models: [
+            "anthropic/claude-opus-4-5-20251101",
+            "anthropic/claude-sonnet-4-5",
+          ],
+        });
+      }),
+    );
+
+    const page = await ConfigService.searchModels({
+      provider__eq: "anthropic",
+      limit: 20,
+    });
+
+    expect(requestedUrl).toContain("provider=anthropic");
+    expect(page.items.some((model) => model.name === "claude-sonnet-4-5")).toBe(
+      true,
+    );
+    expect(page.items.every((model) => model.provider === "anthropic")).toBe(
+      true,
+    );
+  });
+
   it("includes verified providers absent from /api/llm/providers and keeps them within the limit", async () => {
     // Arrange: mirror the real local agent-server, where
     // /api/llm/providers comes from litellm (no "openhands"),
