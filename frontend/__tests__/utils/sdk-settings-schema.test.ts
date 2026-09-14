@@ -7,6 +7,7 @@ import {
   getVisibleSettingsSections,
   hasAdvancedSettingsOverrides,
   inferInitialView,
+  isSettingsFieldVisible,
   isValidSettingsSchema,
   SPECIALLY_RENDERED_KEYS,
 } from "#/utils/sdk-settings-schema";
@@ -337,6 +338,75 @@ describe("sdk settings schema helpers", () => {
         litellm_extra_body: { metadata: { tier: "sample" } },
       },
       verification: { critic_enabled: true, critic_mode: "all_actions" },
+    });
+  });
+
+  describe("isSettingsFieldVisible dependency expressions", () => {
+    const kindField = {
+      key: "condenser.condenser_kind",
+      label: "Condenser type",
+      section: "condenser",
+      section_label: "Condenser",
+      value_type: "string" as const,
+      default: "llm_summarizing",
+      choices: [{ label: "llm_summarizing", value: "llm_summarizing" }],
+      depends_on: [],
+      prominence: "critical" as const,
+      secret: false,
+      required: false,
+    };
+
+    const valueDependentField = {
+      ...kindField,
+      key: "condenser.max_tokens",
+      depends_on: [
+        "condenser.enabled",
+        "condenser.condenser_kind=llm_summarizing,recent",
+      ],
+    };
+
+    it("keeps boolean dependencies", () => {
+      const values = {
+        "condenser.enabled": true,
+        "condenser.condenser_kind": "llm_summarizing",
+      };
+      expect(isSettingsFieldVisible(valueDependentField, values)).toBe(true);
+      expect(
+        isSettingsFieldVisible(valueDependentField, {
+          ...values,
+          "condenser.enabled": false,
+        }),
+      ).toBe(false);
+    });
+
+    it("accepts any of the comma-separated values", () => {
+      const base = { "condenser.enabled": true };
+      expect(
+        isSettingsFieldVisible(valueDependentField, {
+          ...base,
+          "condenser.condenser_kind": "llm_summarizing",
+        }),
+      ).toBe(true);
+      expect(
+        isSettingsFieldVisible(valueDependentField, {
+          ...base,
+          "condenser.condenser_kind": "recent",
+        }),
+      ).toBe(true);
+      expect(
+        isSettingsFieldVisible(valueDependentField, {
+          ...base,
+          "condenser.condenser_kind": "observation_masking",
+        }),
+      ).toBe(false);
+    });
+
+    it("treats a missing dependency key as not satisfied", () => {
+      expect(
+        isSettingsFieldVisible(valueDependentField, {
+          "condenser.enabled": true,
+        }),
+      ).toBe(false);
     });
   });
 

@@ -6,6 +6,11 @@ import { OptionalTag } from "./optional-tag";
 interface SettingsInputProps {
   testId?: string;
   name?: string;
+  /** Native input id (defaults to `testId` when set) — needed for label
+   * association and to let the browser manage autofill correctly. */
+  id?: string;
+  /** Native autoComplete hint ("off", "new-password", ...). */
+  autoComplete?: string;
   label: string;
   type: React.HTMLInputTypeAttribute;
   defaultValue?: string;
@@ -52,6 +57,8 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
     {
       testId,
       name,
+      id,
+      autoComplete,
       label,
       type,
       defaultValue,
@@ -104,10 +111,12 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
         <input
           ref={ref}
           data-testid={testId}
+          id={id ?? testId}
           onChange={(e) => onChange?.(e.target.value)}
           onKeyDown={onKeyDown}
           onBlur={onBlur}
           name={name}
+          autoComplete={autoComplete}
           disabled={isDisabled}
           type={type}
           defaultValue={defaultValue}

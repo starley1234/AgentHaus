@@ -216,6 +216,11 @@ export function LlmSettingsScreen({
         <>
           <SettingsInput
             testId={testId}
+            name="llm-api-key"
+            // Browsers treat bare password fields as login credentials and
+            // pop their save/autofill UI over the form; new-password keeps
+            // the manager quiet for API tokens.
+            autoComplete="new-password"
             label={t(I18nKey.SETTINGS_FORM$API_KEY)}
             type="password"
             className="w-full"
@@ -378,6 +383,8 @@ export function LlmSettingsScreen({
                 <>
                   <SettingsInput
                     testId="llm-custom-model-input"
+                    name="llm-custom-model"
+                    autoComplete="off"
                     label={t(I18nKey.SETTINGS$CUSTOM_MODEL)}
                     type="text"
                     className="w-full"
@@ -393,6 +400,8 @@ export function LlmSettingsScreen({
 
                   <SettingsInput
                     testId="base-url-input"
+                    name="llm-base-url"
+                    autoComplete="off"
                     label={t(I18nKey.SETTINGS$BASE_URL)}
                     type="text"
                     className="w-full"

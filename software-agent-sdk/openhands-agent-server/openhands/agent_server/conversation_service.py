@@ -2234,13 +2234,19 @@ class AutoTitleSubscriber(Subscriber):
         # truncation. This keeps auto-titling non-breaking for consumers who
         # don't configure title_llm_profile.
         conversation = self.service._conversation
-        title_llm = self._load_title_llm()
-        if title_llm is None:
-            title_llm = conversation.agent.llm if conversation else None
 
         async def _generate_and_save() -> None:
             try:
                 loop = asyncio.get_running_loop()
+                # Resolve the title LLM OFF the event loop: loading a profile
+                # takes the profile-store file lock, which can wait up to its
+                # timeout; blocking the loop here froze every request the
+                # server was serving (event publishing awaits subscribers).
+                title_llm = await loop.run_in_executor(
+                    None, self._load_title_llm
+                )
+                if title_llm is None:
+                    title_llm = conversation.agent.llm if conversation else None
                 title = await loop.run_in_executor(
                     None,
                     _generate_title_traced,
@@ -2278,12 +2284,35 @@ class AutoTitleSubscriber(Subscriber):
             from openhands.agent_server.persistence.store import (
                 get_llm_profile_store,
             )
+            from openhands.sdk.llm.llm_profile_store import (
+                _BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            )
 
             profile_store = get_llm_profile_store()
-            return profile_store.load(profile_name, cipher=self.service.cipher)
-        except (FileNotFoundError, ValueError) as e:
+            # Short lock timeout: titling is best-effort decoration. A
+            # contended lock must degrade to the agent LLM, never stall.
+            return profile_store.load(
+                profile_name,
+                cipher=self.service.cipher,
+                lock_timeout=_BEST_EFFORT_LOCK_TIMEOUT_SECONDS,
+            )
+        except FileNotFoundError as e:
+            logger.warning(
+                f"Title LLM profile '{profile_name}' not found: {e}. "
+                "Falling back to the agent's LLM."
+            )
+            return None
+        except ValueError as e:
             logger.warning(
                 f"Failed to load title LLM profile '{profile_name}': {e}. "
+                "Falling back to the agent's LLM."
+            )
+            return None
+        except Exception as e:
+            # TimeoutError (lock contention) or anything else — titling must
+            # never take down the subscriber or delay the conversation.
+            logger.warning(
+                f"Could not load title LLM profile '{profile_name}': {e}. "
                 "Falling back to the agent's LLM."
             )
             return None

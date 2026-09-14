@@ -17,9 +17,11 @@ export const useSearchProviders = () =>
         queryFn: fetchVerifiedModelsByProvider,
         staleTime: VERIFIED_MODELS_STALE_TIME,
       });
-      // Providers are a small set; fetch all in one call with a high limit.
+      // Providers are a small set (~160 today: litellm providers + verified
+      // extras). The limit must stay ABOVE that total or entries get cut —
+      // e.g. OpenRouter silently disappeared when the cap was 100.
       const page = await ConfigService.searchProviders(
-        { limit: 100 },
+        { limit: 500 },
         verifiedByProvider,
       );
       return page.items;

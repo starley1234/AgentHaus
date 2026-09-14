@@ -51,6 +51,8 @@ export const ProfileNameInput = forwardRef<
       <SettingsInput
         ref={ref}
         testId={testId}
+        name="profile-name"
+        autoComplete="off"
         label={label}
         type="text"
         className="w-full"

@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 
 from openhands.sdk.event.base import LLMConvertibleEvent
@@ -171,3 +172,104 @@ def get_suffix_length_for_token_reduction(
     suffix_length = len(events) - prefix_length
 
     return suffix_length
+
+
+# ---------------------------------------------------------------------------
+# Compact event rendering for summarization prompts
+# ---------------------------------------------------------------------------
+
+def _shorten(text: str, limit: int) -> str:
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + f"... [+{len(text) - limit} chars]"
+
+
+def render_event_for_summary(
+    event: LLMConvertibleEvent,
+    text_limit: int = 600,
+    args_limit: int = 240,
+    max_event_str_length: int | None = None,
+) -> str:
+    """Render one event as a compact, information-dense line for a summary.
+
+    Full ``str(event)`` dumps are pydantic reprs full of ids and metadata: they
+    waste the summarizer's input window and drown small local models in noise,
+    which produces vague summaries and makes the agent repeat finished work.
+    This keeps the signal: who said what, which tool ran with which arguments,
+    what the tool returned (truncated).
+    """
+    kind = type(event).__name__
+
+    if isinstance(event, SystemPromptEvent):
+        parts = [getattr(event, "system_prompt", "") or ""]
+        for block in getattr(event, "dynamic_context", None) or []:
+            text = getattr(block, "text", None)
+            if text:
+                parts.append(text)
+        return f"SYSTEM PROMPT: {_shorten(' '.join(parts), 300)}"
+
+    source = getattr(event, "source", "")
+    # MessageEvent (user/assistant)
+    if kind == "MessageEvent":
+        role = source or "message"
+        parts = []
+        blocks = list(getattr(event, "content", None) or [])
+        llm_message = getattr(event, "llm_message", None)
+        if llm_message is not None:
+            blocks += list(getattr(llm_message, "content", None) or [])
+        blocks += list(getattr(event, "extended_content", None) or [])
+        for block in blocks:
+            text = getattr(block, "text", None)
+            if text:
+                parts.append(text)
+        return f"{role.upper()}: {_shorten(' '.join(parts), text_limit)}"
+
+    # ActionEvent: the tool invocation and its arguments
+    if kind == "ActionEvent":
+        tool_name = getattr(event, "tool_name", "") or "unknown"
+        tool_call = getattr(event, "tool_call", None)
+        args = getattr(tool_call, "arguments", None)
+        if isinstance(args, str):
+            args_str = args
+        else:
+            try:
+                args_str = json.dumps(args, ensure_ascii=False, default=str)
+            except Exception:
+                args_str = str(args)
+        return f"ACTION {tool_name} args={_shorten(args_str or '{}', args_limit)}"
+
+    # ObservationEvent: the tool result
+    if kind == "ObservationEvent":
+        tool_name = getattr(event, "tool_name", "") or "unknown"
+        observation = getattr(event, "observation", None)
+        text = ""
+        to_llm = getattr(observation, "to_llm_content", None)
+        if to_llm:
+            from openhands.sdk.llm import content_to_str
+
+            text = "".join(content_to_str(list(to_llm)))
+        total = len(text)
+        shown = _shorten(text, text_limit)
+        if total > len(shown):
+            shown = f"{shown} [total {total} chars]"
+        return f"RESULT {tool_name}: {shown}"
+
+    # Condensation: the previous rolling summary
+    if kind == "Condensation":
+        summary = getattr(event, "summary", "") or ""
+        return f"PREVIOUS SUMMARY: {_shorten(summary, text_limit)}"
+
+    # Think / reasoning events
+    if "Think" in kind:
+        parts = []
+        for block in getattr(event, "thought", None) or []:
+            text = getattr(block, "text", None)
+            if text:
+                parts.append(text)
+        return f"THOUGHT: {_shorten(' '.join(parts), 300)}"
+
+    fallback = str(event)
+    if max_event_str_length:
+        fallback = fallback[:max_event_str_length]
+    return f"{kind}: {_shorten(fallback, text_limit)}"

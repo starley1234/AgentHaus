@@ -13,6 +13,7 @@ from openhands.sdk.context.condenser.base import (
 from openhands.sdk.context.condenser.utils import (
     get_suffix_length_for_token_reduction,
     get_total_token_count,
+    render_event_for_summary,
 )
 from openhands.sdk.context.prompts import render_template
 from openhands.sdk.context.view import View
@@ -21,7 +22,6 @@ from openhands.sdk.event.condenser import Condensation
 from openhands.sdk.llm import LLM, Message, TextContent
 from openhands.sdk.logger import get_logger
 from openhands.sdk.observability.laminar import observe
-from openhands.sdk.utils import maybe_truncate
 
 
 logger = get_logger(__name__)
@@ -93,6 +93,112 @@ class LLMSummarizingCondenser(RollingCondenser):
     def handles_condensation_requests(self) -> bool:
         return True
 
+    @staticmethod
+    def _coerce_positive_int(value: object) -> int | None:
+        """Narrow arbitrary values (incl. mocks) to a positive int or None."""
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int) and value > 0:
+            return value
+        return None
+
+    def _effective_max_tokens(self, agent_llm: LLM | None) -> int | None:
+        """Explicit budget, or one derived from the agent model's window.
+
+        Small local models have tiny context windows: relying on the event-count
+        trigger alone lets the view outgrow the window long before condensation
+        fires, and the next agent request dies with a context-overflow error.
+        When ``max_tokens`` is unset we therefore derive a budget from the
+        agent LLM's effective input window (80% of it, matching the settings
+        default ``max_tokens_ratio``), so the condenser starts trimming early
+        enough for any model size. Returns ``None`` when nothing is known
+        (e.g. mocked LLMs in tests) — the event-count trigger still applies.
+        """
+        if self.max_tokens is not None:
+            return self.max_tokens
+        if agent_llm is None:
+            return None
+        ctx = self._coerce_positive_int(
+            getattr(agent_llm, "effective_max_input_tokens", None)
+        )
+        if ctx is None:
+            return None
+        return max(2048, int(ctx * 0.8))
+
+    def _summary_input_budget(self) -> int | None:
+        """Max tokens the summarization prompt may use (~45% of window).
+
+        Keeps the summary call itself within a small model's context: the
+        forgotten range can span the whole conversation, and feeding all of it
+        to a compact local model makes the summary call fail — exactly when
+        condensation is most needed.
+        """
+        ctx = self._coerce_positive_int(
+            getattr(self.llm, "effective_max_input_tokens", None)
+        )
+        if ctx is None:
+            return None
+        return max(1024, int(ctx * 0.45))
+
+    def _render_summary_prompt(
+        self,
+        forgotten_events: Sequence[LLMConvertibleEvent],
+        max_event_str_length: int | None = None,
+    ) -> str:
+        """Build the summarization prompt from compact event renderings.
+
+        Compact one-line renderings (role + text, tool + args, result preview)
+        keep the prompt small and information-dense. Full pydantic dumps used
+        to waste most of the summarizer window on ids and metadata, which hit
+        small local models hardest.
+        """
+        event_strings = [
+            render_event_for_summary(
+                event,
+                text_limit=600 if not max_event_str_length else 300,
+                max_event_str_length=max_event_str_length,
+            )
+            for event in forgotten_events
+        ]
+        return render_template(
+            os.path.join(os.path.dirname(__file__), "prompts"),
+            "summarizing_prompt.j2",
+            events=event_strings,
+        )
+
+    def _fit_prompt_to_budget(self, forgotten_events) -> str:
+        """Render the prompt, truncating event strings until it fits the budget."""
+        prompt = self._render_summary_prompt(forgotten_events)
+        budget = self._summary_input_budget()
+        if budget is None:
+            return prompt
+
+        max_event_str_length: int | None = None
+        attempts = 6
+        while attempts > 0:
+            try:
+                estimate = self.llm.get_token_count(
+                    [Message(role="user", content=[TextContent(text=prompt)])]
+                )
+            except Exception:
+                return prompt  # counting unavailable — send as-is
+            estimate = self._coerce_positive_int(estimate)
+            if estimate is None or estimate <= budget:
+                return prompt
+            if max_event_str_length is None:
+                max_event_str_length = 1600
+            else:
+                max_event_str_length = int(max_event_str_length * 0.6)
+            if max_event_str_length < 240:
+                return self._render_summary_prompt(
+                    forgotten_events, max_event_str_length=240
+                )
+            prompt = self._render_summary_prompt(
+                forgotten_events, max_event_str_length=max_event_str_length
+            )
+            attempts -= 1
+        return prompt
+
     def get_condensation_reasons(
         self, view: View, agent_llm: LLM | None = None
     ) -> set[Reason]:
@@ -112,15 +218,16 @@ class LLMSummarizingCondenser(RollingCondenser):
         if view.unhandled_condensation_request:
             reasons.add(Reason.REQUEST)
 
-        # Reason 2: Token limit is provided and exceeded.
-        if self.max_tokens and agent_llm:
+        # Reason 2: Token budget (explicit or derived) is exceeded.
+        effective_max_tokens = self._effective_max_tokens(agent_llm)
+        if effective_max_tokens is not None and agent_llm is not None:
             total_tokens = get_total_token_count(view.events, agent_llm)
-            if total_tokens > self.max_tokens:
+            if total_tokens > effective_max_tokens:
                 logger.info(
                     "Condenser token limit exceeded: total_tokens=%d max_tokens=%d "
                     "events=%d",
                     total_tokens,
-                    self.max_tokens,
+                    effective_max_tokens,
                     len(view),
                 )
                 reasons.add(Reason.TOKENS)
@@ -184,16 +291,14 @@ class LLMSummarizingCondenser(RollingCondenser):
         """
         assert len(forgotten_events) > 0, "No events to condense."
 
-        # Convert events to strings for the template
-        event_strings = [
-            maybe_truncate(str(forgotten_event), truncate_after=max_event_str_length)
-            for forgotten_event in forgotten_events
-        ]
-
-        prompt = render_template(
-            os.path.join(os.path.dirname(__file__), "prompts"),
-            "summarizing_prompt.j2",
-            events=event_strings,
+        # Compact renderings + budget fitting keep the summary call inside a
+        # small model's window (see _fit_prompt_to_budget).
+        prompt = (
+            self._fit_prompt_to_budget(forgotten_events)
+            if max_event_str_length is None
+            else self._render_summary_prompt(
+                forgotten_events, max_event_str_length=max_event_str_length
+            )
         )
 
         messages = [Message(role="user", content=[TextContent(text=prompt)])]
@@ -253,14 +358,15 @@ class LLMSummarizingCondenser(RollingCondenser):
             suffix_events_to_keep.add(target_size - self.keep_first - 1)
 
         if Reason.TOKENS in reasons:
-            # Compute the number of tokens we need to eliminate to be under half the
-            # max_tokens value. We know max_tokens and the agent LLM are not None here
-            # because we can't have Reason.TOKENS without them.
-            assert self.max_tokens is not None
+            # Compute the number of tokens we need to eliminate to be under half
+            # the effective token budget. The budget and the agent LLM are not
+            # None here because Reason.TOKENS cannot fire without them.
+            effective_max_tokens = self._effective_max_tokens(agent_llm)
+            assert effective_max_tokens is not None
             assert agent_llm is not None
 
             total_tokens = get_total_token_count(view.events, agent_llm)
-            tokens_to_reduce = total_tokens - (self.max_tokens // 2)
+            tokens_to_reduce = total_tokens - (effective_max_tokens // 2)
 
             suffix_events_to_keep.add(
                 get_suffix_length_for_token_reduction(
@@ -382,15 +488,12 @@ class LLMSummarizingCondenser(RollingCondenser):
         """Async variant of :meth:`_generate_condensation`."""
         assert len(forgotten_events) > 0, "No events to condense."
 
-        event_strings = [
-            maybe_truncate(str(fe), truncate_after=max_event_str_length)
-            for fe in forgotten_events
-        ]
-
-        prompt = render_template(
-            os.path.join(os.path.dirname(__file__), "prompts"),
-            "summarizing_prompt.j2",
-            events=event_strings,
+        prompt = (
+            self._fit_prompt_to_budget(forgotten_events)
+            if max_event_str_length is None
+            else self._render_summary_prompt(
+                forgotten_events, max_event_str_length=max_event_str_length
+            )
         )
 
         messages = [Message(role="user", content=[TextContent(text=prompt)])]

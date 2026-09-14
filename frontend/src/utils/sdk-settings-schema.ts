@@ -314,7 +314,38 @@ export function isSettingsFieldVisible(
   field: SettingsFieldSchema,
   values: SettingsFormValues,
 ): boolean {
-  return field.depends_on.every((dependency) => values[dependency] === true);
+  return field.depends_on.every((dependency) =>
+    isDependencySatisfied(dependency, values),
+  );
+}
+
+/**
+ * Evaluate a single `depends_on` entry.
+ *
+ * Two forms are supported:
+ * - `"condenser.enabled"` — boolean dependency: the field's form value must be
+ *   exactly `true`.
+ * - `"condenser.condenser_kind=llm_summarizing,recent"` — value dependency:
+ *   the field's (stringified) form value must be one of the comma-separated
+ *   values. Used by union-typed sections (e.g. the condenser settings union)
+ *   where fields from sibling schema variants must hide when another variant
+ *   is selected.
+ */
+function isDependencySatisfied(
+  dependency: string,
+  values: SettingsFormValues,
+): boolean {
+  const separatorIndex = dependency.indexOf("=");
+  if (separatorIndex === -1) {
+    return values[dependency] === true;
+  }
+
+  const key = dependency.slice(0, separatorIndex);
+  const acceptedValues = dependency
+    .slice(separatorIndex + 1)
+    .split(",")
+    .map((value) => value.trim());
+  return acceptedValues.includes(String(values[key] ?? ""));
 }
 
 function parseBooleanFieldValue(rawValue: string | boolean): boolean | null {

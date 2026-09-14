@@ -190,6 +190,13 @@ trap cleanup EXIT SIGINT SIGTERM
 # ── 1. Start Agent Server ────────────────────────────────────────────────────
 log "Starting agent-server on port $AGENT_SERVER_PORT..."
 
+# LiteLLM refreshes its model-cost map from GitHub at import time; in offline
+# or slow-proxied containers that stalls server startup. The bundled backup
+# map is sufficient — the settings UI fetches live pricing from the
+# /api/llm/openrouter/models endpoint when it needs fresh data.
+# Override with LITELLM_LOCAL_MODEL_COST_MAP=false to restore remote refresh.
+export LITELLM_LOCAL_MODEL_COST_MAP="${LITELLM_LOCAL_MODEL_COST_MAP:-true}"
+
 if [ -x /opt/agent-server-venv/bin/python ]; then
   # Our locally-built agent-server (from software-agent-sdk with vision patch).
   /opt/agent-server-venv/bin/python -m openhands.agent_server --port "$AGENT_SERVER_PORT" &

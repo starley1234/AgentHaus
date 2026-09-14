@@ -27,6 +27,99 @@ describe("ConfigService", () => {
     expect(page.items.every((model) => model.provider === "anthropic")).toBe(true);
   });
 
+
+
+
+  it("does not cut providers beyond the old 100-item cap (openrouter stays visible)", async () => {
+    // litellm ships ~150 providers; with the old limit of 100 entries like
+    // openrouter were silently truncated out of the picker.
+    const manyProviders = Array.from({ length: 150 }, (_, i) => `prov_${i}`);
+    manyProviders.push("openrouter");
+    server.use(
+      http.get("/api/llm/providers", () =>
+        HttpResponse.json({ providers: manyProviders }),
+      ),
+      http.get("/api/llm/models/verified", () =>
+        HttpResponse.json({ models: { anthropic: ["claude-opus-4-5-20251101"] } }),
+      ),
+    );
+
+    const page = await ConfigService.searchProviders({ limit: 500 });
+
+    expect(page.items.some((p) => p.name === "openrouter")).toBe(true);
+    // 150 litellm + openrouter + verified "anthropic" from the union.
+    expect(page.items.length).toBe(152);
+  });
+
+  it("fetches the OpenRouter catalog from the local agent-server", async () => {
+    server.use(
+      http.get("/api/llm/openrouter/models", () =>
+        HttpResponse.json({
+          source: "live",
+          fetched_at: 1757500000,
+          models: [
+            {
+              id: "google/gemini-3.8-flash",
+              name: "Gemini 3.8 Flash",
+              context_length: 1000000,
+              prompt_price_per_token: "0.000001",
+              completion_price_per_token: "0.000004",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const catalog = await ConfigService.getOpenRouterCatalog();
+
+    expect(catalog.source).toBe("live");
+    expect(catalog.models[0].id).toBe("google/gemini-3.8-flash");
+    expect(catalog.models[0].context_length).toBe(1000000);
+  });
+
+  it("throws on a non-ok OpenRouter catalog response", async () => {
+    server.use(
+      http.get("/api/llm/openrouter/models", () =>
+        HttpResponse.json({ detail: "boom" }, { status: 503 }),
+      ),
+    );
+
+    await expect(ConfigService.getOpenRouterCatalog()).rejects.toThrow(
+      /503/,
+    );
+  });
+
+  it("filters models server-side when provider__eq is set (no full-catalog fetch)", async () => {
+    // The local agent-server supports ?provider= on /api/llm/models; the
+    // client must use it instead of pulling the entire litellm catalog
+    // (~5.5k models, >100 KB) on every provider selection.
+    let requestedUrl = "";
+    server.use(
+      http.get("/api/llm/models", ({ request }) => {
+        requestedUrl = new URL(request.url).searchParams.toString();
+        return HttpResponse.json({
+          models: [
+            "anthropic/claude-opus-4-5-20251101",
+            "anthropic/claude-sonnet-4-5",
+          ],
+        });
+      }),
+    );
+
+    const page = await ConfigService.searchModels({
+      provider__eq: "anthropic",
+      limit: 20,
+    });
+
+    expect(requestedUrl).toContain("provider=anthropic");
+    expect(page.items.some((model) => model.name === "claude-sonnet-4-5")).toBe(
+      true,
+    );
+    expect(page.items.every((model) => model.provider === "anthropic")).toBe(
+      true,
+    );
+  });
+
   it("includes verified providers absent from /api/llm/providers and keeps them within the limit", async () => {
     // Arrange: mirror the real local agent-server, where
     // /api/llm/providers comes from litellm (no "openhands"),

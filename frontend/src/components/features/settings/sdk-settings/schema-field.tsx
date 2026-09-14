@@ -1,9 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useLlmProfiles } from "#/hooks/query/use-llm-profiles";
 import { OptionalTag } from "#/components/features/settings/optional-tag";
 import { SettingsDropdownInput } from "#/components/features/settings/settings-dropdown-input";
 import { SettingsInput } from "#/components/features/settings/settings-input";
 import { SettingsSwitch } from "#/components/features/settings/settings-switch";
+import { I18nKey } from "#/i18n/declaration";
 import { SettingsFieldSchema } from "#/types/settings";
 import {
   getSettingsFieldConstraints,
@@ -72,6 +74,18 @@ export function SchemaField({
   const { t } = useTranslation("openhands");
   const label = resolveSchemaFieldLabel(t, field.key, field.label);
   const constraints = getSettingsFieldConstraints(field.key);
+
+  if (isCondenserLlmProfileField(field)) {
+    return (
+      <CondenserLlmProfileField
+        field={field}
+        value={String(value ?? "")}
+        label={label}
+        isDisabled={isDisabled}
+        onChange={onChange}
+      />
+    );
+  }
 
   if (isBooleanField(field)) {
     return (
@@ -162,6 +176,74 @@ export function SchemaField({
         min={constraints?.min}
         max={constraints?.max}
         step={constraints?.step}
+      />
+      <FieldHelp field={field} />
+    </div>
+  );
+}
+
+/**
+ * Field key of the condenser's summary-LLM profile selector. The profile list
+ * is dynamic (lives on the agent server), so the backend schema cannot ship
+ * static `choices` — this field is rendered as a dropdown of the user's saved
+ * LLM profiles plus an explicit "use the conversation LLM" option (empty
+ * value), which is what the backend stores as `null`.
+ */
+const CONDENSER_LLM_PROFILE_KEY = "condenser.llm_profile";
+
+function isCondenserLlmProfileField(field: SettingsFieldSchema): boolean {
+  return field.key === CONDENSER_LLM_PROFILE_KEY;
+}
+
+function CondenserLlmProfileField({
+  field,
+  value,
+  label,
+  isDisabled,
+  onChange,
+}: {
+  field: SettingsFieldSchema;
+  value: string;
+  label: string;
+  isDisabled: boolean;
+  onChange: (value: string | boolean) => void;
+}) {
+  const { t } = useTranslation("openhands");
+  // A dangling profile name (e.g. deleted after being saved) still shows in
+  // the list so the user can see what is configured instead of a silent
+  // fallback.
+  const { data: llmProfiles, isLoading } = useLlmProfiles();
+  const items = [
+    {
+      key: "",
+      label: t(I18nKey.SETTINGS$CONDENSER_LLM_PROFILE_USE_CONVERSATION),
+    },
+    ...(llmProfiles?.profiles.map((profile) => ({
+      key: profile.name,
+      label: profile.model
+        ? t(I18nKey.SETTINGS$TITLE_GENERATION_PROFILE_OPTION, {
+            name: profile.name,
+            model: profile.model,
+          })
+        : profile.name,
+    })) ?? []),
+    ...(value && !llmProfiles?.profiles.some((profile) => profile.name === value)
+      ? [{ key: value, label: value }]
+      : []),
+  ];
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <SettingsDropdownInput
+        testId={`sdk-settings-${field.key}`}
+        name={field.key}
+        label={label}
+        items={items}
+        selectedKey={value || ""}
+        isClearable={false}
+        isLoading={isLoading}
+        isDisabled={isDisabled}
+        onSelectionChange={(selectedKey) => onChange(String(selectedKey ?? ""))}
       />
       <FieldHelp field={field} />
     </div>
