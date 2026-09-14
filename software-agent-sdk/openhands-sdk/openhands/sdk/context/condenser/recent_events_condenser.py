@@ -1,3 +1,4 @@
+from typing import ClassVar
 from uuid import uuid4
 
 from pydantic import Field
@@ -166,11 +167,72 @@ class RecentEventsCondenser(CondenserBase):
         """Build the Condensation that answers an explicit request.
 
         With ``forgotten_ids`` the trim becomes permanent (the user asked for
-        it); with an empty set it only clears the request flag.
+        it); with an empty set it only clears the request flag. When events
+        are permanently forgotten, a compact deterministic action ledger is
+        attached for free (no LLM call): without it a summarizing-free
+        condenser makes the agent forget finished work and repeat it.
         """
+        summary: str | None = None
+        if forgotten_ids:
+            summary = RecentEventsCondenser._build_ledger_summary(
+                view, forgotten_ids
+            )
         return Condensation(
             forgotten_event_ids=forgotten_ids,
-            summary=None,
+            summary=summary,
             summary_offset=None,
             llm_response_id=f"recent-events-condenser-{uuid4()}",
         )
+
+    _LEDGER_MAX_CHARS: ClassVar[int] = 1200
+
+    @staticmethod
+    def _build_ledger_summary(view: View, forgotten_ids: set[str]) -> str:
+        """Deterministic, LLM-free ledger of what the forgotten range contains.
+
+        Lists the user's original goal and every tool action with a short
+        argument digest so the agent keeps the thread of what was already done
+        (and does not repeat it) even though the details were dropped.
+        """
+        from openhands.sdk.context.condenser.utils import render_event_for_summary
+
+        goal: str | None = None
+        actions: list[str] = []
+        for event in view.events:
+            if event.id not in forgotten_ids:
+                continue
+            kind = type(event).__name__
+            if kind == "MessageEvent" and goal is None:
+                if getattr(event, "source", "") == "user":
+                    goal = render_event_for_summary(event, text_limit=200)
+            elif kind == "ActionEvent":
+                actions.append(
+                    render_event_for_summary(event, args_limit=120)
+                )
+
+        lines: list[str] = [
+            "[Condensed history ledger — details were dropped, the facts below"
+            " are preserved]"
+        ]
+        if goal:
+            lines.append(f"Original task: {goal}")
+        if actions:
+            keep = actions
+            tail_note = ""
+            if len(actions) > 24:
+                keep = actions[-24:]
+                tail_note = (
+                    f"[... {len(actions) - len(keep)} earlier actions omitted]"
+                )
+            lines.append("Executed actions (do not redo these blindly):")
+            lines.extend(f"- {action}" for action in keep)
+            if tail_note:
+                lines.append(tail_note)
+
+        text = "\n".join(lines)
+        if len(text) > RecentEventsCondenser._LEDGER_MAX_CHARS:
+            text = (
+                text[: RecentEventsCondenser._LEDGER_MAX_CHARS].rstrip()
+                + "..."
+            )
+        return text
